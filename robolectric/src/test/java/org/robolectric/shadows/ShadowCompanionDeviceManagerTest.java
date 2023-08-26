@@ -1,5 +1,6 @@
 package org.robolectric.shadows;
 
+import static android.Manifest.permission.ASSOCIATE_COMPANION_DEVICES;
 import static android.os.Build.VERSION_CODES.O;
 import static androidx.test.core.app.ApplicationProvider.getApplicationContext;
 import static com.google.common.truth.Truth.assertThat;
@@ -7,10 +8,10 @@ import static org.junit.Assert.assertThrows;
 import static org.robolectric.Shadows.shadowOf;
 
 import android.app.Application;
-import android.companion.AssociatedDevice;
 import android.companion.AssociationInfo;
 import android.companion.AssociationRequest;
 import android.companion.CompanionDeviceManager;
+import android.companion.DeviceNotAssociatedException;
 import android.content.ComponentName;
 import android.content.IntentSender;
 import android.net.MacAddress;
@@ -30,16 +31,18 @@ import org.robolectric.util.ReflectionHelpers.ClassParameter;
 public class ShadowCompanionDeviceManagerTest {
 
   private static final String MAC_ADDRESS = "AA:BB:CC:DD:FF:EE";
+  private static final String PACKAGE_NAME = "org.robolectric";
 
+  private final Application application = getApplicationContext();
   private CompanionDeviceManager companionDeviceManager;
   private ShadowCompanionDeviceManager shadowCompanionDeviceManager;
   private ComponentName componentName;
 
   @Before
   public void setUp() throws Exception {
-    companionDeviceManager = getApplicationContext().getSystemService(CompanionDeviceManager.class);
+    companionDeviceManager = application.getSystemService(CompanionDeviceManager.class);
     shadowCompanionDeviceManager = shadowOf(companionDeviceManager);
-    componentName = new ComponentName(getApplicationContext(), Application.class);
+    componentName = new ComponentName(application, Application.class);
   }
 
   @Test
@@ -121,23 +124,67 @@ public class ShadowCompanionDeviceManagerTest {
 
   @Test
   @Config(minSdk = VERSION_CODES.TIRAMISU)
+  public void testAddAssociation_byAssociationInfo_defaultValue() {
+    AssociationInfoBuilder infoBuilder =
+        AssociationInfoBuilder.newBuilder()
+            .setId(1)
+            .setUserId(1)
+            .setDeviceMacAddress(MAC_ADDRESS)
+            .setDisplayName("displayName")
+            .setSystemDataSyncFlags(-1);
+    AssociationInfo info = infoBuilder.build();
+
+    AssociationInfoBuilder expectedInfoBuilder =
+        AssociationInfoBuilder.newBuilder()
+            .setId(1)
+            .setUserId(1)
+            .setDeviceMacAddress(MAC_ADDRESS)
+            .setDisplayName("displayName")
+            .setSelfManaged(false)
+            .setNotifyOnDeviceNearby(false)
+            .setApprovedMs(0)
+            .setLastTimeConnectedMs(0)
+            .setSystemDataSyncFlags(-1);
+    AssociationInfo expectedInfo = expectedInfoBuilder.build();
+    assertThat(companionDeviceManager.getAssociations()).isEmpty();
+    shadowCompanionDeviceManager.addAssociation(info);
+    assertThat(companionDeviceManager.getMyAssociations()).contains(expectedInfo);
+  }
+
+  @Test
+  @Config(minSdk = VERSION_CODES.TIRAMISU)
   public void testAddAssociation_byAssociationInfo() {
-    AssociationInfo info =
-        new AssociationInfo(
-            /* id= */ 1,
-            /* userId= */ 1,
-            "packageName",
-            "tag",
-            MacAddress.fromString(MAC_ADDRESS),
-            "displayName",
-            "deviceProfile",
-            /* AssociatedDevice*/ null,
-            /* selfManaged= */ false,
-            /* notifyOnDeviceNearby= */ false,
-            /* revoked */ false,
-            /* timeApprovedMs= */ 0,
-            /* lastTimeConnectedMs= */ 0,
-            /* systemDataSyncFlags= */ -1);
+    AssociationInfoBuilder infoBuilder =
+        AssociationInfoBuilder.newBuilder()
+            .setId(1)
+            .setUserId(1)
+            .setPackageName("packageName")
+            .setDeviceMacAddress(MAC_ADDRESS)
+            .setDisplayName("displayName")
+            .setSelfManaged(false)
+            .setNotifyOnDeviceNearby(false)
+            .setApprovedMs(0)
+            .setLastTimeConnectedMs(0);
+    Object associatedDeviceValue = null;
+    if (ReflectionHelpers.hasField(AssociationInfo.class, "mAssociatedDevice")) {
+      try {
+        Class<?> associatedDeviceClazz = Class.forName("android.companion.AssociatedDevice");
+        associatedDeviceValue = ReflectionHelpers.newInstance(associatedDeviceClazz);
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+      infoBuilder = infoBuilder.setAssociatedDevice(associatedDeviceValue);
+    }
+    int systemDataSyncFlagsValue = 1;
+    if (ReflectionHelpers.hasField(AssociationInfo.class, "mSystemDataSyncFlags")) {
+      infoBuilder = infoBuilder.setSystemDataSyncFlags(systemDataSyncFlagsValue);
+    }
+    AssociationInfo info = infoBuilder.build();
+    if (ReflectionHelpers.hasField(AssociationInfo.class, "mSystemDataSyncFlags")) {
+      int systemDataSyncFlags =
+          ReflectionHelpers.callInstanceMethod(info, "getSystemDataSyncFlags");
+      assertThat(systemDataSyncFlags).isEqualTo(systemDataSyncFlagsValue);
+    }
     assertThat(companionDeviceManager.getAssociations()).isEmpty();
     shadowCompanionDeviceManager.addAssociation(info);
     assertThat(companionDeviceManager.getMyAssociations()).contains(info);
@@ -202,6 +249,102 @@ public class ShadowCompanionDeviceManagerTest {
         companionDeviceManager, "notifyDeviceAppeared", ClassParameter.from(int.class, 1));
   }
 
+  @Test
+  @Config(minSdk = VERSION_CODES.TIRAMISU)
+  public void testStartObservingDevicePresence_deviceNotAssociated_throwsException() {
+    assertThrows(
+        DeviceNotAssociatedException.class,
+        () -> companionDeviceManager.startObservingDevicePresence(MAC_ADDRESS));
+    assertThat(shadowCompanionDeviceManager.getLastObservingDevicePresenceDeviceAddress())
+        .isEqualTo(MAC_ADDRESS);
+  }
+
+  @Test
+  @Config(minSdk = VERSION_CODES.TIRAMISU)
+  public void testStartObservingDevicePresence_deviceAssociated_presenceObserved() {
+    shadowCompanionDeviceManager.addAssociation(MAC_ADDRESS);
+
+    companionDeviceManager.startObservingDevicePresence(MAC_ADDRESS);
+    assertThat(shadowCompanionDeviceManager.getLastObservingDevicePresenceDeviceAddress())
+        .isEqualTo(MAC_ADDRESS);
+  }
+
+  @Test
+  @Config(minSdk = VERSION_CODES.TIRAMISU)
+  public void
+      testGetLastObservingDevicePresenceDeviceAddress_startObservingDevicePresenceNotCalled_returnsNull() {
+    assertThat(shadowCompanionDeviceManager.getLastObservingDevicePresenceDeviceAddress()).isNull();
+  }
+
+  @Test
+  @Config(minSdk = VERSION_CODES.TIRAMISU)
+  public void testAssociate_systemApi_deviceAssociated() {
+    MacAddress macAddress = MacAddress.fromString(MAC_ADDRESS);
+    shadowOf(application).grantPermissions(ASSOCIATE_COMPANION_DEVICES);
+
+    companionDeviceManager.associate(PACKAGE_NAME, macAddress, new byte[] {0x01});
+    assertThat(companionDeviceManager.getAssociations()).contains(macAddress.toString());
+    assertThat(shadowCompanionDeviceManager.getLastSystemApiAssociationMacAddress())
+        .isEqualTo(macAddress);
+  }
+
+  @Test
+  @Config(minSdk = VERSION_CODES.TIRAMISU)
+  public void testGetLastSystemApiAssociationMacAddress_associateCalled_returnsLastMacAddress() {
+    MacAddress macAddress = MacAddress.fromString(MAC_ADDRESS);
+    shadowOf(application).grantPermissions(ASSOCIATE_COMPANION_DEVICES);
+
+    companionDeviceManager.associate(PACKAGE_NAME, macAddress, new byte[] {0x01});
+    assertThat(companionDeviceManager.getAssociations()).contains(macAddress.toString());
+    assertThat(shadowCompanionDeviceManager.getLastSystemApiAssociationMacAddress())
+        .isEqualTo(macAddress);
+  }
+
+  @Test
+  @Config(minSdk = VERSION_CODES.TIRAMISU)
+  public void testGetLastSystemApiAssociationMacAddress_associateNotCalled_returnsNull() {
+    assertThat(shadowCompanionDeviceManager.getLastSystemApiAssociationMacAddress()).isNull();
+  }
+
+  @Test
+  @Config(minSdk = VERSION_CODES.TIRAMISU)
+  public void testAssociate_systemApi_permissionDeniedDeviceNotAssociated() {
+    MacAddress macAddress = MacAddress.fromString(MAC_ADDRESS);
+    shadowOf(application).denyPermissions(ASSOCIATE_COMPANION_DEVICES);
+
+    assertThrows(
+        SecurityException.class,
+        () -> companionDeviceManager.associate(PACKAGE_NAME, macAddress, new byte[] {0x01}));
+    assertThat(shadowCompanionDeviceManager.getLastSystemApiAssociationMacAddress())
+        .isEqualTo(macAddress);
+  }
+
+  @Test
+  @Config(minSdk = VERSION_CODES.TIRAMISU)
+  public void testAssociate_systemApi_badPackageNameDeviceNotAssociated() {
+    MacAddress macAddress = MacAddress.fromString(MAC_ADDRESS);
+    shadowOf(application).grantPermissions(ASSOCIATE_COMPANION_DEVICES);
+
+    assertThrows(
+        SecurityException.class,
+        () -> companionDeviceManager.associate("some.package", macAddress, new byte[] {0x01}));
+    assertThat(shadowCompanionDeviceManager.getLastSystemApiAssociationMacAddress())
+        .isEqualTo(macAddress);
+  }
+
+  @Test
+  @Config(minSdk = VERSION_CODES.TIRAMISU)
+  public void testAssociate_systemApi_badCertificateDeviceNotAssociated() {
+    MacAddress macAddress = MacAddress.fromString(MAC_ADDRESS);
+    shadowOf(application).grantPermissions(ASSOCIATE_COMPANION_DEVICES);
+
+    assertThrows(
+        SecurityException.class,
+        () -> companionDeviceManager.associate(PACKAGE_NAME, macAddress, null));
+    assertThat(shadowCompanionDeviceManager.getLastSystemApiAssociationMacAddress())
+        .isEqualTo(macAddress);
+  }
+
   private CompanionDeviceManager.Callback createCallback() {
     return new CompanionDeviceManager.Callback() {
       @Override
@@ -210,5 +353,40 @@ public class ShadowCompanionDeviceManagerTest {
       @Override
       public void onFailure(CharSequence error) {}
     };
+  }
+
+  /** Create {@link AssociationInfo}. */
+  private AssociationInfo createDefaultAssociationInfo() {
+    AssociationInfoBuilder aiBuilder = AssociationInfoBuilder.newBuilder()
+        .setId(1)
+        .setUserId(1)
+        .setPackageName("packageName")
+        .setDeviceMacAddress(MAC_ADDRESS)
+        .setDisplayName("displayName")
+        .setDeviceProfile("deviceProfile")
+        .setSelfManaged(false)
+        .setNotifyOnDeviceNearby(false)
+        .setApprovedMs(0)
+        .setLastTimeConnectedMs(0);
+
+    if (ReflectionHelpers.hasField(AssociationInfo.class, "mTag")) {
+      ReflectionHelpers.callInstanceMethod(
+          aiBuilder, "setTag", ClassParameter.from(String.class, "tag"));
+    }
+    if (ReflectionHelpers.hasField(AssociationInfo.class, "mAssociatedDevice")) {
+      ReflectionHelpers.callInstanceMethod(
+          aiBuilder,
+          "setAssociatedDevice",
+          ClassParameter.from(Object.class, null));
+      ReflectionHelpers.callInstanceMethod(
+          aiBuilder,
+          "setSystemDataSyncFlags",
+          ClassParameter.from(int.class, -1));
+    }
+    if (ReflectionHelpers.hasField(AssociationInfo.class, "mRevoked")) {
+      ReflectionHelpers.callInstanceMethod(
+          aiBuilder, "setRevoked", ClassParameter.from(boolean.class, false));
+    }
+    return aiBuilder.build();
   }
 }

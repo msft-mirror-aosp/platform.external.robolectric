@@ -16,6 +16,8 @@ package {
     default_visibility: [
         "//external/robolectric:__subpackages__",
         "//test/robolectric-extensions:__subpackages__",
+        "//frameworks/base/packages/SettingsLib/tests/robotests:__subpackages__",
+        "//packages/apps/Settings/tests/robotests:__subpackages__"
     ],
     default_applicable_licenses: ["external_robolectric_license"],
 }
@@ -60,8 +62,9 @@ robolectric_build_props {
     name: "robolectric_build_props_upstream",
 }
 
-java_genrule_host {
+java_genrule {
     name: "robolectric_framework_res_upstream",
+    host_supported: true,
     tools: ["zip2zip"],
     srcs: [":framework-res"],
     out: ["robolectric_framework_res_upstream.jar"],
@@ -118,6 +121,7 @@ java_library_host {
         ":__subpackages__",
         "//prebuilts/misc/common/robolectric",
         "//test/robolectric-extensions:__subpackages__",
+        "//frameworks/base/packages/SettingsLib/tests/robotests:__subpackages__",
     ],
 }
 
@@ -209,7 +213,7 @@ java_host_for_device {
       "//external/mobile-data-download/javatests:__pkg__",
       "//frameworks/base/services/robotests:__pkg__",
       "//frameworks/base/services/robotests/backup:__pkg__",
-      "//frameworks/base/packages/SettingsLib/tests/robotests:__pkg__",
+      "//frameworks/base/packages/SettingsLib/tests/robotests:__subpackages__",
       "//frameworks/base/packages/SystemUI:__pkg__",
       "//frameworks/opt/car/setupwizard/library/main/tests/robotests:__pkg__",
       "//frameworks/opt/localepicker/tests:__pkg__",

@@ -35,6 +35,7 @@ java_library_host {
         "Robolectric_pluginapi_upstream",
         "Robolectric_sandbox_upstream",
         "Robolectric_shadowapi_upstream",
+        "Robolectric_shadows_versioning_upstream",
         "Robolectric_utils_upstream",
         "Robolectric_utils_reflector_upstream",
         "auto_value_annotations",

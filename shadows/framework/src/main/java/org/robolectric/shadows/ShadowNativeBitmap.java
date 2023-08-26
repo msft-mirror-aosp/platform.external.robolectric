@@ -18,12 +18,14 @@ import android.graphics.ColorSpace.Rgb.TransferParameters;
 import android.graphics.Matrix;
 import android.hardware.HardwareBuffer;
 import android.os.Parcel;
+import android.os.Parcelable;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.Buffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.RealObject;
@@ -35,6 +37,7 @@ import org.robolectric.nativeruntime.NativeAllocationRegistryNatives;
 import org.robolectric.util.reflector.Accessor;
 import org.robolectric.util.reflector.ForType;
 import org.robolectric.util.reflector.Static;
+import org.robolectric.versioning.AndroidVersions.U;
 
 /** Shadow for {@link Bitmap} that is backed by native code */
 @Implements(value = Bitmap.class, looseSignatures = true, minSdk = O, isInAndroidSdk = false)
@@ -374,6 +377,16 @@ public class ShadowNativeBitmap extends ShadowBitmap {
     int[] pixels = new int[width * height];
     realBitmap.getPixels(pixels, 0, width, 0, 0, width, height);
     p.writeIntArray(pixels);
+
+    if (RuntimeEnvironment.getApiLevel() >= U.SDK_INT) {
+      Object gainmap = reflector(BitmapReflector.class, realBitmap).getGainmap();
+      if (gainmap != null) {
+        p.writeBoolean(true);
+        p.writeTypedObject((Parcelable) gainmap, flags);
+      } else {
+        p.writeBoolean(false);
+      }
+    }
   }
 
   @Implementation
@@ -411,11 +424,6 @@ public class ShadowNativeBitmap extends ShadowBitmap {
       bitmap = bitmap.copy(parceledConfig, false);
     }
     return bitmap;
-  }
-
-  @ForType(Bitmap.class)
-  interface BitmapReflector {
-    void checkRecycled(String errorMessage);
   }
 
   @Override

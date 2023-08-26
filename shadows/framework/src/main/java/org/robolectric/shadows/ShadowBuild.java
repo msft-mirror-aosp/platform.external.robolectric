@@ -23,10 +23,13 @@ public class ShadowBuild {
   private static String serialOverride = Build.UNKNOWN;
 
   /**
-   * Temporary constant for VERSION_CODES.UPSIDE_DOWN_CAKE. Will be removed and replaced once the
-   * constant is available upstream.
+   * Sets the value of the {@link Build#BOARD} field.
+   *
+   * <p>It will be reset for the next test.
    */
-  public static final int UPSIDE_DOWN_CAKE = 34;
+  public static void setBoard(String board) {
+    ReflectionHelpers.setStaticField(Build.class, "BOARD", board);
+  }
 
   /**
    * Sets the value of the {@link Build#DEVICE} field.

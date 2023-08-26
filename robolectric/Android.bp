@@ -63,6 +63,7 @@ java_test_host {
         "Robolectric_shadows_framework_upstream",
         "Robolectric_annotations_upstream",
         "Robolectric_shadowapi_upstream",
+        "Robolectric_shadows_versioning_upstream",
         "Robolectric_resources_upstream",
         "Robolectric_sandbox_upstream",
         "Robolectric_junit_upstream",

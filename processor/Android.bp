@@ -24,6 +24,7 @@ java_library_host {
     static_libs: [
         "Robolectric_annotations_upstream",
         "Robolectric_shadowapi_upstream",
+        "Robolectric_shadows_versioning_upstream",
         "auto_service_annotations",
         "asm-commons-9.2",
         "guava",

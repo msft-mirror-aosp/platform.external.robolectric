@@ -34,8 +34,10 @@ import org.robolectric.util.reflector.Accessor;
 import org.robolectric.util.reflector.Direct;
 import org.robolectric.util.reflector.ForType;
 import org.robolectric.util.reflector.Static;
+import org.robolectric.versioning.AndroidVersions.U;
 
-@Implements(value = InputMethodManager.class)
+/** Shadow for InputMethodManager. */
+@Implements(value = InputMethodManager.class, looseSignatures = true)
 public class ShadowInputMethodManager {
 
   /**
@@ -79,6 +81,13 @@ public class ShadowInputMethodManager {
   protected boolean showSoftInput(
       View view, int flags, ResultReceiver resultReceiver, int ignoredReason) {
     return showSoftInput(view, flags, resultReceiver);
+  }
+
+  @Implementation(minSdk = U.SDK_INT)
+  protected boolean showSoftInput(
+      Object view, Object statsToken, Object flags, Object resultReceiver, Object reason) {
+    return showSoftInput(
+        (View) view, (Integer) flags, (ResultReceiver) resultReceiver, (Integer) reason);
   }
 
   @Implementation(minSdk = S)
