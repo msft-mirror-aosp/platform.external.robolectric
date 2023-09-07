@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
 import static com.google.common.truth.Truth.assertThat;
 
 import android.icu.text.DateFormat;
@@ -16,9 +15,10 @@ import android.text.format.DateIntervalFormat;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.annotation.Config;
+import org.robolectric.versioning.AndroidVersions.U;
 
 @RunWith(AndroidJUnit4.class)
-@Config(minSdk = UPSIDE_DOWN_CAKE)
+@Config(minSdk = U.SDK_INT)
 public class ShadowDateIntervalFormatTest {
   @Test
   public void testDateInterval_FormatDateRange() throws ParseException {
