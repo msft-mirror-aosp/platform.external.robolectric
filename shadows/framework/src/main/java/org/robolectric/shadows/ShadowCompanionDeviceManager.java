@@ -262,7 +262,7 @@ public class ShadowCompanionDeviceManager {
     }
     boolean revoked = false;
     if (ReflectionHelpers.hasField(AssociationInfo.class, "mRevoked")) {
-      revoked = ReflectionHelpers.callInstanceMethod(info, "revoked");
+      revoked = ReflectionHelpers.callInstanceMethod(info, "isRevoked");
     }
     String tag = "";
     if (ReflectionHelpers.hasField(AssociationInfo.class, "mTag")) {
@@ -340,6 +340,8 @@ public class ShadowCompanionDeviceManager {
           .setUserId(1)
           .setSelfManaged(false)
           .setNotifyOnDeviceNearby(false)
+          .setRevoked(false)
+          .setAssociatedDevice(null)
           .setTimeApprovedMs(0)
           .setLastTimeConnectedMs(0)
           .setSystemDataSyncFlags(DEFAULT_SYSTEMDATASYNCFLAGS);
