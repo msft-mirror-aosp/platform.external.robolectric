@@ -60,7 +60,7 @@ java_test_host {
         "guava",
         "asm-tree-9.2",
         "junit",
-        "truth-prebuilt",
+        "truth",
         "robolectric-ant-1.8.0",
         "asm-9.2",
         "jsr305",

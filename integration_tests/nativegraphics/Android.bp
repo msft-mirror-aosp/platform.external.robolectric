@@ -52,7 +52,7 @@ android_robolectric_test {
         "android.test.runner",
         "android.test.base",
         "android.test.mock",
-        "truth-prebuilt",
+        "truth",
     ],
     upstream: true,
     java_resource_dirs: ["config"],

@@ -26,7 +26,7 @@ android_robolectric_test {
         "android.test.runner",
         "android.test.base",
         "android.test.mock",
-        "truth-prebuilt",
+        "truth",
         "guava",
     ],
     upstream: true,

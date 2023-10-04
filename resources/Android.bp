@@ -43,7 +43,7 @@ java_test_host {
         "guava",
         "objenesis",
         "junit",
-        "truth-prebuilt",
+        "truth",
         "jsr305",
     ],
     java_resource_dirs: ["src/test/resources"],
