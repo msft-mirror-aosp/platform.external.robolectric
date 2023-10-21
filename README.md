@@ -5,7 +5,7 @@
 
 Robolectric is the industry-standard unit testing framework for Android. With Robolectric, your tests run in a simulated Android environment inside a JVM, without the overhead and flakiness of an emulator. Robolectric tests routinely run 10x faster than those on cold-started emulators.
 
-Robolectric supports running unit tests for *17* different versions of Android, ranging from Jelly Bean (API level 16) to TIRAMISU (API level 33).
+Robolectric supports running unit tests for *15* different versions of Android, ranging from KitKat (API level 19) to U (API level 34).
 
 ## Usage
 
@@ -51,8 +51,8 @@ Robolectric is built using Gradle. Both IntelliJ and Android Studio can import t
 
 Those software configurations are recommended and tested.
 
-- JDK 11. Gradle JVM should be set to Java 11.
-  - For command line, make sure the environment variable `JAVA_HOME` is correctly point to JDK11, or set the build environment by [Gradle CLI option](https://docs.gradle.org/current/userguide/command_line_interface.html#sec:environment_options) `-Dorg.gradle.java.home="YourJdkHomePath"` or by [Gradle Properties](https://docs.gradle.org/current/userguide/build_environment.html#sec:gradle_configuration_properties) `org.gradle.java.home=YourJdkHomePath`.
+- JDK 17. Gradle JVM should be set to Java 17.
+  - For command line, make sure the environment variable `JAVA_HOME` is correctly point to JDK17, or set the build environment by [Gradle CLI option](https://docs.gradle.org/current/userguide/command_line_interface.html#sec:environment_options) `-Dorg.gradle.java.home="YourJdkHomePath"` or by [Gradle Properties](https://docs.gradle.org/current/userguide/build_environment.html#sec:gradle_configuration_properties) `org.gradle.java.home=YourJdkHomePath`.
   - For both IntelliJ and Android Studio, see _Settings/Preferences | Build, Execution, Deployment | Build Tools | Gradle_.
 
 See [Building Robolectric](http://robolectric.org/building-robolectric/) for more details about setting up a build environment for Robolectric.

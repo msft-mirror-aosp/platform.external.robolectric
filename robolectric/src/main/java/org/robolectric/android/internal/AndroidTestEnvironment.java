@@ -8,6 +8,7 @@ import static org.robolectric.util.reflector.Reflector.reflector;
 
 import android.annotation.SuppressLint;
 import android.app.ActivityThread;
+import android.app.AppCompatCallbacks;
 import android.app.Application;
 import android.app.Instrumentation;
 import android.app.LoadedApk;
@@ -374,6 +375,11 @@ public class AndroidTestEnvironment implements TestEnvironment {
         populateAssetPaths(appResources.getAssets(), appManifest);
       }
 
+      // circument the 'No Compatibility callbacks set!' log. See #8509
+      if (RuntimeEnvironment.getApiLevel() >= VERSION_CODES.R) {
+        AppCompatCallbacks.install(new long[0]);
+      }
+
       PerfStatsCollector.getInstance()
           .measure(
               "application onCreate()",
@@ -413,7 +419,12 @@ public class AndroidTestEnvironment implements TestEnvironment {
       RuntimeEnvironment.compileTimeSystemResourcesFile = compileSdk.getJarPath();
 
       Path packageFile = appManifest.getApkFile();
-      parsedPackage = ShadowPackageParser.callParsePackage(packageFile);
+      if (packageFile != null) {
+        parsedPackage = ShadowPackageParser.callParsePackage(packageFile);
+      } else {
+        parsedPackage = new Package("org.robolectric.default");
+        parsedPackage.applicationInfo.targetSdkVersion = appManifest.getTargetSdkVersion();
+      }
     }
     if (parsedPackage != null
         && parsedPackage.applicationInfo != null

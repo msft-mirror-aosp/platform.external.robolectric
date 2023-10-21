@@ -141,6 +141,8 @@ public class ShadowApplicationPackageManager extends ShadowPackageManager {
 
   @RealObject private ApplicationPackageManager realObject;
   private final List<String> clearedApplicationUserDataPackages = new ArrayList<>();
+  // A map of UserIDs to default browsers.
+  private final HashMap<Integer, String> defaultBrowsers = new HashMap<>();
 
   @Implementation
   public List<PackageInfo> getInstalledPackages(int flags) {
@@ -785,6 +787,13 @@ public class ShadowApplicationPackageManager extends ShadowPackageManager {
   @Implementation(minSdk = JELLY_BEAN_MR1)
   protected List<ResolveInfo> queryIntentActivitiesAsUser(Intent intent, int flags, int userId) {
     return queryIntentActivities(intent, flags);
+  }
+
+  /** Behaves as {@link #queryIntentActivities(Intent, int)} and currently ignores userId. */
+  @Implementation(minSdk = TIRAMISU)
+  protected List<ResolveInfo> queryIntentActivitiesAsUser(
+      /*Intent*/ Object intent, /*ResolveInfoFlags*/ Object flags, /*int*/ Object userId) {
+    return queryIntentActivities((Intent) intent, (int) ((ResolveInfoFlags) flags).getValue());
   }
 
   /** Returns true if intent has specified a specific component. */
@@ -1843,12 +1852,13 @@ public class ShadowApplicationPackageManager extends ShadowPackageManager {
 
   @Implementation(minSdk = N)
   protected String getDefaultBrowserPackageNameAsUser(int userId) {
-    return null;
+    return defaultBrowsers.get(userId);
   }
 
   @Implementation(minSdk = N)
   protected boolean setDefaultBrowserPackageNameAsUser(String packageName, int userId) {
-    return false;
+    defaultBrowsers.put(userId, packageName);
+    return true;
   }
 
   @Implementation(minSdk = M)
