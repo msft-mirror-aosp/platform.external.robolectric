@@ -8,11 +8,6 @@ android_robolectric_test {
         "src/sharedTest/**/*.java",
         "src/sharedTest/**/*.kt",
     ],
-    exclude_srcs: [
-        // TODO(b/286353161): Re-enable this test once loading resources from XML
-        // for older SDK versions is resolved.
-        "src/sharedTest/java/android/content/res/ResourcesTest.java",
-    ],
     static_libs: [
         "androidx.core_core",
         "androidx.test.uiautomator_uiautomator",
