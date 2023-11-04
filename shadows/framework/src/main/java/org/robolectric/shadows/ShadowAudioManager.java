@@ -10,6 +10,7 @@ import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.R;
 import static android.os.Build.VERSION_CODES.S;
 import static org.robolectric.util.ReflectionHelpers.ClassParameter.from;
+import static org.robolectric.util.reflector.Reflector.reflector;
 
 import android.annotation.NonNull;
 import android.annotation.RequiresPermission;
@@ -40,11 +41,15 @@ import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.HiddenApi;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
+import org.robolectric.annotation.RealObject;
 import org.robolectric.util.ReflectionHelpers;
+import org.robolectric.util.reflector.Constructor;
+import org.robolectric.util.reflector.ForType;
 
 @SuppressWarnings({"UnusedDeclaration"})
 @Implements(value = AudioManager.class, looseSignatures = true)
 public class ShadowAudioManager {
+  @RealObject AudioManager realAudioManager;
 
   public static final int MAX_VOLUME_MUSIC_DTMF = 15;
   public static final int DEFAULT_MAX_VOLUME = 7;
@@ -205,7 +210,18 @@ public class ShadowAudioManager {
 
   @Implementation
   protected void setMode(int mode) {
+    int previousMode = this.mode;
     this.mode = mode;
+    if (RuntimeEnvironment.getApiLevel() >= S && mode != previousMode) {
+      dispatchModeChangedListeners(mode);
+    }
+  }
+
+  private void dispatchModeChangedListeners(int newMode) {
+    Object modeDispatcherStub =
+        reflector(ModeDispatcherStubReflector.class).newModeDispatcherStub(realAudioManager);
+    reflector(ModeDispatcherStubReflector.class, modeDispatcherStub)
+        .dispatchAudioModeChanged(newMode);
   }
 
   @Implementation
@@ -213,6 +229,13 @@ public class ShadowAudioManager {
     return this.mode;
   }
 
+  @ForType(className = "android.media.AudioManager$ModeDispatcherStub")
+  interface ModeDispatcherStubReflector {
+    @Constructor
+    Object newModeDispatcherStub(AudioManager audioManager);
+
+    void dispatchAudioModeChanged(int newMode);
+  }
   public void setStreamMaxVolume(int streamMaxVolume) {
     streamStatus.forEach((key, value) -> value.setMaxVolume(streamMaxVolume));
   }
