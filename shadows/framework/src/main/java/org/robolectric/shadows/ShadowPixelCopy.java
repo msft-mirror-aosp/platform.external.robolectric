@@ -33,7 +33,6 @@ import android.view.WindowManagerGlobal;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.android.internal.R;
-import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.util.function.Consumer;
 import org.robolectric.annotation.Implementation;
@@ -286,34 +285,42 @@ public class ShadowPixelCopy {
     int width = view.getWidth();
     int height = view.getHeight();
 
-    ImageReader imageReader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 1);
-    HardwareRenderer renderer = new HardwareRenderer();
-    renderer.setSurface(imageReader.getSurface());
-    Image nativeImage = imageReader.acquireNextImage();
+    try (ImageReader imageReader =
+        ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 1)) {
+      // Note on pixel format:
+      // - Android Bitmap requires ARGB_8888.
+      // - ImageReader is configured as RGBA_8888.
+      // - However the native libs/hwui/pipeline/skia/SkiaHostPipeline.cpp always treats
+      //   the buffer as BGRA_8888, thus matching what the Android Bitmap object requires.
 
-    setupRendererShadowProperties(renderer, view);
+      HardwareRenderer renderer = new HardwareRenderer();
+      Surface surface = imageReader.getSurface();
+      renderer.setSurface(surface);
+      Image nativeImage = imageReader.acquireNextImage();
 
-    RenderNode node = getRenderNode(view);
-    renderer.setContentRoot(node);
+      setupRendererShadowProperties(renderer, view);
 
-    renderer.createRenderRequest().syncAndDraw();
+      RenderNode node = getRenderNode(view);
+      renderer.setContentRoot(node);
 
-    int[] renderPixels = new int[width * height];
+      renderer.createRenderRequest().syncAndDraw();
 
-    Plane[] planes = nativeImage.getPlanes();
-    IntBuffer srcBuff = planes[0].getBuffer().order(ByteOrder.BIG_ENDIAN).asIntBuffer();
-    IntBuffer dstBuff = IntBuffer.wrap(renderPixels);
-    int len = srcBuff.remaining();
-    // Read source RGBA and write dest as ARGB.
-    for (int j = 0; j < len; j++) {
-      int s = srcBuff.get();
-      int a = s << 24;
-      int rgb = s >>> 8;
-      dstBuff.put(a + rgb);
+      int[] renderPixels = new int[width * height];
+
+      Plane[] planes = nativeImage.getPlanes();
+      IntBuffer srcBuff = planes[0].getBuffer().asIntBuffer();
+      srcBuff.get(renderPixels);
+
+      destBitmap.setPixels(
+          renderPixels,
+          /* offset= */ 0,
+          /* stride= */ width,
+          /* x= */ 0,
+          /* y= */ 0,
+          width,
+          height);
+      surface.release();
     }
-
-    destBitmap.setPixels(
-        renderPixels, /* offset= */ 0, /* stride= */ width, /* x= */ 0, /* y= */ 0, width, height);
   }
 
   private static RenderNode getRenderNode(View view) {
