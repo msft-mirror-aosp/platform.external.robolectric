@@ -1,15 +1,15 @@
 [versions]
-robolectric-compat = "4.10.2"
-robolectric-nativeruntime-dist-compat = "1.0.3"
+robolectric-compat = "4.11.1"
+robolectric-nativeruntime-dist-compat = "1.0.4"
 
 # https://developer.android.com/studio/releases
-android-gradle = "8.1.2"
+android-gradle = "8.1.4"
 
 # https://github.com/google/conscrypt/tags
 conscrypt = "2.5.2"
 
 # https://github.com/bcgit/bc-java/tags
-bouncycastle = "1.76"
+bouncycastle = "1.77"
 
 # https://github.com/findbugsproject/findbugs/tags
 findbugs-jsr305 = "3.0.2"
@@ -21,20 +21,23 @@ hamcrest = "2.0.0.0"
 aggregate-javadocs-gradle = "3.0.1"
 
 # https://github.com/google/error-prone/releases
-error-prone = "2.22.0"
+error-prone = "2.19.1"
 error-prone-javac = "9+181-r4173-1"
 
 # https://github.com/tbroyer/gradle-errorprone-plugin/releases
 error-prone-gradle = "3.1.0"
 
 # https://kotlinlang.org/docs/releases.html#release-details
-kotlin = "1.9.10"
+kotlin = "1.9.20"
 
 # https://github.com/Kotlin/kotlinx.coroutines/releases/
 kotlinx-coroutines = '1.7.3'
 
-# https://github.com/diffplug/spotless/blob/main/CHANGES.md
-spotless-gradle = "6.21.0"
+# https://github.com/diffplug/spotless/blob/main/plugin-gradle/CHANGES.md
+spotless-gradle = "6.22.0"
+
+# https://detekt.dev/changelog
+detekt-gradle = "1.23.3"
 
 # https://hc.apache.org/news.html
 apache-http-core = "4.0.1"
@@ -51,7 +54,7 @@ auto-value = "1.10.4"
 compile-testing = "0.21.0"
 
 # https://github.com/google/guava/releases
-guava-jre = "32.1.2-jre"
+guava-jre = "31.1-jre"
 
 # https://github.com/google/gson/releases
 gson = "2.10.1"
@@ -60,9 +63,9 @@ gson = "2.10.1"
 truth = "1.1.5"
 
 # https://github.com/unicode-org/icu/releases
-icu4j = "73.2"
+icu4j = "74.1"
 
-jacoco = "0.8.10"
+jacoco = "0.8.11"
 
 # https://github.com/javaee/javax.annotation/tags
 javax-annotation-api = "1.3.2"
@@ -70,13 +73,13 @@ javax-annotation-jsr250-api = "1.0"
 javax-inject = "1"
 
 # https://github.com/JetBrains/java-annotations/releases
-jetbrains-annotations = "24.0.1"
+jetbrains-annotations = "24.1.0"
 
 # https://junit.org/junit4/
 junit4 = "4.13.2"
 
 # https://github.com/google/libphonenumber/releases
-libphonenumber = "8.13.21"
+libphonenumber = "8.13.25"
 
 # https://github.com/mockito/mockito/releases
 mockito = "4.11.0"
@@ -85,7 +88,7 @@ mockito = "4.11.0"
 mockk = "1.13.7"
 
 # https://square.github.io/okhttp/changelogs/changelog/
-okhttp = "4.11.0"
+okhttp = "4.12.0"
 
 # https://github.com/powermock/powermock/releases
 powermock = "2.0.9"
@@ -97,10 +100,10 @@ androidx-annotation = "1.3.0"
 androidx-appcompat = "1.6.1"
 androidx-biometric = "1.1.0"
 androidx-constraintlayout = "2.1.4"
-androidx-core = "1.10.1"
-androidx-fragment = "1.6.1"
+androidx-core = "1.12.0"
+androidx-fragment = "1.6.2"
 androidx-multidex = "2.0.1"
-androidx-window = "1.1.0"
+androidx-window = "1.2.0"
 
 # https://github.com/android/android-test/tags
 androidx-test-annotation = "1.0.1"
@@ -121,6 +124,7 @@ play-services-base-for-shadows = "8.4.0"
 android-gradle = { module = "com.android.tools.build:gradle", version.ref = "android-gradle" }
 kotlin-gradle = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 spotless-gradle = { module = "com.diffplug.spotless:spotless-plugin-gradle", version.ref = "spotless-gradle" }
+detekt-gradle = { module = "io.gitlab.arturbosch.detekt:detekt-gradle-plugin", version.ref = "detekt-gradle" }
 
 kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinx-coroutines"}
