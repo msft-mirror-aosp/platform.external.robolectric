@@ -130,7 +130,6 @@ public class AndroidTestEnvironment implements TestEnvironment {
     this.shadowProviders = shadowProviders;
     this.testEnvironmentLifecyclePlugins = lifecyclePlugins;
 
-    RuntimeEnvironment.setUseLegacyResources(resourcesMode == ResourcesMode.LEGACY);
     ReflectionHelpers.setStaticField(RuntimeEnvironment.class, "apiLevel", apiLevel);
   }
 
