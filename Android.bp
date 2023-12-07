@@ -195,6 +195,7 @@ java_host_for_device {
       "//packages/modules/Connectivity/nearby/tests/multidevices/clients/test_support/snippet_helper/tests:__pkg__",
       "//packages/modules/Connectivity/nearby/tests/robotests:__pkg__",
       "//packages/modules/DeviceLock/DeviceLockController/tests/robolectric:__pkg__",
+      "//packages/modules/DeviceLock/tests/unittests:__pkg__",
       "//packages/services/Car/tests/CarLibTests:__pkg__",
       "//packages/services/Mms/tests/robotests:__pkg__",
       "//packages/apps/QuickAccessWallet/tests/robolectric:__pkg__",
@@ -216,6 +217,7 @@ java_host_for_device {
       //tm-dev additions
       "//frameworks/base/packages/BackupEncryption/test/robolectric-integration:__pkg__",
       "//frameworks/base/packages/BackupEncryption/test/robolectric:__pkg__",
+      "//packages/apps/Settings/tests/screenshot:__pkg__",
     ],
 }
 
