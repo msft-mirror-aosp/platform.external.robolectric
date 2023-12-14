@@ -214,6 +214,7 @@ java_host_for_device {
       "//packages/apps/KeyChain/robotests:__pkg__",
       "//packages/apps/CertInstaller/robotests:__pkg__",
       "//packages/providers/MediaProvider:__subpackages__",
+      "//packages/apps/TV:__subpackages__",
       //tm-dev additions
       "//frameworks/base/packages/BackupEncryption/test/robolectric-integration:__pkg__",
       "//frameworks/base/packages/BackupEncryption/test/robolectric:__pkg__",
