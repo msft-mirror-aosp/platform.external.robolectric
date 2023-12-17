@@ -173,6 +173,7 @@ java_host_for_device {
       //java references
       "//frameworks/opt/net/wifi/libs/WifiTrackerLib/tests:__pkg__",
       "//prebuilts/sdk/current/androidx:__pkg__",
+      "//prebuilts/sdk/current/androidx/m2repository/androidx/car/app/app-testing/1.4.0-alpha01:__pkg__",
       "//prebuilts/sdk/current/aaos-libs:__pkg__",
       "//packages/apps/TV/tests/common:__pkg__",
       //robolectric tests
