@@ -47,7 +47,7 @@ public class ShadowBinder {
   }
 
   @Implementation
-  protected static final int getCallingPid() {
+  protected static int getCallingPid() {
     if (callingPid != null) {
       return callingPid;
     }
@@ -55,7 +55,7 @@ public class ShadowBinder {
   }
 
   @Implementation
-  protected static final int getCallingUid() {
+  protected static int getCallingUid() {
     if (callingUid != null) {
       return callingUid;
     }
@@ -71,7 +71,7 @@ public class ShadowBinder {
    * @throws IllegalStateException if no UID has been set
    */
   @Implementation(minSdk = Q)
-  protected static final int getCallingUidOrThrow() {
+  protected static int getCallingUidOrThrow() {
     if (callingUid != null) {
       return callingUid;
     }
@@ -81,7 +81,7 @@ public class ShadowBinder {
   }
 
   @Implementation(minSdk = JELLY_BEAN_MR1)
-  protected static final UserHandle getCallingUserHandle() {
+  protected static UserHandle getCallingUserHandle() {
     if (callingUserHandle != null) {
       return callingUserHandle;
     }
