@@ -11,7 +11,10 @@ android_library {
     platform_apis: true,
     manifest: "AndroidManifest.xml",
     optimize: {
-        enabled: false
+        enabled: false,
+    },
+    lint: {
+        baseline_filename: "lint-baseline.xml",
     },
 }
 
@@ -35,6 +38,9 @@ android_app {
     kotlincflags: ["-Xjvm-default=all"],
 
     plugins: ["dagger2-compiler"],
+    lint: {
+        baseline_filename: "lint-baseline.xml",
+    },
 }
 
 android_robolectric_test {
