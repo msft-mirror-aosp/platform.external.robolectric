@@ -186,6 +186,7 @@ java_host_for_device {
       "//external/mobile-data-download/javatests:__pkg__",
       "//frameworks/base/services/robotests:__pkg__",
       "//frameworks/base/services/robotests/backup:__pkg__",
+      "//frameworks/base/packages/CredentialManager:__subpackages__",
       "//frameworks/base/packages/SettingsLib/tests/robotests:__subpackages__",
       "//frameworks/base/packages/SettingsLib/Spa/screenshot:__subpackages__",
       "//frameworks/base/packages/SystemUI:__pkg__",
