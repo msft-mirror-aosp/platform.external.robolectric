@@ -868,30 +868,32 @@ public class ShadowNativePaint {
         advancesIndex);
   }
 
+  /** Requires loose signatures because of RunInfo parameter */
   @Implementation(minSdk = V.SDK_INT)
   protected static float nGetRunCharacterAdvance(
-      long paintPtr,
-      char[] text,
-      int start,
-      int end,
-      int contextStart,
-      int contextEnd,
-      boolean isRtl,
-      int offset,
-      float[] advances,
-      int advancesIndex,
-      RectF drawingBounds) {
+      Object /* long */ paintPtr,
+      Object /* char[] */ text,
+      Object /* int */ start,
+      Object /* int */ end,
+      Object /* int */ contextStart,
+      Object /* int */ contextEnd,
+      Object /* boolean */ isRtl,
+      Object /* int */ offset,
+      Object /* float[] */ advances,
+      Object /* int */ advancesIndex,
+      Object /* RectF */ drawingBounds,
+      Object /* RunInfo */ runInfo) {
     return nGetRunCharacterAdvance(
-        paintPtr,
-        text,
-        start,
-        end,
-        contextStart,
-        contextEnd,
-        isRtl,
-        offset,
-        advances,
-        advancesIndex);
+        (long) paintPtr,
+        (char[]) text,
+        (int) start,
+        (int) end,
+        (int) contextStart,
+        (int) contextEnd,
+        (boolean) isRtl,
+        (int) offset,
+        (float[]) advances,
+        (int) advancesIndex);
   }
 
   /** Shadow picker for {@link Paint}. */
