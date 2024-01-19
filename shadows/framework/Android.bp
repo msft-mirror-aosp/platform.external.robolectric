@@ -39,16 +39,11 @@ java_library_host {
         "Robolectric_utils_upstream",
         "Robolectric_utils_reflector_upstream",
         "auto_value_annotations",
-        //jetpack
-        //"androidx.annotation_annotation-nodeps",
         "jsr305",
         "icu4j",
 
         "robolectric-accessibility-test-framework-2.1",
         "robolectric-javax.annotation-api-1.2",
-        //"hamcrest-library",
-        //"hamcrest",
-        //"stub-annotations",
         "robolectric-sqlite4java-0.282",
         "asm-commons-9.2",
         "guava",
@@ -56,9 +51,12 @@ java_library_host {
         "asm-9.2",
         //standard tools
         "error_prone_annotations",
-        //"grpc-java-netty-shaded",
         // aar files that make up android and jetpack
-        "robolectric-host-android_all_upstream",
+        "robolectric-host-android_all",
+        "robolectric-host-androidx-test-core_upstream",
+        //"robolectric-host-androidx-test-ext-junit_upstream",
+        "robolectric-host-androidx-test-monitor_upstream",
+        //"robolectric-host-androidx-test-runner_upstream",
     ],
     plugins: [
         "auto_value_plugin_1.9",

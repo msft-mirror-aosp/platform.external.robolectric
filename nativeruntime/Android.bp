@@ -32,7 +32,7 @@ java_library_host {
         "error_prone_annotations",
         "auto_service_annotations",
         // "jsr330",
-        "robolectric-host-android_all_upstream",
+        "robolectric-host-android_all",
     ],
     static_libs: [
         "robolectric_nativeruntime_native_prebuilt",

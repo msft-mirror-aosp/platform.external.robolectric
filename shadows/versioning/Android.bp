@@ -20,7 +20,7 @@ java_library_host {
         "Robolectric_utils_upstream",
         "jsr305",
     ],
-    libs: ["robolectric-host-android_all_upstream"],
+    libs: ["robolectric-host-android_all"],
 }
 
 //#############################################

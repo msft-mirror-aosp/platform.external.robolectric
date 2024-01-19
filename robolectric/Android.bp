@@ -37,7 +37,7 @@ java_library_host {
         "jsr305",
         "conscrypt-unbundled",
         "robolectric-host-androidx_test_espresso",
-        "robolectric-host-android_all_upstream",
+        "robolectric-host-android_all",
     ],
     srcs: ["src/main/java/**/*.java"],
     plugins: ["auto_service_plugin"],
@@ -92,8 +92,9 @@ java_test_host {
         "asm-9.2",
         "jsr305",
         "robolectric-host-androidx_test_espresso",
+        "robolectric-host-androidx-test-ext-truth_upstream",
     ],
-    libs: ["robolectric-host-android_all_upstream"],
+    libs: ["robolectric-host-android_all"],
     // Robolectric tests do not work well with unit tests setup yet
     test_options: {
         unit_test: false,
