@@ -69,8 +69,6 @@ public class AndroidManifest implements UsesSdk {
   private final Map<String, String> applicationAttributes = new HashMap<>();
   private MetaData applicationMetaData;
 
-  private Boolean supportsBinaryResourcesMode;
-
   /**
    * Creates a Robolectric configuration using specified locations.
    *
@@ -179,8 +177,7 @@ public class AndroidManifest implements UsesSdk {
         Document manifestDocument = db.parse(inputStream);
         inputStream.close();
 
-        Logger.debug("Manifest doc:\n" + Files.readAllLines(androidManifestFile).stream().collect(
-                Collectors.joining("\n")));
+        Logger.debug("Manifest doc location:\n%s", androidManifestFile.toString());
 
         if (!packageNameIsOverridden()) {
           packageName = getTagAttributeText(manifestDocument, "manifest", "package");
@@ -221,8 +218,7 @@ public class AndroidManifest implements UsesSdk {
         String targetSdkText =
             getTagAttributeText(manifestDocument, "uses-sdk", "android:targetSdkVersion");
         if (targetSdkText != null) {
-          // Support Android O Preview. This can be removed once Android O is officially launched.
-          targetSdkVersion = targetSdkText.equals("O") ? 26 : Integer.parseInt(targetSdkText);
+          targetSdkVersion = Integer.parseInt(targetSdkText);
         }
 
         maxSdkVersion =
@@ -243,6 +239,9 @@ public class AndroidManifest implements UsesSdk {
         System.out.println("Falling back to the Android OS resources only.");
         System.out.println(
             "To remove this warning, annotate your test class with @Config(manifest=Config.NONE).");
+        System.out.println(
+            "If you're using Android Gradle Plugin, add "
+                + "testOptions.unitTests.includeAndroidResources = true to your build.gradle");
       }
 
       if (packageName == null || packageName.equals("")) {
@@ -250,10 +249,6 @@ public class AndroidManifest implements UsesSdk {
       }
 
       rClassName = packageName + ".R";
-
-      if (androidManifestFile != null) {
-        System.err.println("No such manifest file: " + androidManifestFile);
-      }
     }
 
     manifestIsParsed = true;
@@ -856,9 +851,6 @@ public class AndroidManifest implements UsesSdk {
   /** @deprecated Do not use. */
   @Deprecated
   synchronized public boolean supportsBinaryResourcesMode() {
-    if (supportsBinaryResourcesMode == null) {
-      supportsBinaryResourcesMode = apkFile != null && Files.exists(apkFile);
-    }
-    return supportsBinaryResourcesMode;
+    return true;
   }
 }

@@ -8,6 +8,7 @@ import static org.robolectric.res.android.Util.SIZEOF_INT;
 import static org.robolectric.res.android.Util.SIZEOF_SHORT;
 import static org.robolectric.res.android.Util.dtohl;
 import static org.robolectric.res.android.Util.dtohs;
+import static org.robolectric.res.android.Util.isTruthy;
 
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
@@ -1204,7 +1205,12 @@ public static class ResTable_ref
     public int findEntryByResName(int stringId) {
       for (int i = 0; i < entryCount; i++) {
         if (entryNameIndex(i) == stringId) {
-          return i;
+          if (isTruthy(flags & ResTable_type.FLAG_SPARSE)) {
+            ResTable_sparseTypeEntry sparseEntry = getSparseEntry(i);
+            return sparseEntry.idx;
+          } else {
+            return i;
+          }
         }
       }
       return -1;
@@ -1213,14 +1219,21 @@ public static class ResTable_ref
     int entryOffset(int entryIndex) {
       ByteBuffer byteBuffer = myBuf();
       int offset = myOffset();
-      boolean isOffset16 = (flags & ResTable_type.FLAG_OFFSET16) == ResTable_type.FLAG_OFFSET16;
-      if (isOffset16) {
+      if (isTruthy(flags & ResTable_type.FLAG_OFFSET16)) {
         short off16 = byteBuffer.getShort(offset + header.headerSize + entryIndex * 2);
         if (off16 == -1) {
           return -1;
         }
         // Check for no entry (0xffff short)
-        return dtohs(off16) == 0xffff ? ResTable_type.NO_ENTRY : dtohs(off16) * 4;
+        return dtohs(off16) == -1 ? ResTable_type.NO_ENTRY : dtohs(off16) * 4;
+      } else if (isTruthy(flags & ResTable_type.FLAG_SPARSE)) {
+        ResTable_sparseTypeEntry sparseEntry = getSparseEntry(entryIndex);
+        // if (!sparse_entry) {
+        //   return base::unexpected(IOError::PAGES_MISSING);
+        // }
+        // TODO: implement above
+        // offset = dtohs(sparse_entry->offset) * 4u;
+        return dtohs(sparseEntry.offset) * 4;
       } else {
         return byteBuffer.getInt(offset + header.headerSize + entryIndex * 4);
       }
@@ -1231,16 +1244,24 @@ public static class ResTable_ref
 //        uint32_t thisOffset = dtohl(eindex[realEntryIndex]);
     }
 
+    // Gets the sparse entry index item at position 'entryIndex'
+    private ResTable_sparseTypeEntry getSparseEntry(int entryIndex) {
+      return new ResTable_sparseTypeEntry(
+          myBuf(), myOffset() + header.headerSize + entryIndex * ResTable_sparseTypeEntry.SIZEOF);
+    }
+
     private int entryNameIndex(int entryIndex) {
       ByteBuffer byteBuffer = myBuf();
       int offset = myOffset();
 
       // from ResTable cpp:
-//            const uint32_t* const eindex = reinterpret_cast<const uint32_t*>(
-//            reinterpret_cast<const uint8_t*>(thisType) + dtohs(thisType->header.headerSize));
-//
-//        uint32_t thisOffset = dtohl(eindex[realEntryIndex]);
-      int entryOffset = byteBuffer.getInt(offset + header.headerSize + entryIndex * 4);
+      //            const uint32_t* const eindex = reinterpret_cast<const uint32_t*>(
+      //            reinterpret_cast<const uint8_t*>(thisType) +
+      // dtohs(thisType->header.headerSize));
+      //
+      //        uint32_t thisOffset = dtohl(eindex[realEntryIndex]);
+
+      int entryOffset = entryOffset(entryIndex);
       if (entryOffset == -1) {
         return -1;
       }

@@ -58,6 +58,7 @@ import android.os.PersistableBundle;
 import android.telecom.PhoneAccountHandle;
 import android.telephony.CellInfo;
 import android.telephony.CellLocation;
+import android.telephony.PhoneCapability;
 import android.telephony.PhoneStateListener;
 import android.telephony.ServiceState;
 import android.telephony.SignalStrength;
@@ -169,6 +170,13 @@ public class ShadowTelephonyManagerTest {
 
     assertEquals("device in slot 1", telephonyManager.getDeviceId(1));
     assertEquals("device in slot 2", telephonyManager.getDeviceId(2));
+  }
+
+  @Test
+  public void shouldGiveDeviceSoftwareVersion() {
+    String testSoftwareVersion = "getDeviceSoftwareVersion";
+    shadowOf(telephonyManager).setDeviceSoftwareVersion(testSoftwareVersion);
+    assertEquals(testSoftwareVersion, telephonyManager.getDeviceSoftwareVersion());
   }
 
   @Test
@@ -326,6 +334,13 @@ public class ShadowTelephonyManagerTest {
   }
 
   @Test
+  @Config(minSdk = O)
+  public void shouldGiveNetworkSpecifier() {
+    shadowOf(telephonyManager).setNetworkSpecifier("SomeSpecifier");
+    assertEquals("SomeSpecifier", telephonyManager.getNetworkSpecifier());
+  }
+
+  @Test
   public void shouldGiveLine1Number() {
     shadowOf(telephonyManager).setLine1Number("123-244-2222");
     assertEquals("123-244-2222", telephonyManager.getLine1Number());
@@ -343,6 +358,23 @@ public class ShadowTelephonyManagerTest {
       throws Exception {
     shadowOf(telephonyManager).setReadPhoneStatePermission(false);
     telephonyManager.getDeviceId();
+  }
+
+  @Test
+  @Config(minSdk = M)
+  public void
+      getDeviceIdForSlot_shouldThrowSecurityExceptionWhenReadPhoneStatePermissionNotGranted()
+          throws Exception {
+    shadowOf(telephonyManager).setReadPhoneStatePermission(false);
+    assertThrows(SecurityException.class, () -> telephonyManager.getDeviceId(1));
+  }
+
+  @Test
+  public void
+      getDeviceSoftwareVersion_shouldThrowSecurityExceptionWhenReadPhoneStatePermissionNotGranted()
+          throws Exception {
+    shadowOf(telephonyManager).setReadPhoneStatePermission(false);
+    assertThrows(SecurityException.class, () -> telephonyManager.getDeviceSoftwareVersion());
   }
 
   @Test
@@ -515,7 +547,7 @@ public class ShadowTelephonyManagerTest {
     PhoneAccountHandle phoneAccountHandle =
         new PhoneAccountHandle(
             new ComponentName(ApplicationProvider.getApplicationContext(), Object.class), "handle");
-    Uri ringtoneUri = Uri.fromParts("file", "ringtone.mp3", /* fragment = */ null);
+    Uri ringtoneUri = Uri.fromParts("file", "ringtone.mp3", /* fragment= */ null);
 
     shadowOf(telephonyManager).setVoicemailRingtoneUri(phoneAccountHandle, ringtoneUri);
 
@@ -528,7 +560,7 @@ public class ShadowTelephonyManagerTest {
     PhoneAccountHandle phoneAccountHandle =
         new PhoneAccountHandle(
             new ComponentName(ApplicationProvider.getApplicationContext(), Object.class), "handle");
-    Uri ringtoneUri = Uri.fromParts("file", "ringtone.mp3", /* fragment = */ null);
+    Uri ringtoneUri = Uri.fromParts("file", "ringtone.mp3", /* fragment= */ null);
 
     // Note: Using the real manager to set, instead of the shadow.
     telephonyManager.setVoicemailRingtoneUri(phoneAccountHandle, ringtoneUri);
@@ -849,12 +881,48 @@ public class ShadowTelephonyManagerTest {
   }
 
   @Test
+  public void setDataActivityChangesDataActivity() {
+    assertThat(telephonyManager.getDataActivity()).isEqualTo(TelephonyManager.DATA_ACTIVITY_NONE);
+    shadowOf(telephonyManager).setDataActivity(TelephonyManager.DATA_ACTIVITY_IN);
+    assertThat(telephonyManager.getDataActivity()).isEqualTo(TelephonyManager.DATA_ACTIVITY_IN);
+    shadowOf(telephonyManager).setDataActivity(TelephonyManager.DATA_ACTIVITY_OUT);
+    assertThat(telephonyManager.getDataActivity()).isEqualTo(TelephonyManager.DATA_ACTIVITY_OUT);
+  }
+
+  @Test
   @Config(minSdk = Q)
   public void setRttSupportedChangesIsRttSupported() {
     shadowOf(telephonyManager).setRttSupported(false);
     assertThat(telephonyManager.isRttSupported()).isFalse();
     shadowOf(telephonyManager).setRttSupported(true);
     assertThat(telephonyManager.isRttSupported()).isTrue();
+  }
+
+  @Test
+  @Config(minSdk = M)
+  public void setTtyModeSupportedChangesIsTtyModeSupported() {
+    shadowOf(telephonyManager).setTtyModeSupported(false);
+    assertThat(telephonyManager.isTtyModeSupported()).isFalse();
+    shadowOf(telephonyManager).setTtyModeSupported(true);
+    assertThat(telephonyManager.isTtyModeSupported()).isTrue();
+  }
+
+  @Test
+  @Config(minSdk = M)
+  public void
+      isTtyModeSupported_shouldThrowSecurityExceptionWhenReadPhoneStatePermissionNotGranted()
+          throws Exception {
+    shadowOf(telephonyManager).setReadPhoneStatePermission(false);
+    assertThrows(SecurityException.class, () -> telephonyManager.isTtyModeSupported());
+  }
+
+  @Test
+  @Config(minSdk = N)
+  public void hasCarrierPrivilegesWithSubId() {
+    int subId = 3;
+    assertThat(telephonyManager.hasCarrierPrivileges(subId)).isFalse();
+    shadowOf(telephonyManager).setHasCarrierPrivileges(subId, true);
+    assertThat(telephonyManager.hasCarrierPrivileges(subId)).isTrue();
   }
 
   @Test
@@ -1034,6 +1102,16 @@ public class ShadowTelephonyManagerTest {
   }
 
   @Test
+  @Config(minSdk = S)
+  public void setPhoneCapability_returnsPhoneCapability() {
+    PhoneCapability phoneCapability = PhoneCapabilityFactory.create(2, 1, false, new int[0]);
+
+    shadowTelephonyManager.setPhoneCapability(phoneCapability);
+
+    assertThat(telephonyManager.getPhoneCapability()).isEqualTo(phoneCapability);
+  }
+
+  @Test
   @Config(minSdk = O)
   public void sendVisualVoicemailSms_shouldStoreLastSendSmsParameters() {
     telephonyManager.sendVisualVoicemailSms("destAddress", 0, "message", null);
@@ -1136,5 +1214,17 @@ public class ShadowTelephonyManagerTest {
     ShadowTelephonyManager.setEmergencyNumberList(
         ImmutableMap.of(0, ImmutableList.of(emergencyNumber)));
     assertThat(telephonyManager.getEmergencyNumberList().get(0)).containsExactly(emergencyNumber);
+  }
+
+  @Test
+  @Config(minSdk = R)
+  public void getSubscriptionIdForPhoneAccountHandle() {
+    int subscriptionId = 123;
+    PhoneAccountHandle phoneAccountHandle =
+        new PhoneAccountHandle(
+            new ComponentName(ApplicationProvider.getApplicationContext(), Object.class), "handle");
+    shadowOf(telephonyManager)
+        .setPhoneAccountHandleSubscriptionId(phoneAccountHandle, subscriptionId);
+    assertEquals(subscriptionId, telephonyManager.getSubscriptionId(phoneAccountHandle));
   }
 }

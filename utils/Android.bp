@@ -48,7 +48,7 @@ java_test_host {
         "guava",
         "junit",
         "error_prone_core",
-        "truth-prebuilt",
+        "truth",
         "asm-9.2",
         "mockito",
     ],

@@ -242,19 +242,6 @@ public class AndroidManifestTest {
         .isEqualTo(VERSION_CODES.JELLY_BEAN);
   }
 
-  /**
-   * For Android O preview, apps are encouraged to use targetSdkVersion="O".
-   *
-   * @see <a href="http://google.com">https://developer.android.com/preview/migration.html</a>
-   */
-  @Test
-  public void shouldReadTargetSDKVersionOPreview() throws Exception {
-    assertThat(
-            newConfigWith("TestAndroidManifestForPreview.xml", "android:targetSdkVersion=\"O\"")
-                .getTargetSdkVersion())
-        .isEqualTo(26);
-  }
-
   @Test
   public void shouldReadProcessFromAndroidManifest() throws Exception {
     assertThat(newConfig("TestAndroidManifestWithProcess.xml").getProcessName())
@@ -401,7 +388,7 @@ public class AndroidManifestTest {
   @Test
   public void shouldReadTaskAffinity() {
     AndroidManifest appManifest = newConfig("TestAndroidManifestForActivitiesWithTaskAffinity.xml");
-    assertThat(appManifest.getTargetSdkVersion()).isEqualTo(16);
+    assertThat(appManifest.getTargetSdkVersion()).isEqualTo(19);
 
     ActivityData activityData =
         appManifest.getActivityData("org.robolectric.shadows.TestTaskAffinityActivity");

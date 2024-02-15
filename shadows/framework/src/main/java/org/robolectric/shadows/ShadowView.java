@@ -7,7 +7,6 @@ import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.O;
 import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.R;
-import static org.robolectric.shadow.api.Shadow.invokeConstructor;
 import static org.robolectric.shadows.ShadowLooper.shadowMainLooper;
 import static org.robolectric.util.ReflectionHelpers.getField;
 import static org.robolectric.util.reflector.Reflector.reflector;
@@ -20,6 +19,7 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.SystemClock;
@@ -55,7 +55,7 @@ import org.robolectric.annotation.ReflectorObject;
 import org.robolectric.annotation.Resetter;
 import org.robolectric.config.ConfigurationRegistry;
 import org.robolectric.shadow.api.Shadow;
-import org.robolectric.util.ReflectionHelpers.ClassParameter;
+import org.robolectric.shadows.ShadowViewRootImpl.ViewRootImplReflector;
 import org.robolectric.util.TimeUtils;
 import org.robolectric.util.reflector.Accessor;
 import org.robolectric.util.reflector.Direct;
@@ -149,30 +149,37 @@ public class ShadowView {
     return shadowView.innerText();
   }
 
+  static int[] getLocationInSurfaceCompat(View view) {
+    int[] locationInSurface = new int[2];
+    if (RuntimeEnvironment.getApiLevel() >= Build.VERSION_CODES.Q) {
+      view.getLocationInSurface(locationInSurface);
+    } else {
+      view.getLocationInWindow(locationInSurface);
+      Rect surfaceInsets =
+          reflector(ViewRootImplReflector.class, view.getViewRootImpl())
+              .getWindowAttributes()
+              .surfaceInsets;
+      locationInSurface[0] += surfaceInsets.left;
+      locationInSurface[1] += surfaceInsets.top;
+    }
+    return locationInSurface;
+  }
+
   // Only override up to kitkat, while this version exists after kitkat it just calls through to the
   // __constructor__(Context, AttributeSet, int, int) variant below.
   @Implementation(maxSdk = KITKAT)
   protected void __constructor__(Context context, AttributeSet attributeSet, int defStyle) {
     this.attributeSet = attributeSet;
-    invokeConstructor(
-        View.class,
-        realView,
-        ClassParameter.from(Context.class, context),
-        ClassParameter.from(AttributeSet.class, attributeSet),
-        ClassParameter.from(int.class, defStyle));
+    reflector(_View_.class, realView).__constructor__(context, attributeSet, defStyle);
   }
 
-  @Implementation(minSdk = KITKAT_WATCH)
+  /* Note: maxSdk is R because capturing `attributeSet` is not needed any more after R. */
+  @Implementation(minSdk = KITKAT_WATCH, maxSdk = R)
   protected void __constructor__(
       Context context, AttributeSet attributeSet, int defStyleAttr, int defStyleRes) {
     this.attributeSet = attributeSet;
-    invokeConstructor(
-        View.class,
-        realView,
-        ClassParameter.from(Context.class, context),
-        ClassParameter.from(AttributeSet.class, attributeSet),
-        ClassParameter.from(int.class, defStyleAttr),
-        ClassParameter.from(int.class, defStyleRes));
+    reflector(_View_.class, realView)
+        .__constructor__(context, attributeSet, defStyleAttr, defStyleRes);
   }
 
   @Implementation
@@ -930,6 +937,13 @@ public class ShadowView {
 
     @Direct
     void setScrollY(int value);
+
+    @Direct
+    void __constructor__(Context context, AttributeSet attributeSet, int defStyle);
+
+    @Direct
+    void __constructor__(
+        Context context, AttributeSet attributeSet, int defStyleAttr, int defStyleRes);
   }
 
   public void callOnAttachedToWindow() {
@@ -1071,7 +1085,7 @@ public class ShadowView {
   }
 
   /**
-   * Currently the default View scrolling implementation is broken and low-fidelty. For instance,
+   * Currently the default View scrolling implementation is broken and low-fidelity. For instance,
    * even if a View has no children, Robolectric will still happily set the scroll position of a
    * View. Long-term we want to eliminate this broken behavior, but in the mean time the real
    * scrolling behavior is enabled when native graphics are enabled, or when a system property is

@@ -40,6 +40,7 @@ import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.N_MR1;
 import static android.os.Build.VERSION_CODES.O;
+import static android.os.Build.VERSION_CODES.P;
 import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.S;
 import static android.os.Build.VERSION_CODES.TIRAMISU;
@@ -97,12 +98,14 @@ import android.content.pm.ProviderInfo;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.content.pm.Signature;
+import android.content.pm.SigningInfo;
 import android.content.pm.SuspendDialogInfo;
 import android.content.res.XmlResourceParser;
 import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
+import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import android.os.PersistableBundle;
@@ -1186,6 +1189,26 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
+  @Config(minSdk = TIRAMISU)
+  public void queryIntentActivities_Match_withResolveInfoFlags() {
+    Intent i = new Intent(Intent.ACTION_MAIN, null);
+    i.addCategory(Intent.CATEGORY_LAUNCHER);
+
+    ResolveInfo info = new ResolveInfo();
+    info.nonLocalizedLabel = TEST_PACKAGE_LABEL;
+    info.activityInfo = new ActivityInfo();
+    info.activityInfo.name = "name";
+    info.activityInfo.packageName = TEST_PACKAGE_NAME;
+
+    shadowOf(packageManager).addResolveInfoForIntent(i, info);
+
+    List<ResolveInfo> activities = packageManager.queryIntentActivities(i, ResolveInfoFlags.of(0));
+    assertThat(activities).isNotNull();
+    assertThat(activities).hasSize(2);
+    assertThat(activities.get(0).nonLocalizedLabel.toString()).isEqualTo(TEST_PACKAGE_LABEL);
+  }
+
+  @Test
   @Config(minSdk = JELLY_BEAN_MR1)
   public void queryIntentActivitiesAsUser_Match() {
     Intent i = new Intent(Intent.ACTION_MAIN, null);
@@ -1197,6 +1220,24 @@ public class ShadowPackageManagerTest {
     shadowOf(packageManager).addResolveInfoForIntent(i, info);
 
     List<ResolveInfo> activities = packageManager.queryIntentActivitiesAsUser(i, 0, 0);
+    assertThat(activities).isNotNull();
+    assertThat(activities).hasSize(2);
+    assertThat(activities.get(0).nonLocalizedLabel.toString()).isEqualTo(TEST_PACKAGE_LABEL);
+  }
+
+  @Test
+  @Config(minSdk = TIRAMISU)
+  public void queryIntentActivitiesAsUser_Match_withResolveInfoFlags() {
+    Intent i = new Intent(Intent.ACTION_MAIN, null);
+    i.addCategory(Intent.CATEGORY_LAUNCHER);
+
+    ResolveInfo info = new ResolveInfo();
+    info.nonLocalizedLabel = TEST_PACKAGE_LABEL;
+
+    shadowOf(packageManager).addResolveInfoForIntent(i, info);
+
+    List<ResolveInfo> activities =
+        packageManager.queryIntentActivitiesAsUser(i, ResolveInfoFlags.of(0), 0);
     assertThat(activities).isNotNull();
     assertThat(activities).hasSize(2);
     assertThat(activities.get(0).nonLocalizedLabel.toString()).isEqualTo(TEST_PACKAGE_LABEL);
@@ -2078,6 +2119,36 @@ public class ShadowPackageManagerTest {
     } catch (PackageManager.NameNotFoundException e) {
       assertThat(e.getMessage()).contains("unknown_package");
     }
+  }
+
+  @Test
+  @Config(maxSdk = O)
+  public void getPackageInfo_shouldPopulateSignatures() throws Exception {
+    Signature testSignature = new Signature("00000000");
+    PackageInfo testPackageInfo = newPackageInfo("first.package", testSignature);
+    assertThat(testPackageInfo.signatures).isNotNull();
+    assertThat(testPackageInfo.signatures.length).isEqualTo(1);
+    shadowOf(packageManager).installPackage(testPackageInfo);
+    PackageInfo packageInfo =
+        packageManager.getPackageInfo("first.package", PackageManager.GET_SIGNATURES);
+    assertThat(packageInfo.signatures).isNotNull();
+    assertThat(packageInfo.signatures.length).isEqualTo(1);
+    assertThat(packageInfo.signatures[0]).isEqualTo(testSignature);
+  }
+
+  @Test
+  @Config(minSdk = P)
+  public void getPackageInfo_shouldPopulateSigningInfo() throws Exception {
+    Signature testSignature = new Signature("00000000");
+    PackageInfo testPackageInfo = newPackageInfo("first.package", testSignature);
+    shadowOf(packageManager).installPackage(testPackageInfo);
+    PackageInfo packageInfo =
+        packageManager.getPackageInfo("first.package", PackageManager.GET_SIGNING_CERTIFICATES);
+    assertThat(packageInfo.signingInfo).isNotNull();
+    assertThat(packageInfo.signingInfo.getApkContentsSigners()).isNotNull();
+    assertThat(packageInfo.signingInfo.getApkContentsSigners().length).isEqualTo(1);
+    assertThat(packageInfo.signingInfo.getApkContentsSigners()[0]).isEqualTo(testSignature);
+    assertThat(packageInfo.signingInfo.getSigningCertificateHistory()).isNotNull();
   }
 
   @Test
@@ -3014,7 +3085,12 @@ public class ShadowPackageManagerTest {
   private static PackageInfo newPackageInfo(String packageName, Signature... signatures) {
     PackageInfo firstPackageInfo = new PackageInfo();
     firstPackageInfo.packageName = packageName;
-    firstPackageInfo.signatures = signatures;
+    if (VERSION.SDK_INT < P) {
+      firstPackageInfo.signatures = signatures;
+    } else {
+      firstPackageInfo.signingInfo = new SigningInfo();
+      shadowOf(firstPackageInfo.signingInfo).setSignatures(signatures);
+    }
     return firstPackageInfo;
   }
 
@@ -4560,6 +4636,21 @@ public class ShadowPackageManagerTest {
 
     assertThat(before).isTrue();
     assertThat(after).isFalse();
+  }
+
+  @Test
+  @Config(minSdk = N)
+  public void setDefaultBrowserPackageNameAsUser_getConsistent() {
+    ShadowApplicationPackageManager pm = (ShadowApplicationPackageManager) shadowOf(packageManager);
+
+    boolean isSuccessful = pm.setDefaultBrowserPackageNameAsUser(TEST_PACKAGE_NAME, 0);
+
+    String defaultBrowserPackageNameUserAvailable = pm.getDefaultBrowserPackageNameAsUser(0);
+    String defaultBrowserPackageNameUserNotAvailable = pm.getDefaultBrowserPackageNameAsUser(10);
+
+    assertThat(isSuccessful).isTrue();
+    assertThat(defaultBrowserPackageNameUserAvailable).isEqualTo(TEST_PACKAGE_NAME);
+    assertThat(defaultBrowserPackageNameUserNotAvailable).isNull();
   }
 
   public String[] setPackagesSuspended(

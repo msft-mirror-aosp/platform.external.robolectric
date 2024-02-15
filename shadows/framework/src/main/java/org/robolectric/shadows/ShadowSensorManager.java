@@ -18,10 +18,10 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.List;
-import java.util.Map;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.RealObject;
@@ -31,9 +31,10 @@ import org.robolectric.util.ReflectionHelpers.ClassParameter;
 @Implements(value = SensorManager.class, looseSignatures = true)
 public class ShadowSensorManager {
   public boolean forceListenersToFail = false;
-  private final Map<Integer, Sensor> sensorMap = new HashMap<>();
+  private final Multimap<Integer, Sensor> sensorMap =
+      Multimaps.synchronizedMultimap(HashMultimap.create());
   private final Multimap<SensorEventListener, Sensor> listeners =
-      Multimaps.synchronizedMultimap(HashMultimap.<SensorEventListener, Sensor>create());
+      Multimaps.synchronizedMultimap(HashMultimap.create());
 
   @RealObject private SensorManager realObject;
 
@@ -60,22 +61,26 @@ public class ShadowSensorManager {
 
   public void removeSensor(Sensor sensor) {
     checkNotNull(sensor);
-    sensorMap.remove(sensor.getType());
+    sensorMap.get(sensor.getType()).remove(sensor);
   }
 
   @Implementation
   protected Sensor getDefaultSensor(int type) {
-    return sensorMap.get(type);
+    Collection<Sensor> sensorsForType = sensorMap.get(type);
+    if (sensorsForType.isEmpty()) {
+      return null;
+    }
+
+    return ((Sensor) sensorsForType.toArray()[0]);
   }
 
   @Implementation
   public List<Sensor> getSensorList(int type) {
-    List<Sensor> sensorList = new ArrayList<>();
-    Sensor sensor = sensorMap.get(type);
-    if (sensor != null) {
-      sensorList.add(sensor);
+    if (type == Sensor.TYPE_ALL) {
+      return ImmutableList.copyOf(sensorMap.values());
     }
-    return sensorList;
+
+    return ImmutableList.copyOf(sensorMap.get(type));
   }
 
   /** @param handler is ignored. */
@@ -148,6 +153,20 @@ public class ShadowSensorManager {
     }
   }
 
+  /** Propagates the {@code event} to only registered listeners of the given sensor. */
+  @SuppressWarnings("JdkCollectors") // toImmutableList is only supported in Java 8+.
+  public void sendSensorEventToListeners(SensorEvent event, Sensor sensor) {
+    List<SensorEventListener> listenersRegisteredToSensor =
+        listeners.entries().stream()
+            .filter(entry -> entry.getValue() == sensor)
+            .map(Entry::getKey)
+            .collect(Collectors.toList());
+
+    for (SensorEventListener listener : listenersRegisteredToSensor) {
+      listener.onSensorChanged(event);
+    }
+  }
+
   @Implementation(minSdk = KITKAT)
   protected boolean flush(SensorEventListener listener) {
     // ShadowSensorManager doesn't queue up any sensor events, so nothing actually needs to be
@@ -169,6 +188,10 @@ public class ShadowSensorManager {
     return listeners.containsKey(listener);
   }
 
+  /**
+   * @deprecated Use {@code {@link SensorEventBuilder#newBuilder()}} instead.
+   */
+  @Deprecated
   public SensorEvent createSensorEvent() {
     return ReflectionHelpers.callConstructor(SensorEvent.class);
   }
@@ -185,7 +208,10 @@ public class ShadowSensorManager {
    * }</pre>
    *
    * <p>See {@link SensorEvent#values} for more information about values.
+   *
+   * @deprecated Use {@code {@link SensorEventBuilder#newBuilder()}} instead.
    */
+  @Deprecated
   public static SensorEvent createSensorEvent(int valueArraySize) {
     return createSensorEvent(valueArraySize, Sensor.TYPE_GRAVITY);
   }
@@ -202,7 +228,10 @@ public class ShadowSensorManager {
    * }</pre>
    *
    * <p>See {@link SensorEvent#values} for more information about values.
+   *
+   * @deprecated Use {@code {@link SensorEventBuilder#newBuilder()}} instead.
    */
+  @Deprecated
   public static SensorEvent createSensorEvent(int valueArraySize, int sensorType) {
     checkArgument(valueArraySize > 0);
     ClassParameter<Integer> valueArraySizeParam = new ClassParameter<>(int.class, valueArraySize);

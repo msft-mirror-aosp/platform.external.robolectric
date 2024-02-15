@@ -3,7 +3,6 @@ package org.robolectric.shadows;
 import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
 import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
 import static android.os.Build.VERSION_CODES.P;
-import static android.os.Build.VERSION_CODES.R;
 import static org.robolectric.shadows.ShadowView.useRealGraphics;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
@@ -21,6 +20,7 @@ import android.view.View;
 import android.view.WindowManagerGlobal;
 import androidx.annotation.Nullable;
 import java.lang.reflect.Proxy;
+import java.util.List;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
@@ -127,9 +127,6 @@ public class ShadowWindowManagerGlobal {
     if (service == null) {
       service = IWindowManager.Stub.asInterface(ServiceManager.getService(Context.WINDOW_SERVICE));
       reflector(WindowManagerGlobalReflector.class).setWindowManagerService(service);
-      if (RuntimeEnvironment.getApiLevel() >= R) {
-        reflector(WindowManagerGlobalReflector.class).setUseBlastAdapter(service.useBLAST());
-      }
     }
     return service;
   }
@@ -148,9 +145,8 @@ public class ShadowWindowManagerGlobal {
     @Accessor("sWindowManagerService")
     void setWindowManagerService(IWindowManager service);
 
-    @Static
-    @Accessor("sUseBLASTAdapter")
-    void setUseBlastAdapter(boolean useBlastAdapter);
+    @Accessor("mViews")
+    List<View> getWindowViews();
   }
 
   private static class WindowSessionDelegate {

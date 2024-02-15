@@ -57,7 +57,7 @@ java_test_host {
         "objenesis",
         "asm-tree-9.2",
         "junit",
-        "truth-prebuilt",
+        "truth",
         "asm-9.2",
         "jsr305",
     ],

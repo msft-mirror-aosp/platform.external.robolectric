@@ -4,9 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.stream.Stream;
 import org.robolectric.util.Logger;
 
 public class LocalDependencyResolver implements DependencyResolver {
@@ -44,11 +41,16 @@ public class LocalDependencyResolver implements DependencyResolver {
    */
   private static File validateFile(File file) throws IllegalArgumentException {
     if (!file.isFile()) {
-      Logger.error("Directory contents: "+ file.getParentFile());
-      try (Stream<Path> stream = Files.list(file.getParentFile().toPath())) {
-        stream.forEach(s -> Logger.error(s.toString()));
-      } catch (IOException ioe) {
-        Logger.error("Not a directory " + file.getParentFile());
+      Logger.error("Unable to locate dependency: '%s'", file);
+      File parentFile = file.getParentFile();
+      if (!parentFile.isDirectory()) {
+        Logger.error("No such directory '%s'", parentFile);
+      } else {
+        Logger.error("Parent directory exists but is missing the dependency");
+        Logger.error("Contents of directory '%s':", parentFile);
+        for (File f : parentFile.listFiles()) {
+          Logger.error(f.getAbsolutePath());
+        }
       }
       throw new IllegalArgumentException("Path is not a file: " + file);
     }

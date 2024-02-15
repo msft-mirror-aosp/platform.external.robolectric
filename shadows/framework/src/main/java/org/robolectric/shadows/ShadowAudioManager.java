@@ -1,5 +1,6 @@
 package org.robolectric.shadows;
 
+import static android.os.Build.VERSION_CODES.KITKAT;
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.N;
@@ -9,6 +10,7 @@ import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.R;
 import static android.os.Build.VERSION_CODES.S;
 import static org.robolectric.util.ReflectionHelpers.ClassParameter.from;
+import static org.robolectric.util.reflector.Reflector.reflector;
 
 import android.annotation.NonNull;
 import android.annotation.RequiresPermission;
@@ -26,6 +28,7 @@ import android.media.audiopolicy.AudioPolicy;
 import android.os.Build.VERSION_CODES;
 import android.os.Handler;
 import android.os.Parcel;
+import android.view.KeyEvent;
 import com.android.internal.util.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
@@ -38,11 +41,15 @@ import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.HiddenApi;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
+import org.robolectric.annotation.RealObject;
 import org.robolectric.util.ReflectionHelpers;
+import org.robolectric.util.reflector.Constructor;
+import org.robolectric.util.reflector.ForType;
 
 @SuppressWarnings({"UnusedDeclaration"})
 @Implements(value = AudioManager.class, looseSignatures = true)
 public class ShadowAudioManager {
+  @RealObject AudioManager realAudioManager;
 
   public static final int MAX_VOLUME_MUSIC_DTMF = 15;
   public static final int DEFAULT_MAX_VOLUME = 7;
@@ -95,6 +102,7 @@ public class ShadowAudioManager {
   private List<AudioDeviceInfo> outputDevices = new ArrayList<>();
   private List<AudioDeviceInfo> availableCommunicationDevices = new ArrayList<>();
   private AudioDeviceInfo communicationDevice = null;
+  private final List<KeyEvent> dispatchedMediaKeyEvents = new ArrayList<>();
 
   public ShadowAudioManager() {
     for (int stream : ALL_STREAMS) {
@@ -202,7 +210,18 @@ public class ShadowAudioManager {
 
   @Implementation
   protected void setMode(int mode) {
+    int previousMode = this.mode;
     this.mode = mode;
+    if (RuntimeEnvironment.getApiLevel() >= S && mode != previousMode) {
+      dispatchModeChangedListeners(mode);
+    }
+  }
+
+  private void dispatchModeChangedListeners(int newMode) {
+    Object modeDispatcherStub =
+        reflector(ModeDispatcherStubReflector.class).newModeDispatcherStub(realAudioManager);
+    reflector(ModeDispatcherStubReflector.class, modeDispatcherStub)
+        .dispatchAudioModeChanged(newMode);
   }
 
   @Implementation
@@ -210,6 +229,13 @@ public class ShadowAudioManager {
     return this.mode;
   }
 
+  @ForType(className = "android.media.AudioManager$ModeDispatcherStub")
+  interface ModeDispatcherStubReflector {
+    @Constructor
+    Object newModeDispatcherStub(AudioManager audioManager);
+
+    void dispatchAudioModeChanged(int newMode);
+  }
   public void setStreamMaxVolume(int streamMaxVolume) {
     streamStatus.forEach((key, value) -> value.setMaxVolume(streamMaxVolume));
   }
@@ -862,6 +888,29 @@ public class ShadowAudioManager {
     p.writeInt(16000); // mSampleRate
     p.writeInt(AudioFormat.CHANNEL_OUT_MONO); // mChannelMask
     p.writeInt(0); // mChannelIndexMask
+  }
+
+  /**
+   * Sends a simulated key event for a media button.
+   *
+   * <p>Instead of sending the media event to the media system service, from where it would be
+   * routed to a media app, this shadow method only records the events to be verified through {@link
+   * #getDispatchedMediaKeyEvents()}.
+   */
+  @Implementation(minSdk = KITKAT)
+  protected void dispatchMediaKeyEvent(KeyEvent keyEvent) {
+    if (keyEvent == null) {
+      throw new NullPointerException("keyEvent is null");
+    }
+    dispatchedMediaKeyEvents.add(keyEvent);
+  }
+
+  public List<KeyEvent> getDispatchedMediaKeyEvents() {
+    return new ArrayList<>(dispatchedMediaKeyEvents);
+  }
+
+  public void clearDispatchedMediaKeyEvents() {
+    dispatchedMediaKeyEvents.clear();
   }
 
   public static class AudioFocusRequest {

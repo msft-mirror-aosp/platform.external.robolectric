@@ -6,11 +6,13 @@ import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.N_MR1;
+import static android.os.Build.VERSION_CODES.O;
 import static android.os.Build.VERSION_CODES.P;
 import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.R;
 import static android.os.Build.VERSION_CODES.S;
 import static android.os.Build.VERSION_CODES.TIRAMISU;
+import static android.os.UserManager.RESTRICTION_SOURCE_SYSTEM;
 import static android.os.UserManager.USER_TYPE_FULL_GUEST;
 import static android.os.UserManager.USER_TYPE_FULL_RESTRICTED;
 import static android.os.UserManager.USER_TYPE_FULL_SECONDARY;
@@ -34,6 +36,7 @@ import android.os.PersistableBundle;
 import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.os.UserManager.EnforcingUser;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
@@ -80,12 +83,15 @@ public class ShadowUserManager {
   private static boolean isMultiUserSupported = false;
   private static boolean isHeadlessSystemUserMode = false;
 
+  private final Object lock = new Object();
+
   @RealObject private UserManager realObject;
   private UserManagerState userManagerState;
   private Boolean managedProfile;
   private Boolean cloneProfile;
   private boolean userUnlocked = true;
   private boolean isSystemUser = true;
+  private volatile boolean isForegroundUser = true;
 
   /**
    * Holds whether or not a managed profile can be unlocked. If a profile is not in this map, it is
@@ -484,8 +490,10 @@ public class ShadowUserManager {
 
   @Implementation(minSdk = LOLLIPOP)
   protected boolean hasUserRestriction(String restrictionKey, UserHandle userHandle) {
-    Bundle bundle = userManagerState.userRestrictions.get(userHandle.getIdentifier());
-    return bundle != null && bundle.getBoolean(restrictionKey);
+    synchronized (lock) {
+      Bundle bundle = userManagerState.userRestrictions.get(userHandle.getIdentifier());
+      return bundle != null && bundle.getBoolean(restrictionKey);
+    }
   }
 
   /**
@@ -496,7 +504,9 @@ public class ShadowUserManager {
   @Implementation(minSdk = JELLY_BEAN_MR2)
   protected void setUserRestriction(String key, boolean value, UserHandle userHandle) {
     Bundle bundle = getUserRestrictionsForUser(userHandle);
-    bundle.putBoolean(key, value);
+    synchronized (lock) {
+      bundle.putBoolean(key, value);
+    }
   }
 
   @Implementation(minSdk = JELLY_BEAN_MR2)
@@ -524,12 +534,14 @@ public class ShadowUserManager {
   }
 
   private Bundle getUserRestrictionsForUser(UserHandle userHandle) {
-    Bundle bundle = userManagerState.userRestrictions.get(userHandle.getIdentifier());
-    if (bundle == null) {
-      bundle = new Bundle();
-      userManagerState.userRestrictions.put(userHandle.getIdentifier(), bundle);
+    synchronized (lock) {
+      Bundle bundle = userManagerState.userRestrictions.get(userHandle.getIdentifier());
+      if (bundle == null) {
+        bundle = new Bundle();
+        userManagerState.userRestrictions.put(userHandle.getIdentifier(), bundle);
+      }
+      return bundle;
     }
-    return bundle;
   }
 
   /**
@@ -1250,5 +1262,25 @@ public class ShadowUserManager {
   /** Removes user account set via {@link #setSomeUserHasAccount(String, String)}. */
   public void removeSomeUserHasAccount(String accountName, String accountType) {
     userAccounts.remove(new Account(accountName, accountType));
+  }
+
+  /** Sets whether or not the current user is the foreground user. */
+  public void setUserForeground(boolean foreground) {
+    isForegroundUser = foreground;
+  }
+
+  @Implementation(minSdk = S)
+  protected boolean isUserForeground() {
+    return isForegroundUser;
+  }
+
+  @Implementation(minSdk = O)
+  protected List<EnforcingUser> getUserRestrictionSources(
+      String restriction, UserHandle userHandle) {
+    List<EnforcingUser> sources = new ArrayList<>();
+    if (hasUserRestriction(restriction, userHandle)) {
+      sources.add(new EnforcingUser(userHandle.getIdentifier(), RESTRICTION_SOURCE_SYSTEM));
+    }
+    return sources;
   }
 }

@@ -6,12 +6,13 @@ apply plugin: AndroidProjectConfigPlugin
 apply plugin: GradleManagedDevicePlugin
 
 android {
-    compileSdk 33
+    compileSdk 34
     namespace 'org.robolectric.integration.axt'
 
     defaultConfig {
-        minSdk 16
-        targetSdk 33
+        testApplicationId 'org.robolectric.integrationtests.axt'
+        minSdk 19
+        targetSdk 34
         multiDexEnabled true
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments useTestStorageService: 'true'
@@ -55,6 +56,7 @@ dependencies {
     testImplementation libs.androidx.test.espresso.core
     testImplementation libs.androidx.test.ext.truth
     testImplementation libs.androidx.test.core
+    testImplementation libs.androidx.biometric
     testImplementation libs.androidx.fragment
     testImplementation libs.androidx.fragment.testing
     testImplementation libs.androidx.test.ext.junit

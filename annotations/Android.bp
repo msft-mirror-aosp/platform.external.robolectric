@@ -16,7 +16,7 @@ java_library_host {
     static_libs: [
         "jsr305",
     ],
-    libs: ["robolectric-host-android_all_upstream"],
+    libs: ["robolectric-host-android_all"],
     srcs: ["src/main/java/**/*.java"],
     visibility: ["//visibility:public"],
 }

@@ -19,6 +19,11 @@ java_library_host {
         "Robolectric_utils_upstream",
         "guava",
         "jsr305",
+        "auto_value_annotations",
+    ],
+    plugins: [
+        "auto_value_plugin_1.9",
+        "auto_value_builder_plugin_1.9",
     ],
 }
 
@@ -38,7 +43,7 @@ java_test_host {
         "guava",
         "objenesis",
         "junit",
-        "truth-prebuilt",
+        "truth",
         "jsr305",
     ],
     java_resource_dirs: ["src/test/resources"],

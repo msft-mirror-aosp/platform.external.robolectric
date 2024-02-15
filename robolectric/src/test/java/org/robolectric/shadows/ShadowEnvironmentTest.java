@@ -1,11 +1,11 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
 import static android.os.Build.VERSION_CODES.KITKAT;
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.LOLLIPOP_MR1;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.Q;
+import static android.os.Build.VERSION_CODES.R;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -38,6 +38,30 @@ public class ShadowEnvironmentTest {
   }
 
   @Test
+  @Config(minSdk = R)
+  public void getStorageDirectory_storageDirectoryUnset_shouldReturnDefaultDirectory() {
+    assertThat(Environment.getStorageDirectory().getAbsolutePath()).isEqualTo("/storage");
+  }
+
+  @Test
+  @Config(minSdk = R)
+  public void setStorageDirectory_shouldReturnDirectory() {
+    // state prior to override
+    File defaultDir = Environment.getStorageDirectory();
+    // override
+    Path expectedPath = FileSystems.getDefault().getPath("/tmp", "foo");
+    ShadowEnvironment.setStorageDirectory(expectedPath);
+    File override = Environment.getStorageDirectory();
+    assertThat(override.getAbsolutePath()).isEqualTo(expectedPath.toAbsolutePath().toString());
+
+    // restore default value by supplying {@code null}
+    ShadowEnvironment.setStorageDirectory(null);
+
+    // verify default
+    assertThat(defaultDir).isEqualTo(Environment.getStorageDirectory());
+  }
+
+  @Test
   public void getExternalStorageDirectory_shouldReturnDirectory() {
     assertThat(Environment.getExternalStorageDirectory().exists()).isTrue();
   }
@@ -64,6 +88,45 @@ public class ShadowEnvironmentTest {
     final File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES);
     assertThat(path.exists()).isTrue();
     assertThat(path).isEqualTo(new File(ShadowEnvironment.EXTERNAL_FILES_DIR.toFile(), Environment.DIRECTORY_MOVIES));
+  }
+
+  @Test
+  public void setExternalStoragePublicDirectory_shouldReturnDirectory() {
+    // state prior to override
+    File defaultDir = Environment.getExternalStoragePublicDirectory(/* type= */ null);
+    // override
+    Path overrideRootPath = FileSystems.getDefault().getPath("/tmp", "foo");
+    ShadowEnvironment.setExternalStoragePublicDirectory(overrideRootPath);
+    File overridePathResult = Environment.getExternalStoragePublicDirectory(/* type= */ null);
+    assertThat(overridePathResult.getAbsolutePath())
+        .isEqualTo(overrideRootPath.toAbsolutePath().toString());
+
+    // restore default value by supplying {@code null}
+    ShadowEnvironment.setExternalStoragePublicDirectory(null);
+
+    // verify default
+    assertThat(defaultDir)
+        .isEqualTo(Environment.getExternalStoragePublicDirectory(/* type= */ null));
+  }
+
+  @Test
+  public void setExternalStoragePublicDirectory_withType_shouldReturnDirectory() {
+    // state prior to override
+    File defaultDir = Environment.getExternalStoragePublicDirectory(/* type= */ "something");
+    // override
+    Path overrideRootPath = FileSystems.getDefault().getPath("/tmp", "foo");
+    ShadowEnvironment.setExternalStoragePublicDirectory(overrideRootPath);
+    File overridePathResult =
+        Environment.getExternalStoragePublicDirectory(/* type= */ "something");
+    assertThat(overridePathResult.getAbsolutePath())
+        .isEqualTo(overrideRootPath.resolve("something").toAbsolutePath().toString());
+
+    // restore default value by supplying {@code null}
+    ShadowEnvironment.setExternalStoragePublicDirectory(null);
+
+    // verify default
+    assertThat(defaultDir)
+        .isEqualTo(Environment.getExternalStoragePublicDirectory(/* type= */ "something"));
   }
 
   @Test
@@ -195,13 +258,6 @@ public class ShadowEnvironmentTest {
     //
     // assertThat(RuntimeEnvironment.getApplication().getExternalFilesDir(Environment.DIRECTORY_MOVIES)
     //         .getCanonicalPath()).contains("external_dir_1");
-  }
-
-  @Test
-  @Config(sdk = JELLY_BEAN_MR1)
-  public void getExternalStorageStateJB() {
-    ShadowEnvironment.setExternalStorageState("blah");
-    assertThat(ShadowEnvironment.getExternalStorageState()).isEqualTo("blah");
   }
 
   @Test

@@ -8,7 +8,9 @@ import static android.os.Build.VERSION_CODES.O;
 import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.R;
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.robolectric.Shadows.shadowOf;
@@ -36,6 +38,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
+import org.robolectric.android.controller.ServiceController;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowTelecomManager.CallRequestMode;
 import org.robolectric.shadows.testing.TestConnectionService;
@@ -93,6 +96,14 @@ public class ShadowTelecomManagerTest {
   }
 
   @Test
+  public void getPhoneAccount_noPermission_throwsSecurityException() {
+    shadowOf(telecomService).setReadPhoneStatePermission(false);
+
+    PhoneAccountHandle handler = createHandle("id");
+    assertThrows(SecurityException.class, () -> telecomService.getPhoneAccount(handler));
+  }
+
+  @Test
   public void clearAccounts() {
     PhoneAccountHandle anotherPackageHandle =
         createHandle("some.other.package", "OtherConnectionService", "id");
@@ -116,6 +127,21 @@ public class ShadowTelecomManagerTest {
 
     assertThat(telecomService.getPhoneAccount(accountHandle1)).isNull();
     assertThat(telecomService.getPhoneAccount(accountHandle2)).isNotNull();
+  }
+
+  @Test
+  @Config(minSdk = M)
+  public void enableNonRegisteredAccountDoesNothing() {
+    PhoneAccountHandle accountHandle1 = createHandle("a.package", "OtherConnectionService", "id1");
+    telecomService.registerPhoneAccount(
+        PhoneAccount.builder(accountHandle1, "another_package").build());
+
+    // Attempt to enable phone account that hasn't been registered should do nothing.
+    PhoneAccountHandle accountHandle2 =
+        createHandle("some.other.package", "OtherConnectionService", "id2");
+    telecomService.enablePhoneAccount(accountHandle2, /* isEnabled= */ true);
+
+    assertThat(telecomService.getPhoneAccount(accountHandle1).isEnabled()).isFalse();
   }
 
   @Test
@@ -153,6 +179,14 @@ public class ShadowTelecomManagerTest {
     List<PhoneAccountHandle> callCapablePhoneAccounts = telecomService.getCallCapablePhoneAccounts();
     assertThat(callCapablePhoneAccounts).contains(callCapableHandle);
     assertThat(callCapablePhoneAccounts).doesNotContain(notCallCapableHandler);
+  }
+
+  @Test
+  @Config(minSdk = M)
+  public void getCallCapablePhoneAccounts_noPermission_throwsSecurityException() {
+    shadowOf(telecomService).setReadPhoneStatePermission(false);
+
+    assertThrows(SecurityException.class, () -> telecomService.getCallCapablePhoneAccounts());
   }
 
   @Test
@@ -212,6 +246,7 @@ public class ShadowTelecomManagerTest {
     extras.putString("TEST_EXTRA_KEY", "TEST_EXTRA_VALUE");
     telecomService.addNewIncomingCall(createHandle("id"), extras);
 
+    verify(connectionServiceListener).onCreate();
     ArgumentCaptor<ConnectionRequest> requestCaptor =
         ArgumentCaptor.forClass(ConnectionRequest.class);
     verify(connectionServiceListener)
@@ -223,6 +258,60 @@ public class ShadowTelecomManagerTest {
     assertThat(request.getExtras().getString("TEST_EXTRA_KEY")).isEqualTo("TEST_EXTRA_VALUE");
     assertThat(request.getAddress()).isEqualTo(address);
     assertThat(request.getVideoState()).isEqualTo(VideoProfile.STATE_BIDIRECTIONAL);
+  }
+
+  @Test
+  public void testAllowTwoNewIncomingCalls() {
+    shadowOf(telecomService).setCallRequestMode(CallRequestMode.ALLOW_ALL);
+
+    PhoneAccountHandle phoneAccount = createHandle("id");
+    Uri address1 = Uri.parse("tel:+1-201-555-0123");
+    Bundle call1 = new Bundle();
+    call1.putParcelable(TelecomManager.EXTRA_INCOMING_CALL_ADDRESS, address1);
+    telecomService.addNewIncomingCall(createHandle("id"), call1);
+
+    Uri address2 = Uri.parse("tel:+1-201-555-0124");
+    Bundle call2 = new Bundle();
+    call2.putParcelable(TelecomManager.EXTRA_INCOMING_CALL_ADDRESS, address2);
+    telecomService.addNewIncomingCall(createHandle("id"), call2);
+
+    verify(connectionServiceListener, times(1)).onCreate();
+    ArgumentCaptor<ConnectionRequest> requestCaptor =
+        ArgumentCaptor.forClass(ConnectionRequest.class);
+    verify(connectionServiceListener, times(2))
+        .onCreateIncomingConnection(eq(phoneAccount), requestCaptor.capture());
+    verifyNoMoreInteractions(connectionServiceListener);
+
+    List<ConnectionRequest> values = requestCaptor.getAllValues();
+    assertThat(values.size()).isEqualTo(2);
+    ConnectionRequest request1 = values.get(0);
+    ConnectionRequest request2 = values.get(1);
+    assertThat(request1.getAddress()).isEqualTo(address1);
+    assertThat(request2.getAddress()).isEqualTo(address2);
+  }
+
+  @Test
+  public void testAllowNewIncomingCallUsingCustomConnectionService() {
+    shadowOf(telecomService).setCallRequestMode(CallRequestMode.ALLOW_ALL);
+    TestConnectionService connectionService =
+        ServiceController.of(new TestConnectionService(), null).create().get();
+    shadowOf(telecomService).setConnectionService(connectionService);
+
+    PhoneAccountHandle phoneAccount = createHandle("id");
+    Uri address = Uri.parse("tel:+1-201-555-0123");
+    Bundle call = new Bundle();
+    call.putParcelable(TelecomManager.EXTRA_INCOMING_CALL_ADDRESS, address);
+    telecomService.addNewIncomingCall(createHandle("id"), call);
+
+    verify(connectionServiceListener).onCreate();
+    ArgumentCaptor<ConnectionRequest> requestCaptor =
+        ArgumentCaptor.forClass(ConnectionRequest.class);
+    verify(connectionServiceListener)
+        .onCreateIncomingConnection(eq(phoneAccount), requestCaptor.capture());
+    verifyNoMoreInteractions(connectionServiceListener);
+
+    ConnectionRequest request = requestCaptor.getValue();
+    assertThat(request.getAddress()).isEqualTo(address);
   }
 
   @Test
@@ -239,6 +328,7 @@ public class ShadowTelecomManagerTest {
     extras.putString("TEST_EXTRA_KEY", "TEST_EXTRA_VALUE");
     telecomService.addNewIncomingCall(createHandle("id"), extras);
 
+    verify(connectionServiceListener).onCreate();
     ArgumentCaptor<ConnectionRequest> requestCaptor =
         ArgumentCaptor.forClass(ConnectionRequest.class);
     verify(connectionServiceListener)
@@ -266,6 +356,19 @@ public class ShadowTelecomManagerTest {
 
   @Test
   @Config(minSdk = M)
+  public void testPlaceCall_noPermission_throwsSecurityException() {
+    shadowOf(telecomService).setCallPhonePermission(false);
+
+    Bundle extras = new Bundle();
+    extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, createHandle("id"));
+
+    assertThrows(
+        SecurityException.class,
+        () -> telecomService.placeCall(Uri.parse("tel:+1-201-555-0123"), extras));
+  }
+
+  @Test
+  @Config(minSdk = M)
   public void testAllowPlaceCall() {
     shadowOf(telecomService).setCallRequestMode(CallRequestMode.ALLOW_ALL);
 
@@ -280,6 +383,7 @@ public class ShadowTelecomManagerTest {
     extras.putBundle(TelecomManager.EXTRA_OUTGOING_CALL_EXTRAS, outgoingCallExtras);
     telecomService.placeCall(address, extras);
 
+    verify(connectionServiceListener).onCreate();
     ArgumentCaptor<ConnectionRequest> requestCaptor =
         ArgumentCaptor.forClass(ConnectionRequest.class);
     verify(connectionServiceListener)
@@ -309,6 +413,7 @@ public class ShadowTelecomManagerTest {
     extras.putBundle(TelecomManager.EXTRA_OUTGOING_CALL_EXTRAS, outgoingCallExtras);
     telecomService.placeCall(address, extras);
 
+    verify(connectionServiceListener).onCreate();
     ArgumentCaptor<ConnectionRequest> requestCaptor =
         ArgumentCaptor.forClass(ConnectionRequest.class);
     verify(connectionServiceListener)
@@ -411,6 +516,13 @@ public class ShadowTelecomManagerTest {
     assertThat(telecomService.isTtySupported()).isFalse();
     shadowOf(telecomService).setTtySupported(true);
     assertThat(telecomService.isTtySupported()).isTrue();
+  }
+
+  @Test
+  public void setTtySupported_noPermission_throwsSecurityException() {
+    shadowOf(telecomService).setReadPhoneStatePermission(false);
+
+    assertThrows(SecurityException.class, () -> telecomService.isTtySupported());
   }
 
   @Test
@@ -530,6 +642,59 @@ public class ShadowTelecomManagerTest {
     // After reset
     shadowOf(telecomService).setVoicemailNumber(phoneAccountHandle, null);
     assertThat(telecomService.getVoiceMailNumber(phoneAccountHandle)).isNull();
+  }
+
+  @Test
+  @Config(minSdk = LOLLIPOP_MR1)
+  public void getLine1Number() {
+    // Check initial state
+    PhoneAccountHandle phoneAccountHandle = createHandle("id1");
+    assertThat(telecomService.getLine1Number(phoneAccountHandle)).isNull();
+
+    // After setting
+    shadowOf(telecomService).setLine1Number(phoneAccountHandle, "123");
+    assertThat(telecomService.getLine1Number(phoneAccountHandle)).isEqualTo("123");
+
+    // After reset
+    shadowOf(telecomService).setLine1Number(phoneAccountHandle, null);
+    assertThat(telecomService.getLine1Number(phoneAccountHandle)).isNull();
+  }
+
+  @Test
+  @Config(minSdk = LOLLIPOP_MR1)
+  public void getLine1Number_noPermission_throwsSecurityException() {
+    shadowOf(telecomService).setReadPhoneStatePermission(false);
+
+    PhoneAccountHandle phoneAccountHandle = createHandle("id1");
+    assertThrows(SecurityException.class, () -> telecomService.getLine1Number(phoneAccountHandle));
+  }
+
+  @Test
+  public void handleMmi_defaultValueFalse() {
+    assertThat(telecomService.handleMmi("123")).isFalse();
+  }
+
+  @Test
+  public void handleMmi() {
+    shadowOf(telecomService).setHandleMmiValue(true);
+
+    assertThat(telecomService.handleMmi("123")).isTrue();
+  }
+
+  @Test
+  @Config(minSdk = M)
+  public void handleMmiWithHandle_defaultValueFalse() {
+    PhoneAccountHandle phoneAccountHandle = createHandle("id1");
+    assertThat(telecomService.handleMmi("123", phoneAccountHandle)).isFalse();
+  }
+
+  @Test
+  @Config(minSdk = M)
+  public void handleMmiWithHandle() {
+    shadowOf(telecomService).setHandleMmiValue(true);
+    PhoneAccountHandle phoneAccountHandle = createHandle("id1");
+
+    assertThat(telecomService.handleMmi("123", phoneAccountHandle)).isTrue();
   }
 
   private static PhoneAccountHandle createHandle(String id) {

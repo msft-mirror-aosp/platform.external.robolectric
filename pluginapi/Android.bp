@@ -35,7 +35,7 @@ java_test_host {
         "hamcrest",
         "guava",
         "junit",
-        "truth-prebuilt",
+        "truth",
     ],
     test_suites: ["general-tests"],
 }

@@ -7,6 +7,7 @@ import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.R;
 import static android.os.Build.VERSION_CODES.S;
 import static android.os.Build.VERSION_CODES.TIRAMISU;
+import static android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
 import static java.util.stream.Collectors.toList;
 
 import android.app.admin.DevicePolicyManager;
@@ -21,7 +22,9 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.AddNetworkResult;
+import android.net.wifi.WifiManager.LocalOnlyConnectionFailureListener;
 import android.net.wifi.WifiManager.MulticastLock;
+import android.net.wifi.WifiNetworkSpecifier;
 import android.net.wifi.WifiSsid;
 import android.net.wifi.WifiUsabilityStatsEntry;
 import android.os.Binder;
@@ -42,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.robolectric.RuntimeEnvironment;
@@ -73,6 +77,10 @@ public class ShadowWifiManager {
   private boolean startScanSucceeds = true;
   private boolean is5GHzBandSupported = false;
   private boolean isStaApConcurrencySupported = false;
+  private boolean isWpa3SaeSupported = false;
+  private boolean isWpa3SaeH2eSupported = false;
+  private boolean isWpa3SaePublicKeySupported = false;
+  private boolean isWpa3SuiteBSupported = false;
   private AtomicInteger activeLockCount = new AtomicInteger(0);
   private final BitSet readOnlyNetworkIds = new BitSet();
   private final ConcurrentHashMap<WifiManager.OnWifiUsabilityStatsListener, Executor>
@@ -84,6 +92,44 @@ public class ShadowWifiManager {
   private SoftApConfiguration softApConfig;
   private final Object pnoRequestLock = new Object();
   private PnoScanRequest outstandingPnoScanRequest = null;
+
+  private final ConcurrentMap<LocalOnlyConnectionFailureListener, Executor>
+      localOnlyConnectionFailureListenerExecutorMap = new ConcurrentHashMap<>();
+
+  /**
+   * Simulates a connection failure for a specified local network connection.
+   *
+   * @param specifier the {@link WifiNetworkSpecifier} describing the local network connection
+   *     attempt
+   * @param failureReason the reason for the network connection failure. This should be one of the
+   *     values specified in {@code WifiManager#STATUS_LOCAL_ONLY_CONNECTION_FAILURE_*}
+   */
+  public void triggerLocalConnectionFailure(WifiNetworkSpecifier specifier, int failureReason) {
+    localOnlyConnectionFailureListenerExecutorMap.forEach(
+        (failureListener, executor) ->
+            executor.execute(() -> failureListener.onConnectionFailed(specifier, failureReason)));
+  }
+
+  @Implementation(minSdk = UPSIDE_DOWN_CAKE)
+  protected void addLocalOnlyConnectionFailureListener(
+      Executor executor, LocalOnlyConnectionFailureListener listener) {
+    if (listener == null) {
+      throw new IllegalArgumentException("Listener cannot be null");
+    }
+    if (executor == null) {
+      throw new IllegalArgumentException("Executor cannot be null");
+    }
+    localOnlyConnectionFailureListenerExecutorMap.putIfAbsent(listener, executor);
+  }
+
+  @Implementation(minSdk = UPSIDE_DOWN_CAKE)
+  protected void removeLocalOnlyConnectionFailureListener(
+      LocalOnlyConnectionFailureListener listener) {
+    if (listener == null) {
+      throw new IllegalArgumentException("Listener cannot be null");
+    }
+    localOnlyConnectionFailureListenerExecutorMap.remove(listener);
+  }
 
   @Implementation
   protected boolean setWifiEnabled(boolean wifiEnabled) {
@@ -128,7 +174,7 @@ public class ShadowWifiManager {
     this.is5GHzBandSupported = is5GHzBandSupported;
   }
 
-  /** Returns last value provided to #setStaApConcurrencySupported. */
+  /** Returns last value provided to {@link #setStaApConcurrencySupported}. */
   @Implementation(minSdk = R)
   protected boolean isStaApConcurrencySupported() {
     return isStaApConcurrencySupported;
@@ -137,6 +183,50 @@ public class ShadowWifiManager {
   /** Sets whether STA/AP concurrency is supported. */
   public void setStaApConcurrencySupported(boolean isStaApConcurrencySupported) {
     this.isStaApConcurrencySupported = isStaApConcurrencySupported;
+  }
+
+  /** Returns last value provided to {@link #setWpa3SaeSupported}. */
+  @Implementation(minSdk = Q)
+  protected boolean isWpa3SaeSupported() {
+    return isWpa3SaeSupported;
+  }
+
+  /** Sets whether WPA3-Personal SAE is supported. */
+  public void setWpa3SaeSupported(boolean isWpa3SaeSupported) {
+    this.isWpa3SaeSupported = isWpa3SaeSupported;
+  }
+
+  /** Returns last value provided to {@link #setWpa3SaePublicKeySupported}. */
+  @Implementation(minSdk = S)
+  protected boolean isWpa3SaePublicKeySupported() {
+    return isWpa3SaePublicKeySupported;
+  }
+
+  /** Sets whether WPA3 SAE Public Key is supported. */
+  public void setWpa3SaePublicKeySupported(boolean isWpa3SaePublicKeySupported) {
+    this.isWpa3SaePublicKeySupported = isWpa3SaePublicKeySupported;
+  }
+
+  /** Returns last value provided to {@link #setWpa3SaeH2eSupported}. */
+  @Implementation(minSdk = S)
+  protected boolean isWpa3SaeH2eSupported() {
+    return isWpa3SaeH2eSupported;
+  }
+
+  /** Sets whether WPA3 SAE Hash-to-Element is supported. */
+  public void setWpa3SaeH2eSupported(boolean isWpa3SaeH2eSupported) {
+    this.isWpa3SaeH2eSupported = isWpa3SaeH2eSupported;
+  }
+
+  /** Returns last value provided to {@link #setWpa3SuiteBSupported}. */
+  @Implementation(minSdk = Q)
+  protected boolean isWpa3SuiteBSupported() {
+    return isWpa3SuiteBSupported;
+  }
+
+  /** Sets whether WPA3-Enterprise Suite-B-192 is supported. */
+  public void setWpa3SuiteBSupported(boolean isWpa3SuiteBSupported) {
+    this.isWpa3SuiteBSupported = isWpa3SuiteBSupported;
   }
 
   /** Sets the connection info as the provided {@link WifiInfo}. */

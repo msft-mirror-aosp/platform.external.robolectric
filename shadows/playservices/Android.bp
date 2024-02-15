@@ -10,7 +10,7 @@
 //        "Robolectric_shadowapi_upstream",
 //        "robolectric-javax.annotation-api-1.2",
 //        "guava",
-//        "robolectric-host-android_all_upstream",
+//        "robolectric-host-android_all",
 
 //   compileOnly "com.android.support:support-fragment:28.0.0"
 //   compileOnly "com.google.android.gms:play-services-base:8.4.0"

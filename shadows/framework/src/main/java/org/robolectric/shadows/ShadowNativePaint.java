@@ -10,6 +10,7 @@ import android.graphics.Paint;
 import android.graphics.Paint.FontMetrics;
 import android.graphics.Paint.FontMetricsInt;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import androidx.annotation.ColorInt;
 import androidx.annotation.ColorLong;
 import org.robolectric.annotation.Implementation;
@@ -17,6 +18,8 @@ import org.robolectric.annotation.Implements;
 import org.robolectric.nativeruntime.DefaultNativeRuntimeLoader;
 import org.robolectric.nativeruntime.PaintNatives;
 import org.robolectric.shadows.ShadowNativePaint.Picker;
+import org.robolectric.versioning.AndroidVersions.U;
+import org.robolectric.versioning.AndroidVersions.V;
 
 /** Shadow for {@link Paint} that is backed by native code */
 @Implements(
@@ -426,7 +429,13 @@ public class ShadowNativePaint {
     PaintNatives.nSetFontFeatureSettings(paintPtr, settings);
   }
 
-  @Implementation(minSdk = P)
+  @Implementation(minSdk = V.SDK_INT)
+  protected static float nGetFontMetrics(
+      long paintPtr, FontMetrics metrics, /* Ignored */ boolean useLocale) {
+    return PaintNatives.nGetFontMetrics(paintPtr, metrics);
+  }
+
+  @Implementation(minSdk = P, maxSdk = U.SDK_INT)
   protected static float nGetFontMetrics(long paintPtr, FontMetrics metrics) {
     return PaintNatives.nGetFontMetrics(paintPtr, metrics);
   }
@@ -436,7 +445,13 @@ public class ShadowNativePaint {
     return PaintNatives.nGetFontMetrics(paintPtr, typefacePtr, metrics);
   }
 
-  @Implementation(minSdk = P)
+  @Implementation(minSdk = V.SDK_INT)
+  protected static int nGetFontMetricsInt(
+      long paintPtr, FontMetricsInt fmi, /* Ignored */ boolean useLocale) {
+    return PaintNatives.nGetFontMetricsInt(paintPtr, fmi);
+  }
+
+  @Implementation(minSdk = P, maxSdk = U.SDK_INT)
   protected static int nGetFontMetricsInt(long paintPtr, FontMetricsInt fmi) {
     return PaintNatives.nGetFontMetricsInt(paintPtr, fmi);
   }
@@ -700,14 +715,29 @@ public class ShadowNativePaint {
     PaintNatives.nSetStrikeThruText(paintPtr, strikeThruText);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static boolean nIsElegantTextHeight(long paintPtr) {
     return PaintNatives.nIsElegantTextHeight(paintPtr);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = V.SDK_INT)
+  protected static int nGetElegantTextHeight(long paintPtr) {
+    return PaintNatives.nGetElegantTextHeight(paintPtr);
+  }
+
+  // Note: the following three values must be equal to the ones in the JNI file: Paint.cpp
+  private static final int ELEGANT_TEXT_HEIGHT_ENABLED = 0;
+  private static final int ELEGANT_TEXT_HEIGHT_DISABLED = 1;
+
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nSetElegantTextHeight(long paintPtr, boolean elegant) {
-    PaintNatives.nSetElegantTextHeight(paintPtr, elegant);
+    nSetElegantTextHeight(
+        paintPtr, elegant ? ELEGANT_TEXT_HEIGHT_ENABLED : ELEGANT_TEXT_HEIGHT_DISABLED);
+  }
+
+  @Implementation(minSdk = V.SDK_INT)
+  protected static void nSetElegantTextHeight(long paintPtr, int value) {
+    PaintNatives.nSetElegantTextHeight(paintPtr, value);
   }
 
   @Implementation(minSdk = O)
@@ -813,7 +843,7 @@ public class ShadowNativePaint {
         paintPtr, text, start, count, ctxStart, ctxCount, isRtl, outMetrics);
   }
 
-  @Implementation(minSdk = ShadowBuild.UPSIDE_DOWN_CAKE)
+  @Implementation(minSdk = U.SDK_INT, maxSdk = U.SDK_INT)
   protected static float nGetRunCharacterAdvance(
       long paintPtr,
       char[] text,
@@ -836,6 +866,34 @@ public class ShadowNativePaint {
         offset,
         advances,
         advancesIndex);
+  }
+
+  /** Requires loose signatures because of RunInfo parameter */
+  @Implementation(minSdk = V.SDK_INT)
+  protected static float nGetRunCharacterAdvance(
+      Object /* long */ paintPtr,
+      Object /* char[] */ text,
+      Object /* int */ start,
+      Object /* int */ end,
+      Object /* int */ contextStart,
+      Object /* int */ contextEnd,
+      Object /* boolean */ isRtl,
+      Object /* int */ offset,
+      Object /* float[] */ advances,
+      Object /* int */ advancesIndex,
+      Object /* RectF */ drawingBounds,
+      Object /* RunInfo */ runInfo) {
+    return nGetRunCharacterAdvance(
+        (long) paintPtr,
+        (char[]) text,
+        (int) start,
+        (int) end,
+        (int) contextStart,
+        (int) contextEnd,
+        (boolean) isRtl,
+        (int) offset,
+        (float[]) advances,
+        (int) advancesIndex);
   }
 
   /** Shadow picker for {@link Paint}. */

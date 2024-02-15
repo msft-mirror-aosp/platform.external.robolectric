@@ -14,6 +14,8 @@ import org.robolectric.nativeruntime.DefaultNativeRuntimeLoader;
 import org.robolectric.nativeruntime.MeasuredTextBuilderNatives;
 import org.robolectric.nativeruntime.MeasuredTextNatives;
 import org.robolectric.shadows.ShadowNativeMeasuredText.Picker;
+import org.robolectric.versioning.AndroidVersions.U;
+import org.robolectric.versioning.AndroidVersions.V;
 
 /** Shadow for {@link MeasuredText} that is backed by native code */
 @Implements(value = MeasuredText.class, minSdk = Q, shadowPicker = Picker.class)
@@ -66,12 +68,25 @@ public class ShadowNativeMeasuredText {
       MeasuredTextBuilderNatives.nAddStyleRun(nativeBuilderPtr, paintPtr, start, end, isRtl);
     }
 
-    @Implementation(minSdk = TIRAMISU)
+    @Implementation(minSdk = TIRAMISU, maxSdk = U.SDK_INT)
     protected static void nAddStyleRun(
         /* Non Zero */ long nativeBuilderPtr,
         /* Non Zero */ long paintPtr,
         int lineBreakStyle,
         int lineBreakWordStyle,
+        int start,
+        int end,
+        boolean isRtl) {
+      MeasuredTextBuilderNatives.nAddStyleRun(nativeBuilderPtr, paintPtr, start, end, isRtl);
+    }
+
+    @Implementation(minSdk = V.SDK_INT)
+    protected static void nAddStyleRun(
+        /* Non Zero */ long nativeBuilderPtr,
+        /* Non Zero */ long paintPtr,
+        int lineBreakStyle,
+        int lineBreakWordStyle,
+        /* Ignored */ boolean hyphenation,
         int start,
         int end,
         boolean isRtl) {
@@ -99,13 +114,27 @@ public class ShadowNativeMeasuredText {
           nativeBuilderPtr, hintMtPtr, text, computeHyphenation, computeLayout);
     }
 
-    @Implementation(minSdk = TIRAMISU)
+    @Implementation(minSdk = TIRAMISU, maxSdk = U.SDK_INT)
     protected static long nBuildMeasuredText(
         /* Non Zero */ long nativeBuilderPtr,
         long hintMtPtr,
         char[] text,
         boolean computeHyphenation,
         boolean computeLayout,
+        boolean fastHyphenationMode) {
+      return MeasuredTextBuilderNatives.nBuildMeasuredText(
+          nativeBuilderPtr, hintMtPtr, text, computeHyphenation, computeLayout);
+    }
+
+    @Implementation(minSdk = V.SDK_INT)
+    protected static long nBuildMeasuredText(
+        /* Non Zero */ long nativeBuilderPtr,
+        long hintMtPtr,
+        char[] text,
+        boolean computeHyphenation,
+        boolean computeLayout,
+        boolean computeBounds,
+        /** ignored */
         boolean fastHyphenationMode) {
       return MeasuredTextBuilderNatives.nBuildMeasuredText(
           nativeBuilderPtr, hintMtPtr, text, computeHyphenation, computeLayout);

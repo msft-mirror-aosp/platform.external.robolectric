@@ -2,6 +2,7 @@ package org.robolectric.gradle
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.tasks.testing.Test
 
 public class AndroidProjectConfigPlugin implements Plugin<Project> {
     @Override
@@ -28,6 +29,19 @@ public class AndroidProjectConfigPlugin implements Plugin<Project> {
                     .findAll { k,v -> k.startsWith("robolectric.") }
                     .collect { k,v -> "-D$k=$v" }
             jvmArgs = forwardedSystemProperties
+            jvmArgs += [
+                    '--add-opens=java.base/java.lang=ALL-UNNAMED',
+                    '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
+                    '--add-opens=java.base/java.io=ALL-UNNAMED',
+                    '--add-opens=java.base/java.net=ALL-UNNAMED',
+                    '--add-opens=java.base/java.security=ALL-UNNAMED',
+                    '--add-opens=java.base/java.text=ALL-UNNAMED',
+                    '--add-opens=java.base/java.util=ALL-UNNAMED',
+                    '--add-opens=java.desktop/java.awt.font=ALL-UNNAMED',
+                    '--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
+                    '--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
+                    '--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
+            ]
 
             doFirst {
                 if (!forwardedSystemProperties.isEmpty()) {
@@ -50,5 +64,11 @@ public class AndroidProjectConfigPlugin implements Plugin<Project> {
                 }
             }
         }
+
+        // Only run tests in the debug variant. This is to avoid running tests twice when `./gradlew test` is run at the top-level.
+        project.tasks.withType(Test) {
+            onlyIf { variantName.toLowerCase().contains('debug') }
+        }
     }
 }
+

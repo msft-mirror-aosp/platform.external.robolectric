@@ -20,6 +20,7 @@ import android.graphics.ColorFilter;
 import android.graphics.Paint;
 import android.graphics.Paint.FontMetricsInt;
 import android.graphics.PathEffect;
+import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.Typeface;
 import org.robolectric.annotation.Implementation;
@@ -29,6 +30,8 @@ import org.robolectric.annotation.TextLayoutMode;
 import org.robolectric.config.ConfigurationRegistry;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.util.ReflectionHelpers.ClassParameter;
+import org.robolectric.versioning.AndroidVersions.U;
+import org.robolectric.versioning.AndroidVersions.V;
 
 @SuppressWarnings({"UnusedDeclaration"})
 @Implements(value = Paint.class, looseSignatures = true)
@@ -342,6 +345,17 @@ public class ShadowPaint {
   }
 
   @Implementation
+  protected final boolean isFilterBitmap() {
+    return (flags & Paint.FILTER_BITMAP_FLAG) == Paint.FILTER_BITMAP_FLAG;
+  }
+
+  @Implementation
+  protected final void setFilterBitmap(boolean filterBitmap) {
+    this.flags =
+        (flags & ~Paint.FILTER_BITMAP_FLAG) | (filterBitmap ? Paint.FILTER_BITMAP_FLAG : 0);
+  }
+
+  @Implementation
   protected PathEffect getPathEffect() {
     return pathEffect;
   }
@@ -487,7 +501,13 @@ public class ShadowPaint {
     return text.length();
   }
 
-  @Implementation(minSdk = P)
+  @Implementation(minSdk = V.SDK_INT)
+  protected static int nGetFontMetricsInt(
+      long paintPtr, FontMetricsInt fmi, /* Ignored */ boolean useLocale) {
+    return nGetFontMetricsInt(paintPtr, fmi);
+  }
+
+  @Implementation(minSdk = P, maxSdk = U.SDK_INT)
   protected static int nGetFontMetricsInt(long paintPtr, FontMetricsInt fmi) {
     if (ConfigurationRegistry.get(TextLayoutMode.Mode.class) == REALISTIC) {
       // TODO: hack, just set values to those we see on emulator
@@ -538,6 +558,48 @@ public class ShadowPaint {
       return end - start;
     }
     return 0f;
+  }
+
+  @Implementation(minSdk = U.SDK_INT, maxSdk = U.SDK_INT)
+  protected static float nGetRunCharacterAdvance(
+      long paintPtr,
+      char[] text,
+      int start,
+      int end,
+      int contextStart,
+      int contextEnd,
+      boolean isRtl,
+      int offset,
+      float[] advances,
+      int advancesIndex) {
+    return nGetRunAdvance(paintPtr, text, start, end, contextStart, contextEnd, isRtl, offset);
+  }
+
+  @Implementation(minSdk = V.SDK_INT)
+  protected static float nGetRunCharacterAdvance(
+      Object /* long */ paintPtr,
+      Object /* char[] */ text,
+      Object /* int */ start,
+      Object /* int */ end,
+      Object /* int */ contextStart,
+      Object /* int */ contextEnd,
+      Object /* boolean */ isRtl,
+      Object /* int */ offset,
+      Object /* float[] */ advances,
+      Object /* int */ advancesIndex,
+      Object /* RectF */ drawingBounds,
+      Object /* RunInfo */ runInfo) {
+    return nGetRunCharacterAdvance(
+        (long) paintPtr,
+        (char[]) text,
+        (int) start,
+        (int) end,
+        (int) contextStart,
+        (int) contextEnd,
+        (boolean) isRtl,
+        (int) offset,
+        (float[]) advances,
+        (int) advancesIndex);
   }
 
   @Implementation(minSdk = N, maxSdk = O_MR1)

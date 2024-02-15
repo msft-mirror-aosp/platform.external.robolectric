@@ -13,32 +13,44 @@ import static androidx.test.core.app.ApplicationProvider.getApplicationContext;
 import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.robolectric.Shadows.shadowOf;
 
+import android.Manifest.permission;
 import android.app.Application;
 import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothHeadset;
 import android.bluetooth.BluetoothProfile;
+import android.bluetooth.BluetoothProfile.ServiceListener;
 import android.bluetooth.BluetoothSocket;
 import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.content.Intent;
+import android.os.Looper;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.LinkedBlockingQueue;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.ReflectionHelpers.ClassParameter;
+import org.robolectric.versioning.AndroidVersions.U;
 
 /** Unit tests for {@link ShadowBluetoothAdapter} */
 @RunWith(AndroidJUnit4.class)
@@ -98,6 +110,27 @@ public class ShadowBluetoothAdapterTest {
     BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
     shadowOf(adapter).setAddress("expected");
     assertThat(adapter.getAddress()).isEqualTo("expected");
+  }
+
+  @Test
+  @Config(minSdk = TIRAMISU)
+  public void canGetAndSetMostRecentlyConnectedDevices() {
+    BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+
+    // By default return empty list for most recently connected devices
+    assertThat(adapter.getMostRecentlyConnectedDevices()).isEmpty();
+
+    // set most recently connected devices
+    BluetoothDevice remoteDevice1 = bluetoothAdapter.getRemoteDevice(MOCK_MAC_ADDRESS);
+    BluetoothDevice remoteDevice2 = bluetoothAdapter.getRemoteDevice(MOCK_MAC_ADDRESS);
+    List<BluetoothDevice> result = new ArrayList<>();
+    result.add(remoteDevice1);
+    result.add(remoteDevice2);
+    shadowOf(adapter).setMostRecentlyConnectedDevices(result);
+
+    assertThat(adapter.getMostRecentlyConnectedDevices()).hasSize(2);
+    assertThat(adapter.getMostRecentlyConnectedDevices())
+        .containsExactly(remoteDevice1, remoteDevice2);
   }
 
   @Test
@@ -600,7 +633,7 @@ public class ShadowBluetoothAdapterTest {
                     getApplicationContext(),
                     /* requestCode= */ 0,
                     new Intent("com.dummy.action.DUMMY_ACTION")
-                            .setPackage(getApplicationContext().getPackageName()),
+                        .setPackage(getApplicationContext().getPackageName()),
                     /* flags= */ PendingIntent.FLAG_MUTABLE)));
   }
 
@@ -777,6 +810,76 @@ public class ShadowBluetoothAdapterTest {
         .isEqualTo(BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED);
   }
 
+  @Config(minSdk = U.SDK_INT)
+  @Test
+  public void getProfileProxy_serviceListenerInvoked() throws Exception {
+    shadowOf((Application) getApplicationContext()).grantPermissions(permission.BLUETOOTH);
+    bluetoothAdapter.enable();
+    LinkedBlockingQueue<Integer> profileQueue = new LinkedBlockingQueue<>();
+    LinkedBlockingQueue<BluetoothProfile> proxyQueue = new LinkedBlockingQueue<>();
+    BluetoothProfile.ServiceListener listener =
+        new ServiceListener() {
+          @Override
+          public void onServiceConnected(int profile, BluetoothProfile proxy) {
+            profileQueue.add(profile);
+            proxyQueue.add(proxy);
+          }
+
+          @Override
+          public void onServiceDisconnected(int profile) {}
+        };
+
+    assertThat(
+            bluetoothAdapter.getProfileProxy(
+                getApplicationContext(), listener, BluetoothProfile.HEADSET))
+        .isTrue();
+    shadowOf(Looper.getMainLooper()).idle();
+
+    assertThat(profileQueue.take()).isEqualTo(BluetoothProfile.HEADSET);
+    assertThat(proxyQueue.take()).isInstanceOf(BluetoothHeadset.class);
+  }
+
+  @Config(minSdk = U.SDK_INT)
+  @Test
+  public void getProfileProxy_adapterDisabled_serviceListenerNotInvoked() {
+    shadowOf((Application) getApplicationContext()).grantPermissions(permission.BLUETOOTH);
+    BluetoothProfile.ServiceListener listener =
+        Mockito.mock(BluetoothProfile.ServiceListener.class);
+
+    bluetoothAdapter.getProfileProxy(getApplicationContext(), listener, BluetoothProfile.HEADSET);
+    shadowOf(Looper.getMainLooper()).idle();
+
+    verify(listener, never()).onServiceConnected(anyInt(), any(BluetoothProfile.class));
+  }
+
+  @Config(minSdk = U.SDK_INT)
+  @Test
+  public void disconnectProfileProxy_serviceListenerInvoked() throws Exception {
+    shadowOf((Application) getApplicationContext()).grantPermissions(permission.BLUETOOTH);
+    bluetoothAdapter.enable();
+    LinkedBlockingQueue<Integer> profileQueue = new LinkedBlockingQueue<>();
+    LinkedBlockingQueue<BluetoothHeadset> headsetProxies = new LinkedBlockingQueue<>();
+    BluetoothProfile.ServiceListener listener =
+        new ServiceListener() {
+          @Override
+          public void onServiceConnected(int profile, BluetoothProfile proxy) {
+            headsetProxies.add((BluetoothHeadset) proxy);
+          }
+
+          @Override
+          public void onServiceDisconnected(int profile) {
+            profileQueue.add(profile);
+          }
+        };
+
+    bluetoothAdapter.getProfileProxy(getApplicationContext(), listener, BluetoothProfile.HEADSET);
+    shadowOf(Looper.getMainLooper()).idle();
+    bluetoothAdapter.closeProfileProxy(BluetoothProfile.HEADSET, headsetProxies.take());
+    shadowOf(Looper.getMainLooper()).idle();
+
+    assertThat(profileQueue.take()).isEqualTo(BluetoothProfile.HEADSET);
+  }
+
   private PendingIntent createTestPendingIntent(Intent intent) {
     return PendingIntent.getBroadcast(
         getApplicationContext(), /* requestCode= */ 0, intent, PendingIntent.FLAG_IMMUTABLE);
@@ -787,5 +890,18 @@ public class ShadowBluetoothAdapterTest {
       @Override
       public void onLeScan(BluetoothDevice bluetoothDevice, int i, byte[] bytes) {}
     };
+  }
+
+  @Config(minSdk = TIRAMISU)
+  @Test
+  public void canGetAndSetLeAudioSupport() {
+    BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+
+    // By default LE feature is not supported
+    assertThat(adapter.isLeAudioSupported()).isEqualTo(BluetoothStatusCodes.FEATURE_NOT_SUPPORTED);
+
+    // set Le audio feature to supported.
+    shadowOf(adapter).setLeAudioSupported(BluetoothStatusCodes.FEATURE_SUPPORTED);
+    assertThat(adapter.isLeAudioSupported()).isEqualTo(BluetoothStatusCodes.FEATURE_SUPPORTED);
   }
 }

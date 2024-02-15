@@ -386,9 +386,11 @@ public class ShadowPausedMessageQueue extends ShadowMessageQueue {
   @Override
   public void reset() {
     MessageQueueReflector msgQueue = reflector(MessageQueueReflector.class, realQueue);
-    msgQueue.setMessages(null);
-    msgQueue.setIdleHandlers(new ArrayList<>());
-    msgQueue.setNextBarrierToken(0);
+    synchronized (realQueue) {
+      msgQueue.setMessages(null);
+      msgQueue.setIdleHandlers(new ArrayList<>());
+      msgQueue.setNextBarrierToken(0);
+    }
     setUncaughtException(null);
   }
 
@@ -442,6 +444,12 @@ public class ShadowPausedMessageQueue extends ShadowMessageQueue {
     }
   }
 
+  boolean hasUncaughtException() {
+    synchronized (realQueue) {
+      return uncaughtException != null;
+    }
+  }
+
   void checkQueueState() {
     synchronized (realQueue) {
       if (uncaughtException != null) {
@@ -461,10 +469,11 @@ public class ShadowPausedMessageQueue extends ShadowMessageQueue {
       Message msg = getMessages();
       while (msg != null) {
         boolean unused = msgProcessor.apply(msg.getCallback());
-        ShadowMessage shadowMsg = Shadow.extract(msg);
-        msg.recycle();
-        msg = shadowMsg.getNext();
+        Message next = shadowOfMsg(msg).internalGetNext();
+        shadowOfMsg(msg).recycleUnchecked();
+        msg = next;
       }
+      reflector(MessageQueueReflector.class, realQueue).setMessages(null);
     }
   }
 

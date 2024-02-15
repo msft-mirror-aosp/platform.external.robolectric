@@ -81,6 +81,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import com.google.errorprone.annotations.InlineMe;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -901,9 +902,12 @@ public class ShadowPackageManager {
     installPackage(packageInfo);
   }
 
-  /** This method is getting renamed to {link {@link #installPackage}. */
+  /**
+   * @deprecated Use {@link #installPackage} instead.
+   */
   @Deprecated
-  public void addPackage(PackageInfo packageInfo) {
+  @InlineMe(replacement = "this.installPackage(packageInfo)")
+  public final void addPackage(PackageInfo packageInfo) {
     installPackage(packageInfo);
   }
 
@@ -1626,9 +1630,6 @@ public class ShadowPackageManager {
 
   protected static <V> SortedMap<ComponentName, V> mapForPackage(
       SortedMap<ComponentName, V> input, @Nullable String packageName) {
-    if (packageName == null) {
-      return input;
-    }
     if (packageName == null) {
       return input;
     }

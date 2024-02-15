@@ -32,6 +32,7 @@ import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.ReflectionHelpers.ClassParameter;
 import org.robolectric.util.reflector.Accessor;
 import org.robolectric.util.reflector.ForType;
+import org.robolectric.versioning.AndroidVersions.U;
 
 /** Shadow class for {@link CameraManager} */
 @Implements(value = CameraManager.class, minSdk = VERSION_CODES.LOLLIPOP)
@@ -43,6 +44,8 @@ public class ShadowCameraManager {
       new LinkedHashMap<>();
   private final Map<String, Boolean> cameraTorches = new HashMap<>();
   private final Set<CameraManager.AvailabilityCallback> registeredCallbacks = new HashSet<>();
+  // Cannot reference the torch callback in < Android M
+  private final Set<Object> torchCallbacks = new HashSet<>();
   // Most recent camera device opened with openCamera
   private CameraDevice lastDevice;
   // Most recent callback passed to openCamera
@@ -75,9 +78,12 @@ public class ShadowCameraManager {
     Preconditions.checkNotNull(cameraId);
     Preconditions.checkArgument(cameraIdToCharacteristics.keySet().contains(cameraId));
     cameraTorches.put(cameraId, enabled);
+    for (Object callback : torchCallbacks) {
+      ((CameraManager.TorchCallback) callback).onTorchModeChanged(cameraId, enabled);
+    }
   }
 
-  @Implementation(minSdk = ShadowBuild.UPSIDE_DOWN_CAKE)
+  @Implementation(minSdk = U.SDK_INT)
   protected CameraDevice openCameraDeviceUserAsync(
       String cameraId,
       CameraDevice.StateCallback callback,
@@ -168,16 +174,16 @@ public class ShadowCameraManager {
   }
 
   /**
-   * Enables {@link CameraManager#openCamera(String, StateCallback, Handler)} to open a
-   * {@link CameraDevice}.
+   * Enables {@link CameraManager#openCamera(String, StateCallback, Handler)} to open a {@link
+   * CameraDevice}.
    *
-   * <p>If the provided cameraId exists, this will always post
-   * {@link CameraDevice.StateCallback#onOpened(CameraDevice) to the provided {@link Handler}.
-   * Unlike on real Android, this will not check if the camera has been disabled by device policy
-   * and does not attempt to connect to the camera service, so
-   * {@link CameraDevice.StateCallback#onError(CameraDevice, int)} and
-   * {@link CameraDevice.StateCallback#onDisconnected(CameraDevice)} will not be triggered by
-   * {@link CameraManager#openCamera(String, StateCallback, Handler)}.
+   * <p>If the provided cameraId exists, this will always post {@link
+   * CameraDevice.StateCallback#onOpened(CameraDevice)} to the provided {@link Handler}. Unlike on
+   * real Android, this will not check if the camera has been disabled by device policy and does not
+   * attempt to connect to the camera service, so {@link
+   * CameraDevice.StateCallback#onError(CameraDevice, int)} and {@link
+   * CameraDevice.StateCallback#onDisconnected(CameraDevice)} will not be triggered by {@link
+   * CameraManager#openCamera(String, StateCallback, Handler)}.
    */
   @Implementation(minSdk = VERSION_CODES.LOLLIPOP, maxSdk = VERSION_CODES.N)
   protected CameraDevice openCameraDeviceUserAsync(
@@ -210,6 +216,18 @@ public class ShadowCameraManager {
   protected void unregisterAvailabilityCallback(CameraManager.AvailabilityCallback callback) {
     Preconditions.checkNotNull(callback);
     registeredCallbacks.remove(callback);
+  }
+
+  @Implementation(minSdk = VERSION_CODES.M)
+  protected void registerTorchCallback(CameraManager.TorchCallback callback, Handler handler) {
+    Preconditions.checkNotNull(callback);
+    torchCallbacks.add(callback);
+  }
+
+  @Implementation(minSdk = VERSION_CODES.M)
+  protected void unregisterTorchCallback(CameraManager.TorchCallback callback) {
+    Preconditions.checkNotNull(callback);
+    torchCallbacks.remove(callback);
   }
 
   /**

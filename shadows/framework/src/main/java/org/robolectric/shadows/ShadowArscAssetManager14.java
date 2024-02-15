@@ -3,15 +3,19 @@ package org.robolectric.shadows;
 
 import android.annotation.Nullable;
 import android.content.res.AssetManager;
+import androidx.annotation.NonNull;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
+import org.robolectric.versioning.AndroidVersions.U;
+import org.robolectric.versioning.AndroidVersions.V;
+
 // TODO: update path to released version.
 // transliterated from
 // https://android.googlesource.com/platform/frameworks/base/+/android-10.0.0_rXX/core/jni/android_util_AssetManager.cpp
 
 @Implements(
     value = AssetManager.class,
-    minSdk = ShadowBuild.UPSIDE_DOWN_CAKE,
+    minSdk = U.SDK_INT,
     shadowPicker = ShadowAssetManager.Picker.class)
 @SuppressWarnings("NewApi")
 public class ShadowArscAssetManager14 extends ShadowArscAssetManager10 {
@@ -25,7 +29,7 @@ public class ShadowArscAssetManager14 extends ShadowArscAssetManager10 {
   //                                    jint smallest_screen_width_dp, jint screen_width_dp,
   //                                    jint screen_height_dp, jint screen_layout, jint ui_mode,
   //                                    jint color_mode, jint major_version) {
-  @Implementation(minSdk = ShadowBuild.UPSIDE_DOWN_CAKE)
+  @Implementation(minSdk = U.SDK_INT, maxSdk = U.SDK_INT)
   protected static void nativeSetConfiguration(
       long ptr,
       int mcc,
@@ -67,6 +71,60 @@ public class ShadowArscAssetManager14 extends ShadowArscAssetManager10 {
         ui_mode,
         color_mode,
         major_version);
+  }
+
+  @Implementation(minSdk = V.SDK_INT)
+  protected static void nativeSetConfiguration(
+      long ptr,
+      int mcc,
+      int mnc,
+      /* Used only when locales is null or empty. */
+      @Nullable String defaultLocale,
+      /* At this moment, only the first element in locales is used and others are ignored. */
+      @NonNull String[] locales,
+      int orientation,
+      int touchscreen,
+      int density,
+      int keyboard,
+      int keyboardHidden,
+      int navigation,
+      int screenWidth,
+      int screenHeight,
+      int smallestScreenWidthDp,
+      int screenWidthDp,
+      int screenHeightDp,
+      int screenLayout,
+      int uiMode,
+      int colorMode,
+      int grammaticalGender,
+      int majorVersion) {
+    String localeToUse;
+    if (locales != null && locales.length != 0) {
+      localeToUse = locales[0];
+    } else {
+      localeToUse = defaultLocale;
+    }
+    nativeSetConfiguration(
+        ptr,
+        mcc,
+        mnc,
+        localeToUse,
+        orientation,
+        touchscreen,
+        density,
+        keyboard,
+        keyboardHidden,
+        navigation,
+        screenWidth,
+        screenHeight,
+        smallestScreenWidthDp,
+        screenWidthDp,
+        screenHeightDp,
+        screenLayout,
+        uiMode,
+        colorMode,
+        grammaticalGender,
+        majorVersion);
   }
 }
 // namespace android
