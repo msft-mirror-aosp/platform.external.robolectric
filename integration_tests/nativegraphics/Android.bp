@@ -8,7 +8,6 @@ android_library {
     resource_dirs: ["src/main/res"],
     min_sdk_version: "26",
     target_sdk_version: "31",
-    platform_apis: true,
     manifest: "AndroidManifest.xml",
     optimize: {
         enabled: false,
