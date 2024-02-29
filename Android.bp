@@ -104,8 +104,17 @@ java_library_host {
         "robolectric_tzdata",
         "robolectric_framework_res",
     ],
+    // WARNING: DO NOT ADD NEW DEPENDENCIES ON THIS MODULE OR ITS DIST JAR
+    // This dist jar is an internal implementation detail. For external Gradle builds (outside
+    // the platform), consumers should access robolectric via the maven repository. For
+    // platform robolectric usage (in Soong), consumers should use the
+    // android_robolectric_test module type.
     dist: {
         targets: [
+            // Add android-all-robolectric.jar to private_api_stubs dist target for easier
+            // packaging by scripts. This jar is useful for running robolectric tests on
+            // platform app Gradle builds that compile against hidden platform APIs.
+            "private_api_stubs",
             "sdk",
             "win_sdk",
         ],
