@@ -16,8 +16,8 @@ package {
     default_visibility: [
         "//external/robolectric:__subpackages__",
         "//test/robolectric-extensions:__subpackages__",
-        "//frameworks/base/packages/SettingsLib/tests/robotests:__subpackages__",
-        "//packages/apps/Settings/tests/robotests:__subpackages__"
+        "//frameworks/base/packages/SettingsLib:__subpackages__",
+        "//packages/apps/Settings/tests/robotests:__subpackages__",
     ],
     default_applicable_licenses: ["external_robolectric_license"],
 }
@@ -129,7 +129,7 @@ java_library_host {
         ":__subpackages__",
         "//prebuilts/misc/common/robolectric",
         "//test/robolectric-extensions:__subpackages__",
-        "//frameworks/base/packages/SettingsLib/tests/robotests:__subpackages__",
+        "//frameworks/base/packages/SettingsLib:__subpackages__",
     ],
 }
 
@@ -195,8 +195,7 @@ java_host_for_device {
       "//frameworks/base/services/robotests:__pkg__",
       "//frameworks/base/services/robotests/backup:__pkg__",
       "//frameworks/base/packages/CredentialManager:__subpackages__",
-      "//frameworks/base/packages/SettingsLib/tests/robotests:__subpackages__",
-      "//frameworks/base/packages/SettingsLib/Spa/screenshot:__subpackages__",
+      "//frameworks/base/packages/SettingsLib:__subpackages__",
       "//frameworks/base/packages/SystemUI:__pkg__",
       "//packages/apps/Launcher3/tests:__pkg__",
       "//frameworks/libs/systemui/animationlib:__pkg__",
