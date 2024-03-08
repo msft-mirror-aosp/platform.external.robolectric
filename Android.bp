@@ -199,6 +199,7 @@ java_host_for_device {
       "//frameworks/base/packages/SystemUI:__pkg__",
       "//packages/apps/Launcher3/tests:__pkg__",
       "//frameworks/libs/systemui/animationlib:__pkg__",
+      "//frameworks/libs/systemui/tracinglib:__pkg__",
       "//frameworks/base/tests/InputScreenshotTest:__subpackages__",
       "//frameworks/opt/car/setupwizard/library/main/tests/robotests:__pkg__",
       "//frameworks/opt/localepicker/tests:__pkg__",
