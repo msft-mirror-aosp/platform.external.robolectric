@@ -40,6 +40,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Security;
 import java.util.Locale;
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.inject.Named;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -94,6 +95,7 @@ import org.robolectric.util.PerfStatsCollector;
 import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.Scheduler;
 import org.robolectric.util.TempDirectory;
+import org.robolectric.versioning.AndroidVersions;
 
 @SuppressLint("NewApi")
 public class AndroidTestEnvironment implements TestEnvironment {
@@ -374,9 +376,14 @@ public class AndroidTestEnvironment implements TestEnvironment {
         populateAssetPaths(appResources.getAssets(), appManifest);
       }
 
-      // circument the 'No Compatibility callbacks set!' log. See #8509
-      if (RuntimeEnvironment.getApiLevel() >= VERSION_CODES.R) {
-        AppCompatCallbacks.install(new long[0]);
+      if (AndroidVersions.CURRENT.getSdkInt() >= AndroidVersions.V.SDK_INT) {
+        // Adds loggableChanges parameter.
+        AppCompatCallbacks.install(new long[0], new long[0]);
+      } else if (AndroidVersions.CURRENT.getSdkInt() >= AndroidVersions.R.SDK_INT) {
+        // Invoke the previous version. Circumvents the 'No Compatibility callbacks set!' log. See
+        // #8509.
+        ReflectionHelpers.callStaticMethod(AppCompatCallbacks.class,
+                "install", ReflectionHelpers.ClassParameter.from(long[].class, new long[0]));
       }
 
       PerfStatsCollector.getInstance()
