@@ -378,12 +378,18 @@ public class AndroidTestEnvironment implements TestEnvironment {
 
       if (AndroidVersions.CURRENT.getSdkInt() >= AndroidVersions.V.SDK_INT) {
         // Adds loggableChanges parameter.
-        AppCompatCallbacks.install(new long[0], new long[0]);
+        ReflectionHelpers.callStaticMethod(
+            AppCompatCallbacks.class,
+            "install",
+            ReflectionHelpers.ClassParameter.from(long[].class, new long[0]),
+            ReflectionHelpers.ClassParameter.from(long[].class, new long[0]));
       } else if (AndroidVersions.CURRENT.getSdkInt() >= AndroidVersions.R.SDK_INT) {
         // Invoke the previous version. Circumvents the 'No Compatibility callbacks set!' log. See
         // #8509.
-        ReflectionHelpers.callStaticMethod(AppCompatCallbacks.class,
-                "install", ReflectionHelpers.ClassParameter.from(long[].class, new long[0]));
+        ReflectionHelpers.callStaticMethod(
+            AppCompatCallbacks.class,
+            "install",
+            ReflectionHelpers.ClassParameter.from(long[].class, new long[0]));
       }
 
       PerfStatsCollector.getInstance()
