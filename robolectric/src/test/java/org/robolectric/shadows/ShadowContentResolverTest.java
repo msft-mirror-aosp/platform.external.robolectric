@@ -3,7 +3,6 @@ package org.robolectric.shadows;
 import static android.content.ContentResolver.QUERY_ARG_SQL_SELECTION;
 import static android.content.ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS;
 import static android.content.ContentResolver.QUERY_ARG_SQL_SORT_ORDER;
-import static android.os.Build.VERSION_CODES.KITKAT;
 import static android.os.Build.VERSION_CODES.O;
 import static android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
 import static com.google.common.truth.Truth.assertThat;
@@ -764,11 +763,6 @@ public class ShadowContentResolverTest {
     assertThat(resultOperations).isNotNull();
     assertThat(resultOperations.size()).isEqualTo(0);
 
-    ContentProviderResult[] contentProviderResults =
-        new ContentProviderResult[] {
-          new ContentProviderResult(1), new ContentProviderResult(1),
-        };
-    shadowContentResolver.setContentProviderResult(contentProviderResults);
     Uri uri = Uri.parse("content://org.robolectric");
     ArrayList<ContentProviderOperation> operations = new ArrayList<>();
     operations.add(
@@ -789,7 +783,7 @@ public class ShadowContentResolverTest {
 
     resultOperations = shadowContentResolver.getContentProviderOperations(AUTHORITY);
     assertThat(resultOperations).isEqualTo(operations);
-    assertThat(result).isEqualTo(contentProviderResults);
+    assertThat(result).isNotNull();
   }
 
   @Test
@@ -1167,7 +1161,6 @@ public class ShadowContentResolverTest {
   }
 
   @Test
-  @Config(minSdk = KITKAT)
   public void takeAndReleasePersistableUriPermissions() {
     List<UriPermission> permissions = contentResolver.getPersistedUriPermissions();
     assertThat(permissions).isEmpty();

@@ -22,15 +22,13 @@ android {
             includeAndroidResources = true
         }
     }
-
 }
 
 dependencies {
     // Testing dependencies
-    testImplementation project(path: ':testapp')
+    testImplementation project(":testapp")
     testImplementation project(":robolectric")
     testImplementation libs.junit4
-    testImplementation libs.guava.testlib
     testImplementation libs.guava.testlib
     testImplementation libs.androidx.fragment
 }

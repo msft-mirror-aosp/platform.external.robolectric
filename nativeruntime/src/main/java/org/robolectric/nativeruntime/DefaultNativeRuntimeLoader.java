@@ -75,8 +75,7 @@ public class DefaultNativeRuntimeLoader implements NativeRuntimeLoader {
               "loadNativeRuntime",
               () -> {
                 extractDirectory = new TempDirectory("nativeruntime");
-                System.setProperty(
-                    "robolectric.nativeruntime.languageTag", Locale.getDefault().toLanguageTag());
+                System.setProperty("icu.locale.default", Locale.getDefault().toLanguageTag());
                 if (Build.VERSION.SDK_INT >= O) {
                   maybeCopyFonts(extractDirectory);
                 }
@@ -97,9 +96,9 @@ public class DefaultNativeRuntimeLoader implements NativeRuntimeLoader {
       return;
     }
     Path icuPath = tempDirectory.create("icu");
-    Path icuDatPath = tempDirectory.getBasePath().resolve("icu/icudt68l.dat");
+    Path icuDatPath = icuPath.resolve("icudt68l.dat");
     Resources.asByteSource(icuDatUrl).copyTo(Files.asByteSink(icuDatPath.toFile()));
-    System.setProperty("icu.dir", icuPath.toAbsolutePath().toString());
+    System.setProperty("icu.data.path", icuDatPath.toAbsolutePath().toString());
   }
 
   /**
@@ -148,8 +147,6 @@ public class DefaultNativeRuntimeLoader implements NativeRuntimeLoader {
 
   private void loadLibrary(TempDirectory tempDirectory) throws IOException {
     String libraryName = System.mapLibraryName("robolectric-nativeruntime");
-    System.setProperty(
-        "robolectric.nativeruntime.languageTag", Locale.getDefault().toLanguageTag());
     Path libraryPath = tempDirectory.getBasePath().resolve(libraryName);
     URL libraryResource = Resources.getResource(nativeLibraryPath());
     Resources.asByteSource(libraryResource).copyTo(Files.asByteSink(libraryPath.toFile()));

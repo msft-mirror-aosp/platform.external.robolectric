@@ -22,17 +22,16 @@ android {
             includeAndroidResources = true
         }
     }
-
 }
 
 dependencies {
     // Testing dependencies
-    testImplementation project(path: ':testapp')
+    testImplementation project(":testapp")
     testImplementation project(":robolectric")
     testImplementation libs.junit4
     testImplementation libs.guava.testlib
     testImplementation libs.guava.testlib
     testImplementation libs.truth
-    implementation 'androidx.room:room-runtime:2.6.0'
-    annotationProcessor 'androidx.room:room-compiler:2.6.0'
+    implementation libs.androidx.room.runtime
+    annotationProcessor libs.androidx.room.compiler
 }

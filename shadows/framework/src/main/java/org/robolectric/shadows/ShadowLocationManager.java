@@ -12,6 +12,8 @@ import static android.provider.Settings.Secure.LOCATION_MODE_SENSORS_ONLY;
 import static android.provider.Settings.Secure.LOCATION_PROVIDERS_ALLOWED;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import android.annotation.Nullable;
+import android.annotation.RequiresApi;
 import android.app.PendingIntent;
 import android.app.PendingIntent.CanceledException;
 import android.content.Context;
@@ -39,9 +41,7 @@ import android.os.WorkSource;
 import android.provider.Settings.Secure;
 import android.text.TextUtils;
 import android.util.Log;
-import androidx.annotation.GuardedBy;
-import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
+import com.android.internal.annotations.GuardedBy;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.lang.reflect.Constructor;
@@ -370,11 +370,6 @@ public class ShadowLocationManager {
   @Implementation
   @Nullable
   protected LocationProvider getProvider(String name) {
-    if (RuntimeEnvironment.getApiLevel() < VERSION_CODES.KITKAT) {
-      // jelly bean has no way to properly construct a LocationProvider, we give up
-      return null;
-    }
-
     ProviderEntry providerEntry = getProviderEntry(name);
     if (providerEntry == null) {
       return null;
@@ -813,7 +808,7 @@ public class ShadowLocationManager {
         request.getProvider(), new RoboLocationRequest(request), executor, listener);
   }
 
-  @Implementation(minSdk = VERSION_CODES.KITKAT)
+  @Implementation
   protected void requestLocationUpdates(
       @Nullable LocationRequest request, LocationListener listener, Looper looper) {
     if (request == null) {
@@ -833,7 +828,7 @@ public class ShadowLocationManager {
         listener);
   }
 
-  @Implementation(minSdk = VERSION_CODES.KITKAT)
+  @Implementation
   protected void requestLocationUpdates(
       @Nullable LocationRequest request, PendingIntent pendingIntent) {
     if (request == null) {
@@ -915,7 +910,6 @@ public class ShadowLocationManager {
    * <p>Prior to Android S {@link LocationRequest} equality is not well defined, so prefer using
    * {@link #getLegacyLocationRequests(String)} instead if equality is required for testing.
    */
-  @RequiresApi(VERSION_CODES.KITKAT)
   public List<LocationRequest> getLocationRequests(String provider) {
     ProviderEntry providerEntry = getProviderEntry(provider);
     if (providerEntry == null) {
@@ -1802,7 +1796,6 @@ public class ShadowLocationManager {
     private final float minUpdateDistanceMeters;
     private final boolean singleShot;
 
-    @RequiresApi(VERSION_CODES.KITKAT)
     public RoboLocationRequest(LocationRequest locationRequest) {
       this.locationRequest = Objects.requireNonNull(locationRequest);
       intervalMillis = 0;
@@ -1812,20 +1805,15 @@ public class ShadowLocationManager {
 
     public RoboLocationRequest(
         String provider, long intervalMillis, float minUpdateDistanceMeters, boolean singleShot) {
-      if (RuntimeEnvironment.getApiLevel() >= VERSION_CODES.KITKAT) {
-        locationRequest =
-            LocationRequest.createFromDeprecatedProvider(
-                provider, intervalMillis, minUpdateDistanceMeters, singleShot);
-      } else {
-        locationRequest = null;
-      }
+      locationRequest =
+          LocationRequest.createFromDeprecatedProvider(
+              provider, intervalMillis, minUpdateDistanceMeters, singleShot);
 
       this.intervalMillis = intervalMillis;
       this.minUpdateDistanceMeters = minUpdateDistanceMeters;
       this.singleShot = singleShot;
     }
 
-    @RequiresApi(VERSION_CODES.KITKAT)
     public LocationRequest getLocationRequest() {
       return (LocationRequest) Objects.requireNonNull(locationRequest);
     }

@@ -1,8 +1,6 @@
 package org.robolectric.shadows;
 
 import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_GONE;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
-import static android.os.Build.VERSION_CODES.KITKAT;
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.O;
@@ -11,6 +9,7 @@ import static android.os.Build.VERSION_CODES.R;
 import static java.util.stream.Collectors.toCollection;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
+import android.annotation.RequiresApi;
 import android.annotation.RequiresPermission;
 import android.app.ActivityManager;
 import android.app.ApplicationExitInfo;
@@ -26,7 +25,6 @@ import android.os.Process;
 import android.os.UserHandle;
 import android.util.ArrayMap;
 import android.util.SparseIntArray;
-import androidx.annotation.RequiresApi;
 import com.google.common.base.Preconditions;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -91,7 +89,7 @@ public class ShadowActivityManager {
     return false;
   }
 
-  @Implementation(minSdk = JELLY_BEAN_MR1)
+  @Implementation
   @HiddenApi
   @RequiresPermission(
       anyOf = {
@@ -156,7 +154,7 @@ public class ShadowActivityManager {
   }
 
   @HiddenApi
-  @Implementation(minSdk = JELLY_BEAN_MR1)
+  @Implementation
   protected boolean switchUser(int userid) {
     ShadowUserManager shadowUserManager =
         Shadow.extract(context.getSystemService(Context.USER_SERVICE));
@@ -246,7 +244,7 @@ public class ShadowActivityManager {
     return ReflectionHelpers.createNullProxy(IActivityManager.class);
   }
 
-  @Implementation(minSdk = KITKAT)
+  @Implementation
   protected boolean isLowRamDevice() {
     if (isLowRamDeviceOverride != null) {
       return isLowRamDeviceOverride;

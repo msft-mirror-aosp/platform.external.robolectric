@@ -1,9 +1,9 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.KITKAT;
 import static android.os.Parcelable.PARCELABLE_WRITE_RETURN_VALUE;
 import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.Charset.defaultCharset;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assume.assumeThat;
 import static org.robolectric.Shadows.shadowOf;
@@ -22,13 +22,14 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowParcelFileDescriptor.FileDescriptorFromParcelUnavailableException;
 import org.robolectric.util.ReflectionHelpers;
 
@@ -88,7 +89,6 @@ public class ShadowParcelFileDescriptorTest {
   }
 
   @Test
-  @Config(minSdk = KITKAT)
   public void testOpenWithOnCloseListener_nullHandler() throws Exception {
     final AtomicBoolean onCloseCalled = new AtomicBoolean(false);
     ParcelFileDescriptor.OnCloseListener onCloseListener =
@@ -106,7 +106,6 @@ public class ShadowParcelFileDescriptorTest {
   }
 
   @Test
-  @Config(minSdk = KITKAT)
   public void testOpenWithOnCloseListener_nullOnCloseListener() throws Exception {
     HandlerThread handlerThread = new HandlerThread("test");
     handlerThread.start();
@@ -118,7 +117,6 @@ public class ShadowParcelFileDescriptorTest {
   }
 
   @Test
-  @Config(minSdk = KITKAT)
   public void testOpenWithOnCloseListener_callsListenerOnClose() throws Exception {
     HandlerThread handlerThread = new HandlerThread("test");
     handlerThread.start();
@@ -428,6 +426,92 @@ public class ShadowParcelFileDescriptorTest {
     assertThat(dupFile.valid()).isTrue();
   }
 
+  @Test
+  public void testStaticDup_returnsFd() throws Exception {
+    RandomAccessFile randomAccessFile = new RandomAccessFile(file, "rw");
+    FileDescriptor fd = randomAccessFile.getFD();
+    ParcelFileDescriptor dupFd = ParcelFileDescriptor.dup(fd);
+
+    assertThat(fd.valid()).isTrue();
+    assertThat(dupFd.getFileDescriptor().valid()).isTrue();
+  }
+
+  @Test
+  public void testStaticDup_sameContent() throws Exception {
+    ParcelFileDescriptor pfd = null;
+    File tempFile = File.createTempFile("testFile", ".txt");
+    String content = "abc123";
+    Files.asCharSink(tempFile, UTF_8).write(content);
+
+    try (FileInputStream fis = new FileInputStream(tempFile)) {
+      FileDescriptor fd = fis.getFD();
+      pfd = ParcelFileDescriptor.dup(fd);
+      assertThat(readLine(pfd.getFileDescriptor())).isEqualTo(content);
+      assertThat(readLine(fd)).isEqualTo(content);
+    } finally {
+      if (pfd != null) {
+        pfd.close();
+      }
+    }
+
+    tempFile.delete();
+  }
+
+  @Test
+  public void testStaticDup_oldFilePositionDoesNotChange() throws Exception {
+    ParcelFileDescriptor pfd = null;
+    File tempFile = File.createTempFile("testFile", ".txt");
+    String content = "abc123";
+    Files.asCharSink(tempFile, UTF_8).write(content);
+
+    try (FileInputStream fis = new FileInputStream(tempFile)) {
+      FileDescriptor fd = fis.getFD();
+      long oldFilePosition = getCurrentFilePosition(fd);
+      pfd = ParcelFileDescriptor.dup(fd);
+      long newFilePosition = getCurrentFilePosition(fd);
+
+      assertThat(newFilePosition).isEqualTo(oldFilePosition);
+    } finally {
+      if (pfd != null) {
+        pfd.close();
+      }
+    }
+
+    tempFile.delete();
+  }
+
+  @Test
+  public void testStaticDup_afterWrite() throws Exception {
+    File tempFile = File.createTempFile("testFile", ".txt");
+    RandomAccessFile randomAccessFile = new RandomAccessFile(tempFile, "rw");
+    FileDescriptor fd = randomAccessFile.getFD();
+    String content = "abc123";
+    OutputStream writer = new FileOutputStream(fd);
+
+    writer.write(content.getBytes(UTF_8));
+    try (ParcelFileDescriptor pfd = ParcelFileDescriptor.dup(fd)) {
+      assertThat(readLine(pfd.getFileDescriptor())).isEqualTo(content);
+    } finally {
+      writer.close();
+    }
+  }
+
+  @Test
+  public void testClose_afterDup_doesNotCloseOriginalFd() throws Exception {
+    ParcelFileDescriptor pfd = null;
+    File tempFile = File.createTempFile("testFile", ".txt");
+    String content = "abc123";
+    Files.asCharSink(tempFile, UTF_8).write(content);
+
+    try (FileInputStream fis = new FileInputStream(tempFile)) {
+      FileDescriptor fd = fis.getFD();
+      pfd = ParcelFileDescriptor.dup(fd);
+      pfd.close();
+      assertThat(fd.valid()).isTrue();
+    }
+    tempFile.delete();
+  }
+
   private static String readLine(FileDescriptor fd) throws IOException {
     try (BufferedReader reader =
         new BufferedReader(new InputStreamReader(new FileInputStream(fd), defaultCharset()))) {
@@ -444,5 +528,10 @@ public class ShadowParcelFileDescriptorTest {
     } finally {
       parcel.recycle();
     }
+  }
+
+  private static long getCurrentFilePosition(FileDescriptor fd) throws IOException {
+    FileInputStream is = new FileInputStream(fd);
+    return is.getChannel().position();
   }
 }

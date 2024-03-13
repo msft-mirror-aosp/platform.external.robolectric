@@ -6,19 +6,24 @@ import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.R;
 import static android.os.Build.VERSION_CODES.S;
 
+import android.annotation.ColorLong;
 import android.graphics.RadialGradient;
-import androidx.annotation.ColorLong;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.nativeruntime.DefaultNativeRuntimeLoader;
 import org.robolectric.nativeruntime.RadialGradientNatives;
 import org.robolectric.shadows.ShadowNativeRadialGradient.Picker;
+import org.robolectric.versioning.AndroidVersions.U;
 
 /** Shadow for {@link RadialGradient} that is backed by native code */
-@Implements(value = RadialGradient.class, minSdk = O, shadowPicker = Picker.class)
+@Implements(
+    value = RadialGradient.class,
+    minSdk = O,
+    shadowPicker = Picker.class,
+    callNativeMethodsByDefault = true)
 public class ShadowNativeRadialGradient {
 
-  @Implementation(minSdk = S)
+  @Implementation(minSdk = S, maxSdk = U.SDK_INT)
   protected static long nativeCreate(
       long matrix,
       float startX,

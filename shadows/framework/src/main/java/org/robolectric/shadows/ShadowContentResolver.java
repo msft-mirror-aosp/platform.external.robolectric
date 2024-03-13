@@ -6,9 +6,6 @@ import static android.content.ContentResolver.QUERY_ARG_SQL_SORT_ORDER;
 import static android.content.ContentResolver.SCHEME_ANDROID_RESOURCE;
 import static android.content.ContentResolver.SCHEME_CONTENT;
 import static android.content.ContentResolver.SCHEME_FILE;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
-import static android.os.Build.VERSION_CODES.KITKAT;
 import static android.os.Build.VERSION_CODES.O;
 import static android.os.Build.VERSION_CODES.Q;
 import static org.robolectric.util.reflector.Reflector.reflector;
@@ -84,7 +81,6 @@ public class ShadowContentResolver {
   private static final Map<Uri, Supplier<OutputStream>> outputStreamMap = new HashMap<>();
   private static final Map<String, List<ContentProviderOperation>> contentProviderOperations =
       new HashMap<>();
-  private static ContentProviderResult[] contentProviderResults;
   private static final List<UriPermission> uriPermissions = new ArrayList<>();
 
   private static final CopyOnWriteArrayList<ContentObserverEntry> contentObservers =
@@ -108,7 +104,6 @@ public class ShadowContentResolver {
     inputStreamMap.clear();
     outputStreamMap.clear();
     contentProviderOperations.clear();
-    contentProviderResults = null;
     uriPermissions.clear();
     contentObservers.clear();
     syncableAccounts.clear();
@@ -514,7 +509,7 @@ public class ShadowContentResolver {
   }
 
   @Implementation
-  protected ContentProviderResult[] applyBatch(
+  protected @NonNull ContentProviderResult[] applyBatch(
       String authority, ArrayList<ContentProviderOperation> operations)
       throws OperationApplicationException {
     ContentProvider provider = getProvider(authority, getContext());
@@ -522,7 +517,7 @@ public class ShadowContentResolver {
       return provider.applyBatch(operations);
     } else {
       contentProviderOperations.put(authority, operations);
-      return contentProviderResults;
+      return new ContentProviderResult[0];
     }
   }
 
@@ -565,26 +560,12 @@ public class ShadowContentResolver {
       }
       for (Map.Entry<Account, Status> mp : map.getValue().entrySet()) {
         if (isSyncActive(mp.getKey(), map.getKey())) {
-          SyncInfo si = newSyncInfo(0, mp.getKey(), map.getKey(), 0);
+          SyncInfo si = new SyncInfo(0, mp.getKey(), map.getKey(), 0);
           list.add(si);
         }
       }
     }
     return list;
-  }
-
-  private static SyncInfo newSyncInfo(
-      int authorityId, Account account, String authority, long startTime) {
-    if (RuntimeEnvironment.getApiLevel() >= JELLY_BEAN_MR2) {
-      return new SyncInfo(authorityId, account, authority, startTime);
-    } else {
-      return ReflectionHelpers.callConstructor(
-          SyncInfo.class,
-          ClassParameter.from(int.class, authorityId),
-          ClassParameter.from(Account.class, account),
-          ClassParameter.from(String.class, authority),
-          ClassParameter.from(long.class, startTime));
-    }
   }
 
   @Implementation
@@ -665,7 +646,7 @@ public class ShadowContentResolver {
     return masterSyncAutomatically;
   }
 
-  @Implementation(minSdk = KITKAT)
+  @Implementation
   protected void takePersistableUriPermission(@NonNull Uri uri, int modeFlags) {
     Objects.requireNonNull(uri, "uri may not be null");
     modeFlags &= (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
@@ -693,7 +674,7 @@ public class ShadowContentResolver {
     addUriPermission(uri, modeFlags);
   }
 
-  @Implementation(minSdk = KITKAT)
+  @Implementation
   protected void releasePersistableUriPermission(@NonNull Uri uri, int modeFlags) {
     Objects.requireNonNull(uri, "uri may not be null");
     modeFlags &= (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
@@ -727,7 +708,7 @@ public class ShadowContentResolver {
     }
   }
 
-  @Implementation(minSdk = KITKAT)
+  @Implementation
   @NonNull
   protected List<UriPermission> getPersistedUriPermissions() {
     return uriPermissions;
@@ -919,11 +900,6 @@ public class ShadowContentResolver {
     return operations;
   }
 
-  @Deprecated
-  public void setContentProviderResult(ContentProviderResult[] contentProviderResults) {
-    ShadowContentResolver.contentProviderResults = contentProviderResults;
-  }
-
   private final Map<Uri, RuntimeException> registerContentProviderExceptions = new HashMap<>();
 
   /** Makes {@link #registerContentObserver} throw the specified exception for the specified URI. */
@@ -951,7 +927,7 @@ public class ShadowContentResolver {
     contentObservers.add(new ContentObserverEntry(uri, notifyForDescendents, observer));
   }
 
-  @Implementation(minSdk = JELLY_BEAN_MR1)
+  @Implementation
   protected void registerContentObserver(
       Uri uri, boolean notifyForDescendents, ContentObserver observer, int userHandle) {
     registerContentObserver(uri, notifyForDescendents, observer);
