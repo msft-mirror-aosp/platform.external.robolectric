@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.KITKAT;
 import static android.os.Build.VERSION_CODES.P;
 import static android.os.Build.VERSION_CODES.S;
 import static java.util.stream.Collectors.toCollection;
@@ -9,6 +8,9 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHeadset;
 import android.bluetooth.BluetoothProfile;
 import android.content.Intent;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.primitives.Ints;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -73,6 +75,18 @@ public class ShadowBluetoothHeadset {
   @Implementation
   protected int getConnectionState(BluetoothDevice device) {
     return bluetoothDevices.getOrDefault(device, BluetoothProfile.STATE_DISCONNECTED);
+  }
+
+  @Implementation
+  protected List<BluetoothDevice> getDevicesMatchingConnectionStates(int[] states) {
+    ImmutableSet<Integer> statesSet = ImmutableSet.copyOf(Ints.asList(states));
+    List<BluetoothDevice> matchingDevices = new ArrayList<>();
+    for (Map.Entry<BluetoothDevice, Integer> entry : bluetoothDevices.entrySet()) {
+      if (statesSet.contains(entry.getValue())) {
+        matchingDevices.add(entry.getKey());
+      }
+    }
+    return ImmutableList.copyOf(matchingDevices);
   }
 
   /**
@@ -156,7 +170,7 @@ public class ShadowBluetoothHeadset {
    *     'false' argument.
    * @throws IllegalArgumentException if 'command' argument is null, per Android API
    */
-  @Implementation(minSdk = KITKAT)
+  @Implementation
   protected boolean sendVendorSpecificResultCode(
       BluetoothDevice device, String command, String arg) {
     if (command == null) {

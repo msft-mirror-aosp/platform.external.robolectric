@@ -1,7 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.N;
 import static com.google.common.truth.Truth.assertThat;
@@ -44,7 +42,6 @@ public abstract class ShadowNotificationBuilderTestBase {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void build_whenShowWhenNotSet_setsShowWhenOnNotificationToTrue() {
     Notification notification = builder.setWhen(100).setShowWhen(true).build();
 
@@ -52,7 +49,6 @@ public abstract class ShadowNotificationBuilderTestBase {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void build_setShowWhenOnNotification() {
     Notification notification = builder.setShowWhen(false).build();
 
@@ -112,7 +108,6 @@ public abstract class ShadowNotificationBuilderTestBase {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void build_setsUsesChronometerOnNotification_true() {
     Notification notification = builder.setUsesChronometer(true).setWhen(10).setShowWhen(true).build();
 
@@ -120,7 +115,6 @@ public abstract class ShadowNotificationBuilderTestBase {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void build_setsUsesChronometerOnNotification_false() {
     Notification notification = builder.setUsesChronometer(false).setWhen(10).setShowWhen(true).build();
 
@@ -209,7 +203,6 @@ public abstract class ShadowNotificationBuilderTestBase {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
   public void build_addsActionToNotification() throws Exception {
     PendingIntent action =
         PendingIntent.getBroadcast(ApplicationProvider.getApplicationContext(), 0, null, 0);
@@ -246,5 +239,23 @@ public abstract class ShadowNotificationBuilderTestBase {
         .build();
 
     assertThat(shadowOf(notification).getBigPicture().sameAs(bigPicture)).isTrue();
+  }
+
+  @Test
+  public void withInboxStyle() {
+    Notification notification =
+        builder
+            .setStyle(
+                new Notification.InboxStyle(builder)
+                    .addLine("Line1")
+                    .addLine("Line2")
+                    .setBigContentTitle("Title")
+                    .setSummaryText("Summary"))
+            .build();
+
+    assertThat(shadowOf(notification).getBigContentTitle().toString()).isEqualTo("Title");
+    assertThat(shadowOf(notification).getBigContentText().toString()).isEqualTo("Summary");
+    assertThat(shadowOf(notification).getBigPicture()).isNull();
+    assertThat(shadowOf(notification).getTextLines()).containsExactly("Line1", "Line2");
   }
 }

@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
 import static android.os.Build.VERSION_CODES.O;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
@@ -23,7 +22,6 @@ import org.robolectric.annotation.Config;
 
 /** Tests for {@link ShadowBluetoothGatt}. */
 @RunWith(AndroidJUnit4.class)
-@Config(minSdk = JELLY_BEAN_MR2)
 public class ShadowBluetoothGattTest {
 
   private static final byte[] CHARACTERISTIC_VALUE = new byte[] {'a', 'b', 'c'};
@@ -33,10 +31,12 @@ public class ShadowBluetoothGattTest {
   private static final String ACTION_DISCOVER = "DISCOVER";
   private static final String ACTION_READ = "READ";
   private static final String ACTION_WRITE = "WRITE";
+  private static final String ACTION_MTU = "MTU";
   private static final String REMOTE_ADDRESS = "R-A";
 
   private int resultStatus = INITIAL_VALUE;
   private int resultState = INITIAL_VALUE;
+  private int resultMtu = INITIAL_VALUE;
   private String resultAction;
   private BluetoothGattCharacteristic resultCharacteristic;
   private BluetoothGattDescriptor resultDescriptor;
@@ -88,6 +88,13 @@ public class ShadowBluetoothGattTest {
           resultStatus = status;
           resultDescriptor = descriptor;
           resultAction = ACTION_WRITE;
+        }
+
+        @Override
+        public void onMtuChanged(BluetoothGatt gatt, int mtu, int status) {
+          resultStatus = status;
+          resultMtu = mtu;
+          resultAction = ACTION_MTU;
         }
       };
 
@@ -232,6 +239,24 @@ public class ShadowBluetoothGattTest {
   public void requestConnectionPriority_notInRange_throwsException() {
     assertThrows(IllegalArgumentException.class, () -> bluetoothGatt.requestConnectionPriority(-9));
     assertThrows(IllegalArgumentException.class, () -> bluetoothGatt.requestConnectionPriority(9));
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void requestMtu_failsBeforeCallbackSet() {
+    assertThat(bluetoothGatt.requestMtu(1)).isFalse();
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void requestMtu_success() {
+    shadowOf(bluetoothGatt).setGattCallback(callback);
+
+    int mtu = 1;
+    assertThat(bluetoothGatt.requestMtu(mtu)).isTrue();
+    assertThat(resultAction).isEqualTo(ACTION_MTU);
+    assertThat(resultStatus).isEqualTo(BluetoothGatt.GATT_SUCCESS);
+    assertThat(resultMtu).isEqualTo(mtu);
   }
 
   @Test
@@ -532,6 +557,98 @@ public class ShadowBluetoothGattTest {
   }
 
   @Test
+  @Config
+  public void writeIncomingCharacteristic_updated_withoutCallback() {
+    service1.addCharacteristic(characteristicWithWriteProperties);
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            shadowOf(bluetoothGatt).writeIncomingCharacteristic(characteristicWithWriteProperties));
+  }
+
+  @Test
+  @Config
+  public void writeIncomingCharacteristic_updated_withCallbackOnly() {
+    shadowOf(bluetoothGatt).setGattCallback(callback);
+    assertThat(
+            shadowOf(bluetoothGatt).writeIncomingCharacteristic(characteristicWithWriteProperties))
+        .isFalse();
+    assertThat(resultStatus).isEqualTo(INITIAL_VALUE);
+    assertThat(resultAction).isNull();
+    assertThat(resultCharacteristic).isNull();
+    assertThat(shadowOf(bluetoothGatt).getLatestWrittenBytes()).isNull();
+  }
+
+  @Test
+  @Config
+  public void writeIncomingCharacteristic_updated_correctlySetup() {
+    shadowOf(bluetoothGatt).setGattCallback(callback);
+    characteristicWithWriteProperties.setValue(CHARACTERISTIC_VALUE);
+    service2.addCharacteristic(characteristicWithWriteProperties);
+    assertThat(characteristicWithWriteProperties.getService()).isNotNull();
+    assertThat(
+            shadowOf(bluetoothGatt).writeIncomingCharacteristic(characteristicWithWriteProperties))
+        .isTrue();
+    assertThat(resultStatus).isEqualTo(BluetoothGatt.GATT_SUCCESS);
+    assertThat(resultAction).isEqualTo(ACTION_WRITE);
+    assertThat(resultCharacteristic).isEqualTo(characteristicWithWriteProperties);
+    assertThat(shadowOf(bluetoothGatt).getLatestWrittenBytes()).isEqualTo(CHARACTERISTIC_VALUE);
+  }
+
+  @Test
+  @Config
+  public void writeIncomingCharacteristic_updated_withCallbackAndServiceSet_wrongProperty() {
+    shadowOf(bluetoothGatt).setGattCallback(callback);
+    service1.addCharacteristic(characteristicWithReadProperty);
+    assertThat(characteristicWithReadProperty.getService()).isNotNull();
+
+    assertThat(shadowOf(bluetoothGatt).writeIncomingCharacteristic(characteristicWithReadProperty))
+        .isFalse();
+    assertThat(resultStatus).isEqualTo(INITIAL_VALUE);
+    assertThat(resultAction).isNull();
+    assertThat(resultCharacteristic).isNull();
+    assertThat(shadowOf(bluetoothGatt).getLatestWrittenBytes()).isNull();
+  }
+
+  @Test
+  @Config
+  public void writeIncomingCharacteristic_updated_onlyWriteProperty() {
+    BluetoothGattCharacteristic characteristic =
+        new BluetoothGattCharacteristic(
+            UUID.fromString("00000000-0000-0000-0000-0000000000A6"),
+            BluetoothGattCharacteristic.PROPERTY_WRITE,
+            BluetoothGattCharacteristic.PERMISSION_WRITE);
+
+    shadowOf(bluetoothGatt).setGattCallback(callback);
+    service1.addCharacteristic(characteristic);
+    characteristic.setValue(CHARACTERISTIC_VALUE);
+    assertThat(shadowOf(bluetoothGatt).writeIncomingCharacteristic(characteristic)).isTrue();
+    assertThat(resultStatus).isEqualTo(BluetoothGatt.GATT_SUCCESS);
+    assertThat(resultAction).isEqualTo(ACTION_WRITE);
+    assertThat(resultCharacteristic).isEqualTo(characteristic);
+    assertThat(shadowOf(bluetoothGatt).getLatestWrittenBytes()).isEqualTo(CHARACTERISTIC_VALUE);
+  }
+
+  @Test
+  @Config
+  public void writeIncomingCharacteristic_updated_onlyWriteNoResponseProperty() {
+    BluetoothGattCharacteristic characteristic =
+        new BluetoothGattCharacteristic(
+            UUID.fromString("00000000-0000-0000-0000-0000000000A7"),
+            BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE,
+            BluetoothGattCharacteristic.PERMISSION_WRITE);
+
+    shadowOf(bluetoothGatt).setGattCallback(callback);
+    service1.addCharacteristic(characteristic);
+    characteristic.setValue(CHARACTERISTIC_VALUE);
+    assertThat(shadowOf(bluetoothGatt).writeIncomingCharacteristic(characteristic)).isTrue();
+    assertThat(resultStatus).isEqualTo(BluetoothGatt.GATT_SUCCESS);
+    assertThat(resultAction).isEqualTo(ACTION_WRITE);
+    assertThat(resultCharacteristic).isEqualTo(characteristic);
+    assertThat(shadowOf(bluetoothGatt).getLatestWrittenBytes()).isEqualTo(CHARACTERISTIC_VALUE);
+  }
+
+  @Test
   public void test_getBluetoothConnectionManager() {
     assertThat(shadowOf(bluetoothGatt).getBluetoothConnectionManager()).isNotNull();
   }
@@ -616,7 +733,11 @@ public class ShadowBluetoothGattTest {
     service1.addCharacteristic(characteristicWithReadProperty);
     shadowOf(bluetoothGatt).addDiscoverableService(service1);
     shadowOf(bluetoothGatt).allowCharacteristicNotification(characteristicWithReadProperty);
+
+    // All setCharacteristicNotification calls are allowed on characteristicWithReadProperty.
     assertThat(bluetoothGatt.setCharacteristicNotification(characteristicWithReadProperty, true))
+        .isTrue();
+    assertThat(bluetoothGatt.setCharacteristicNotification(characteristicWithReadProperty, false))
         .isTrue();
   }
 
@@ -626,7 +747,43 @@ public class ShadowBluetoothGattTest {
     service1.addCharacteristic(characteristicWithReadProperty);
     shadowOf(bluetoothGatt).addDiscoverableService(service1);
     shadowOf(bluetoothGatt).disallowCharacteristicNotification(characteristicWithReadProperty);
+
+    // No setCharacteristicNotification calls are allowed on characteristicWithReadProperty.
     assertThat(bluetoothGatt.setCharacteristicNotification(characteristicWithReadProperty, true))
+        .isFalse();
+    assertThat(bluetoothGatt.setCharacteristicNotification(characteristicWithReadProperty, false))
+        .isFalse();
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void disallowCharacteristicNotification_byDefault() {
+    service1.addCharacteristic(characteristicWithReadProperty);
+    shadowOf(bluetoothGatt).addDiscoverableService(service1);
+
+    // setCharacteristicNotification calls are disallowed by default when neither
+    // allowCharacteristicNotification nor disallowCharacteristicNotification is called.
+
+    // No setCharacteristicNotification calls are allowed on characteristicWithReadProperty.
+    assertThat(bluetoothGatt.setCharacteristicNotification(characteristicWithReadProperty, true))
+        .isFalse();
+    assertThat(bluetoothGatt.setCharacteristicNotification(characteristicWithReadProperty, false))
+        .isFalse();
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void disallowCharacteristicNotification_overridesPreviousAllow() {
+    service1.addCharacteristic(characteristicWithReadProperty);
+    shadowOf(bluetoothGatt).addDiscoverableService(service1);
+
+    shadowOf(bluetoothGatt).allowCharacteristicNotification(characteristicWithReadProperty);
+    shadowOf(bluetoothGatt).disallowCharacteristicNotification(characteristicWithReadProperty);
+
+    // No setCharacteristicNotification calls are allowed on characteristicWithReadProperty.
+    assertThat(bluetoothGatt.setCharacteristicNotification(characteristicWithReadProperty, true))
+        .isFalse();
+    assertThat(bluetoothGatt.setCharacteristicNotification(characteristicWithReadProperty, false))
         .isFalse();
   }
 }
