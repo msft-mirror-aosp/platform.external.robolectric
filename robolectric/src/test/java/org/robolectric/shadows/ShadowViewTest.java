@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
@@ -426,8 +425,14 @@ public class ShadowViewTest {
 
   @Test
   public void scrollTo_shouldStoreTheScrolledCoordinates() throws Exception {
-    view.scrollTo(1, 2);
-    assertThat(shadowOf(view).scrollToCoordinates).isEqualTo(new Point(1, 2));
+    // This test depends on broken scrolling behavior.
+    System.setProperty("robolectric.useRealScrolling", "false");
+    try {
+      view.scrollTo(1, 2);
+      assertThat(shadowOf(view).scrollToCoordinates).isEqualTo(new Point(1, 2));
+    } finally {
+      System.clearProperty("robolectric.useRealScrolling");
+    }
   }
 
   @Test
@@ -440,12 +445,18 @@ public class ShadowViewTest {
 
   @Test
   public void scrollBy_shouldStoreTheScrolledCoordinates() throws Exception {
-    view.scrollTo(4, 5);
-    view.scrollBy(10, 20);
-    assertThat(shadowOf(view).scrollToCoordinates).isEqualTo(new Point(14, 25));
+    // This test depends on broken scrolling behavior.
+    System.setProperty("robolectric.useRealScrolling", "false");
+    try {
+      view.scrollTo(4, 5);
+      view.scrollBy(10, 20);
+      assertThat(shadowOf(view).scrollToCoordinates).isEqualTo(new Point(14, 25));
 
-    assertThat(view.getScrollX()).isEqualTo(14);
-    assertThat(view.getScrollY()).isEqualTo(25);
+      assertThat(view.getScrollX()).isEqualTo(14);
+      assertThat(view.getScrollY()).isEqualTo(25);
+    } finally {
+      System.clearProperty("robolectric.useRealScrolling");
+    }
   }
 
   @Test
@@ -866,7 +877,7 @@ public class ShadowViewTest {
     assertFalse(shadowOf(temporaryChild).isAttachedToWindow());
   }
 
-  @Test @Config(minSdk = JELLY_BEAN_MR2)
+  @Test
   public void getWindowId_shouldReturnValidObjectWhenAttached() throws Exception {
     MyView parent = new MyView("parent", transcript);
     MyView child = new MyView("child", transcript);

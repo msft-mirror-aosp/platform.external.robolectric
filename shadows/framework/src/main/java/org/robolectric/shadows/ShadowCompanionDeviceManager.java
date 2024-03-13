@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
 
 import android.Manifest.permission;
+import android.annotation.Nullable;
 import android.app.ActivityThread;
 import android.companion.AssociationInfo;
 import android.companion.AssociationRequest;
@@ -14,7 +15,6 @@ import android.content.ComponentName;
 import android.net.MacAddress;
 import android.os.Build.VERSION_CODES;
 import android.os.Handler;
-import androidx.annotation.Nullable;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableList;
@@ -281,7 +281,8 @@ public class ShadowCompanionDeviceManager {
         info.isNotifyOnDeviceNearby(),
         revoked,
         info.getTimeApprovedMs(),
-        info.getLastTimeConnectedMs(),
+        // return value of getLastTimeConnectedMs changed from a long to a Long
+        (long) ReflectionHelpers.callInstanceMethod(info, "getLastTimeConnectedMs"),
         systemDataSyncFlags);
   }
 
@@ -343,7 +344,7 @@ public class ShadowCompanionDeviceManager {
           .setRevoked(false)
           .setAssociatedDevice(null)
           .setTimeApprovedMs(0)
-          .setLastTimeConnectedMs(0)
+          .setLastTimeConnectedMs(0L)
           .setSystemDataSyncFlags(DEFAULT_SYSTEMDATASYNCFLAGS);
     }
 

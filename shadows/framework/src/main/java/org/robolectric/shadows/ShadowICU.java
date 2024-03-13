@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
 import static android.os.Build.VERSION_CODES.KITKAT_WATCH;
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.N;
@@ -37,12 +36,18 @@ public class ShadowICU {
     switch (skeleton) {
       case "jmm":
         return getjmmPattern(locale);
+      case "yMMMd": // This is from {@code DatePickerDefaults.YearAbbrMonthDaySkeleton}
+        return "MMM d, y";
+      case "yMMMMEEEEd": // This is from {@code DatePickerDefaults.YearMonthWeekdayDaySkeleton}
+        return "EEEE, MMMM d, y";
+      case "yMMMM": // This is from {@code DatePickerDefaults.YearMonthSkeleton}
+        return "MMMM y";
       default:
         return skeleton;
     }
   }
 
-  @Implementation(minSdk = JELLY_BEAN_MR2, maxSdk = KITKAT_WATCH)
+  @Implementation(maxSdk = KITKAT_WATCH)
   public static String getBestDateTimePattern(String skeleton, String locale) {
     return skeleton;
   }

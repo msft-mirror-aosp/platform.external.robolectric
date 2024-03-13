@@ -1,7 +1,6 @@
 package org.robolectric.shadows;
 
 import static android.os.Build.VERSION.SDK_INT;
-import static android.os.Build.VERSION_CODES.KITKAT;
 import static android.os.Build.VERSION_CODES.R;
 import static android.os.Build.VERSION_CODES.TIRAMISU;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -36,7 +35,7 @@ public class ShadowInputManager {
     return true;
   }
 
-  @Implementation(minSdk = KITKAT)
+  @Implementation
   protected boolean[] deviceHasKeys(int id, int[] keyCodes) {
     return new boolean[keyCodes.length];
   }
@@ -44,7 +43,21 @@ public class ShadowInputManager {
   /** Used in {@link InputDevice#getDeviceIds()} */
   @Implementation
   protected int[] getInputDeviceIds() {
-    return new int[0];
+    if (!ReflectionHelpers.hasField(InputManager.class, "mInputDevices")) {
+      return new int[0];
+    }
+
+    SparseArray<InputDevice> inputDevices = getInputDevices();
+    if (inputDevices == null) {
+      return new int[0];
+    }
+
+    int[] ids = new int[inputDevices.size()];
+    for (int i = 0; i < inputDevices.size(); i++) {
+      ids[i] = inputDevices.get(i).getId();
+    }
+
+    return ids;
   }
 
   @Implementation(maxSdk = TIRAMISU)

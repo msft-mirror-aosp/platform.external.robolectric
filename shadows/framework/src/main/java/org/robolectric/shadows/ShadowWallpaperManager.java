@@ -18,7 +18,6 @@ import android.graphics.Bitmap;
 import android.graphics.Bitmap.CompressFormat;
 import android.graphics.BitmapFactory;
 import android.graphics.Rect;
-import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
@@ -52,6 +51,7 @@ public class ShadowWallpaperManager {
   private int homeScreenId;
 
   private float wallpaperDimAmount = 0.0f;
+  private final ArrayList<Float> allWallpaperDimAmounts = new ArrayList<>();
 
   @Implementation
   protected void sendWallpaperCommand(
@@ -88,7 +88,7 @@ public class ShadowWallpaperManager {
    * Returns whether the current wallpaper has been set through {@link #setResource(int)} or {@link
    * #setResource(int, int)} with the same resource id.
    */
-  @Implementation(minSdk = VERSION_CODES.JELLY_BEAN_MR1)
+  @Implementation
   protected boolean hasResourceWallpaper(int resid) {
     return resid == this.lockScreenId || resid == this.homeScreenId;
   }
@@ -240,6 +240,15 @@ public class ShadowWallpaperManager {
   @Implementation(minSdk = TIRAMISU)
   protected void setWallpaperDimAmount(@FloatRange(from = 0f, to = 1f) float dimAmount) {
     wallpaperDimAmount = MathUtils.saturate(dimAmount);
+    allWallpaperDimAmounts.add(dimAmount);
+  }
+
+  /**
+   * Returns a list of all dim amounts set from calls to setWallpaperDimAmount. This can be used to
+   * verify that repeated calls to setWallpaperDimAmount are not done which can cause issues.
+   */
+  public List<Float> getAllWallpaperDimAmounts() {
+    return Collections.unmodifiableList(allWallpaperDimAmounts);
   }
 
   @Implementation(minSdk = TIRAMISU)

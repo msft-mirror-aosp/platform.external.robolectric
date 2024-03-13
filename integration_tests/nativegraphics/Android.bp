@@ -59,6 +59,7 @@ android_robolectric_test {
         "android.test.base",
         "android.test.mock",
         "truth",
+        "guava-android-testlib",
     ],
     upstream: true,
     java_resource_dirs: ["config"],

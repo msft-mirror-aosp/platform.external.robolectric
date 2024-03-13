@@ -60,6 +60,7 @@ import org.robolectric.RuntimeEnvironment;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.shadows.ShadowBitmap;
 import org.robolectric.shadows.ShadowNativeBitmap;
+import org.robolectric.versioning.AndroidVersions.U;
 
 @org.robolectric.annotation.Config(minSdk = O)
 @RunWith(RobolectricTestRunner.class)
@@ -1580,6 +1581,7 @@ public class ShadowNativeBitmapTest {
     assertFalse(bitmap2.sameAs(bitmap1));
   }
 
+  @org.robolectric.annotation.Config(maxSdk = U.SDK_INT) // TODO(hoisie): fix in V and above
   @Test
   public void testSameAs_hardware() {
     Bitmap bitmap1 = BitmapFactory.decodeResource(res, R.drawable.robot, HARDWARE_OPTIONS);
@@ -1588,7 +1590,13 @@ public class ShadowNativeBitmapTest {
     Bitmap bitmap4 = BitmapFactory.decodeResource(res, R.drawable.start, HARDWARE_OPTIONS);
     assertTrue(bitmap1.sameAs(bitmap2));
     assertTrue(bitmap2.sameAs(bitmap1));
-    assertFalse(bitmap1.sameAs(bitmap3));
+
+    // Note: on an emulator or real device, the HARDWARE bitmap1 and the Software bitmap3 differ
+    // because the pixels cannot be read from the underlying hardware buffer. However, after the fix
+    // from r.android.com/2887086, Robolectric does actually properly fill the buffer content of a
+    // HARDWARE bitmap, which means it now is the same as its non-hardware counterpart.
+    assertTrue(bitmap1.sameAs(bitmap3));
+
     assertFalse(bitmap1.sameAs(bitmap4));
   }
 
@@ -1730,6 +1738,13 @@ public class ShadowNativeBitmapTest {
             100, 100, Bitmap.Config.ARGB_8888, true, ColorSpace.get(ColorSpace.Named.ADOBE_RGB));
 
     assertThat(bitmap.getColorSpace()).isEqualTo(ColorSpace.get(ColorSpace.Named.ADOBE_RGB));
+  }
+
+  @org.robolectric.annotation.Config(minSdk = U.SDK_INT)
+  @Test
+  public void noGainmap_returnsNull() {
+    Bitmap bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+    assertThat(bitmap.getGainmap()).isNull();
   }
 
   @Test

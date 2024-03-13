@@ -2,7 +2,6 @@ package org.robolectric.shadows;
 
 import static android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 import static android.content.res.Configuration.ORIENTATION_PORTRAIT;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
 import static android.os.Build.VERSION_CODES.P;
 import static java.util.Objects.requireNonNull;
 import static org.robolectric.shadow.api.Shadow.extract;
@@ -10,6 +9,8 @@ import static org.robolectric.shadow.api.Shadow.invokeConstructor;
 import static org.robolectric.shadows.ShadowLooper.shadowMainLooper;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
+import android.annotation.Nullable;
+import android.annotation.RequiresApi;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.hardware.display.BrightnessChangeEvent;
@@ -20,8 +21,6 @@ import android.util.DisplayMetrics;
 import android.view.Display;
 import android.view.DisplayInfo;
 import android.view.Surface;
-import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import com.google.auto.value.AutoBuilder;
 import java.util.HashMap;
 import java.util.List;
@@ -43,7 +42,7 @@ import org.robolectric.util.reflector.ForType;
  * For tests, display properties may be changed and devices may be added or removed
  * programmatically.
  */
-@Implements(value = DisplayManager.class, minSdk = JELLY_BEAN_MR1, looseSignatures = true)
+@Implements(value = DisplayManager.class, looseSignatures = true)
 public class ShadowDisplayManager {
 
   @RealObject private DisplayManager realDisplayManager;
@@ -96,12 +95,21 @@ public class ShadowDisplayManager {
     return id;
   }
 
+  static IllegalStateException configureDefaultDisplayCallstack;
+
   /** internal only */
   public static void configureDefaultDisplay(
       Configuration configuration, DisplayMetrics displayMetrics) {
     ShadowDisplayManagerGlobal shadowDisplayManagerGlobal = getShadowDisplayManagerGlobal();
-    if (DisplayManagerGlobal.getInstance().getDisplayIds().length != 0) {
-      throw new IllegalStateException("this method should only be called by Robolectric");
+    if (DisplayManagerGlobal.getInstance().getDisplayIds().length == 0) {
+      configureDefaultDisplayCallstack =
+          new IllegalStateException("configureDefaultDisplay should only be called once");
+    } else {
+      configureDefaultDisplayCallstack.initCause(
+          new IllegalStateException(
+              "configureDefaultDisplay was called a second time",
+              configureDefaultDisplayCallstack));
+      throw configureDefaultDisplayCallstack;
     }
 
     shadowDisplayManagerGlobal.addDisplay(
@@ -143,7 +151,7 @@ public class ShadowDisplayManager {
       displayInfo.state = Display.STATE_ON;
     }
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+    if (Build.VERSION.SDK_INT == Build.VERSION_CODES.KITKAT) {
       displayInfo.getAppMetrics(displayMetrics);
     }
 
@@ -338,10 +346,6 @@ public class ShadowDisplayManager {
   }
 
   private static ShadowDisplayManagerGlobal getShadowDisplayManagerGlobal() {
-    if (Build.VERSION.SDK_INT < JELLY_BEAN_MR1) {
-      throw new UnsupportedOperationException("multiple displays not supported in Jelly Bean");
-    }
-
     return extract(DisplayManagerGlobal.getInstance());
   }
 
