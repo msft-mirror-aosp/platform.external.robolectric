@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.O;
 import static android.os.Build.VERSION_CODES.O_MR1;
@@ -15,6 +14,7 @@ import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
+import android.os.Build;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -32,7 +32,7 @@ import org.robolectric.util.reflector.Direct;
 import org.robolectric.util.reflector.ForType;
 
 /** Shadow implementation of {@link BluetoothGatt}. */
-@Implements(value = BluetoothGatt.class, minSdk = JELLY_BEAN_MR2)
+@Implements(value = BluetoothGatt.class)
 public class ShadowBluetoothGatt {
 
   private static final String NULL_CALLBACK_MSG = "BluetoothGattCallback can not be null.";
@@ -126,7 +126,7 @@ public class ShadowBluetoothGatt {
    * @return true, if a {@link BluetoothGattCallback} has been set by {@link
    *     ShadowBluetoothGatt#setGattCallback}
    */
-  @Implementation(minSdk = JELLY_BEAN_MR2)
+  @Implementation
   protected boolean connect() {
     if (this.getGattCallback() != null) {
       this.isConnected = true;
@@ -141,7 +141,7 @@ public class ShadowBluetoothGatt {
   /**
    * Disconnects an established connection, or cancels a connection attempt currently in progress.
    */
-  @Implementation(minSdk = JELLY_BEAN_MR2)
+  @Implementation
   protected void disconnect() {
     bluetoothGattReflector.disconnect();
     if (this.isCallbackAppropriate()) {
@@ -155,7 +155,7 @@ public class ShadowBluetoothGatt {
   }
 
   /** Close this Bluetooth GATT client. */
-  @Implementation(minSdk = JELLY_BEAN_MR2)
+  @Implementation
   protected void close() {
     bluetoothGattReflector.close();
     this.isClosed = true;
@@ -180,6 +180,21 @@ public class ShadowBluetoothGatt {
       return true;
     }
     throw new IllegalArgumentException("connection priority not within valid range");
+  }
+
+  /**
+   * Overrides {@link BluetoothGatt#requestMtu} to always fail before {@link
+   * ShadowBlueoothGatt.setGattCallback} is called, and always succeed after.
+   */
+  @Implementation(minSdk = O)
+  protected boolean requestMtu(int mtu) {
+    if (this.bluetoothGattCallback == null) {
+      return false;
+    }
+
+    this.bluetoothGattCallback.onMtuChanged(
+        this.realBluetoothGatt, mtu, BluetoothGatt.GATT_SUCCESS);
+    return true;
   }
 
   /**
@@ -241,7 +256,7 @@ public class ShadowBluetoothGatt {
   @Implementation(minSdk = O)
   protected boolean setCharacteristicNotification(
       BluetoothGattCharacteristic characteristic, boolean enable) {
-    return characteristicNotificationEnableSet.contains(characteristic) == enable;
+    return characteristicNotificationEnableSet.contains(characteristic);
   }
 
   @Implementation(minSdk = O)
@@ -262,6 +277,17 @@ public class ShadowBluetoothGatt {
   @Implementation(minSdk = O)
   protected boolean writeCharacteristic(BluetoothGattCharacteristic characteristic) {
     return writeIncomingCharacteristic(characteristic);
+  }
+
+  @Implementation(minSdk = Build.VERSION_CODES.TIRAMISU)
+  protected int writeCharacteristic(
+      BluetoothGattCharacteristic characteristic, byte[] value, int writeType) {
+    characteristic.setValue(value);
+    boolean writeSuccessCode = writeIncomingCharacteristic(characteristic);
+    if (writeSuccessCode) {
+      return BluetoothGatt.GATT_SUCCESS;
+    }
+    return BluetoothGatt.GATT_FAILURE;
   }
 
   /**

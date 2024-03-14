@@ -1,10 +1,9 @@
 package org.robolectric.shadows;
 
-
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.res.ApkAssets;
 import android.content.res.AssetManager;
-import androidx.annotation.NonNull;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.versioning.AndroidVersions.U;
@@ -130,8 +129,8 @@ public class ShadowArscAssetManager14 extends ShadowArscAssetManager10 {
   }
 
   @Implementation(minSdk = V.SDK_INT)
-  protected static void nativeSetApkAssets(long ptr, @NonNull ApkAssets[] apkAssets,
-            boolean invalidateCaches, boolean preset) {
+  protected static void nativeSetApkAssets(
+      long ptr, @NonNull ApkAssets[] apkAssets, boolean invalidateCaches, boolean preset) {
     nativeSetApkAssets(ptr, apkAssets, invalidateCaches);
   }
 }

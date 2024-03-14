@@ -32,8 +32,6 @@ import static android.content.pm.PackageManager.SIGNATURE_SECOND_NOT_SIGNED;
 import static android.content.pm.PackageManager.SIGNATURE_UNKNOWN_PACKAGE;
 import static android.content.pm.PackageManager.VERIFICATION_ALLOW;
 import static android.content.pm.PackageManager.VERIFICATION_REJECT;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.LOLLIPOP_MR1;
 import static android.os.Build.VERSION_CODES.M;
@@ -1179,7 +1177,6 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void queryIntentActivitiesAsUser_EmptyResult() {
     Intent i = new Intent(Intent.ACTION_APP_ERROR, null);
     i.addCategory(Intent.CATEGORY_APP_BROWSER);
@@ -1209,7 +1206,6 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void queryIntentActivitiesAsUser_Match() {
     Intent i = new Intent(Intent.ACTION_MAIN, null);
     i.addCategory(Intent.CATEGORY_LAUNCHER);
@@ -1509,7 +1505,6 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void resolveActivityAsUser_Match() {
     Intent i = new Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER);
     ResolveInfo info = new ResolveInfo();
@@ -1533,7 +1528,6 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void resolveActivityAsUser_NoMatch() {
     Intent i = new Intent();
     i.setComponent(new ComponentName("foo.bar", "No Activity"));
@@ -1706,7 +1700,6 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void queryIntentServicesAsUser() {
     Intent i = new Intent("org.robolectric.ACTION_DIFFERENT_PACKAGE");
     i.addCategory(Intent.CATEGORY_LAUNCHER);
@@ -2108,6 +2101,16 @@ public class ShadowPackageManagerTest {
         packageManager.getReceiverInfo(
             new ComponentName(context, "org.robolectric.test.ConfigTestReceiver"),
             PackageManager.GET_META_DATA);
+    assertThat(info.metaData.getInt("numberOfSheep")).isEqualTo(42);
+  }
+
+  @Test
+  @Config(minSdk = TIRAMISU)
+  public void testReceiverInfo_withComponentInfoFlags() throws Exception {
+    ActivityInfo info =
+        packageManager.getReceiverInfo(
+            new ComponentName(context, "org.robolectric.test.ConfigTestReceiver"),
+            PackageManager.ComponentInfoFlags.of(PackageManager.GET_META_DATA));
     assertThat(info.metaData.getInt("numberOfSheep")).isEqualTo(42);
   }
 
@@ -2598,6 +2601,74 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
+  @Config(minSdk = TIRAMISU)
+  public void getServiceInfo_withComponentInfoFlags_shouldReturnServiceInfoIfExists()
+      throws Exception {
+    ServiceInfo serviceInfo =
+        packageManager.getServiceInfo(
+            new ComponentName("org.robolectric", "com.foo.Service"),
+            PackageManager.ComponentInfoFlags.of(0));
+    assertThat(serviceInfo.packageName).isEqualTo("org.robolectric");
+    assertThat(serviceInfo.name).isEqualTo("com.foo.Service");
+    assertThat(serviceInfo.permission).isEqualTo("com.foo.MY_PERMISSION");
+    assertThat(serviceInfo.applicationInfo).isNotNull();
+  }
+
+  @Test
+  @Config(minSdk = TIRAMISU)
+  public void
+      getServiceInfo_withComponentInfoFlags_shouldReturnServiceInfoWithMetaDataWhenFlagsSet()
+          throws Exception {
+    ServiceInfo serviceInfo =
+        packageManager.getServiceInfo(
+            new ComponentName("org.robolectric", "com.foo.Service"),
+            PackageManager.ComponentInfoFlags.of(PackageManager.GET_META_DATA));
+    assertThat(serviceInfo.metaData).isNotNull();
+  }
+
+  @Test
+  @Config(minSdk = TIRAMISU)
+  public void
+      getServiceInfo_withComponentInfoFlags_shouldReturnServiceInfoWithoutMetaDataWhenFlagsNotSet()
+          throws Exception {
+    ComponentName component = new ComponentName("org.robolectric", "com.foo.Service");
+    ServiceInfo serviceInfo =
+        packageManager.getServiceInfo(component, PackageManager.ComponentInfoFlags.of(0));
+    assertThat(serviceInfo.metaData).isNull();
+  }
+
+  @Test
+  @Config(minSdk = TIRAMISU)
+  public void getServiceInfo_withComponentInfoFlags_shouldThrowNameNotFoundExceptionIfNotExist() {
+    ComponentName nonExistComponent =
+        new ComponentName("org.robolectric", "com.foo.NonExistService");
+    try {
+      packageManager.getServiceInfo(
+          nonExistComponent, PackageManager.ComponentInfoFlags.of(PackageManager.GET_SERVICES));
+      fail("should have thrown NameNotFoundException");
+    } catch (PackageManager.NameNotFoundException e) {
+      assertThat(e.getMessage()).contains("com.foo.NonExistService");
+    }
+  }
+
+  @Test
+  @Config(minSdk = TIRAMISU)
+  public void getServiceInfo_withComponentInfoFlags_shouldFindServiceIfAddedInResolveInfo()
+      throws Exception {
+    ComponentName componentName = new ComponentName("com.test", "com.test.ServiceName");
+    ResolveInfo resolveInfo = new ResolveInfo();
+    resolveInfo.serviceInfo = new ServiceInfo();
+    resolveInfo.serviceInfo.name = componentName.getClassName();
+    resolveInfo.serviceInfo.applicationInfo = new ApplicationInfo();
+    resolveInfo.serviceInfo.applicationInfo.packageName = componentName.getPackageName();
+    shadowOf(packageManager).addResolveInfoForIntent(new Intent("RANDOM_ACTION"), resolveInfo);
+
+    ServiceInfo serviceInfo =
+        packageManager.getServiceInfo(componentName, PackageManager.ComponentInfoFlags.of(0));
+    assertThat(serviceInfo).isNotNull();
+  }
+
+  @Test
   public void getNameForUid() {
     assertThat(packageManager.getNameForUid(10)).isNull();
 
@@ -2770,7 +2841,6 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void
       extendPendingInstallTimeout_verificationRejectAtTimeout_extendsPendingInstallTimeoutAndsetsCodeAtTimeoutToReject() {
     packageManager.extendVerificationTimeout(
@@ -2786,7 +2856,6 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void
       extendPendingInstallTimeout_verificationAllowAtTimeout_extendsPendingInstallTimeoutAndsetsCodeAtTimeoutToAllow() {
     packageManager.extendVerificationTimeout(
@@ -2802,7 +2871,6 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void whenVerificationTimeOutNotExtended_verificationCodeAtTimeoutIsAllow() {
     assertThat(shadowOf(packageManager).getVerificationExtendedTimeout(INSTALL_VERIFICATION_ID))
         .isEqualTo(0);
@@ -2813,7 +2881,6 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void triggerInstallVerificationTimeout_broadcastsPackageVerifiedIntent() {
     ShadowPackageManager shadowPackageManagerMock =
         mock(ShadowPackageManager.class, Mockito.CALLS_REAL_METHODS);
@@ -3288,6 +3355,14 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
+  @Config(minSdk = VERSION_CODES.R)
+  public void getInstallerSourceInfo_notExists_throwsException() throws Exception {
+    assertThrows(
+        NameNotFoundException.class,
+        () -> packageManager.getInstallSourceInfo("nonExistTarget.package"));
+  }
+
+  @Test
   public void getXml() {
     XmlResourceParser in =
         packageManager.getXml(
@@ -3380,6 +3455,21 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
+  @Config(minSdk = TIRAMISU)
+  public void addService_withComponentInfoFlags() throws Exception {
+    ServiceInfo serviceInfo = new ServiceInfo();
+    serviceInfo.name = "name";
+    serviceInfo.packageName = "package";
+
+    shadowOf(packageManager).addOrUpdateService(serviceInfo);
+
+    assertThat(
+            packageManager.getServiceInfo(
+                new ComponentName("package", "name"), PackageManager.ComponentInfoFlags.of(0)))
+        .isNotNull();
+  }
+
+  @Test
   public void addProvider() throws Exception {
     ProviderInfo providerInfo = new ProviderInfo();
     providerInfo.name = "name";
@@ -3399,6 +3489,21 @@ public class ShadowPackageManagerTest {
     shadowOf(packageManager).addOrUpdateReceiver(receiverInfo);
 
     assertThat(packageManager.getReceiverInfo(new ComponentName("package", "name"), 0)).isNotNull();
+  }
+
+  @Test
+  @Config(minSdk = TIRAMISU)
+  public void addReceiver_withComponentInfoFlags() throws Exception {
+    ActivityInfo receiverInfo = new ActivityInfo();
+    receiverInfo.name = "name";
+    receiverInfo.packageName = "package";
+
+    shadowOf(packageManager).addOrUpdateReceiver(receiverInfo);
+
+    assertThat(
+            packageManager.getReceiverInfo(
+                new ComponentName("package", "name"), PackageManager.ComponentInfoFlags.of(0)))
+        .isNotNull();
   }
 
   @Test
@@ -3476,6 +3581,22 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
+  @Config(minSdk = TIRAMISU)
+  public void removeService_withComponentInfoFlags() {
+    ComponentName componentName = new ComponentName(context, "com.foo.Service");
+
+    ServiceInfo removed = shadowOf(packageManager).removeService(componentName);
+
+    assertThat(removed).isNotNull();
+    try {
+      packageManager.getServiceInfo(componentName, PackageManager.ComponentInfoFlags.of(0));
+      fail();
+    } catch (NameNotFoundException e) {
+      // expected
+    }
+  }
+
+  @Test
   public void removeProvider() {
     ComponentName componentName =
         new ComponentName(context, "org.robolectric.shadows.testing.TestContentProvider1");
@@ -3501,6 +3622,23 @@ public class ShadowPackageManagerTest {
     assertThat(removed).isNotNull();
     try {
       packageManager.getReceiverInfo(componentName, 0);
+      fail();
+    } catch (NameNotFoundException e) {
+      // expected
+    }
+  }
+
+  @Test
+  @Config(minSdk = TIRAMISU)
+  public void removeReceiver_withComponentInfoFlags() {
+    ComponentName componentName =
+        new ComponentName(context, "org.robolectric.fakes.ConfigTestReceiver");
+
+    ActivityInfo removed = shadowOf(packageManager).removeReceiver(componentName);
+
+    assertThat(removed).isNotNull();
+    try {
+      packageManager.getReceiverInfo(componentName, PackageManager.ComponentInfoFlags.of(0));
       fail();
     } catch (NameNotFoundException e) {
       // expected
@@ -4392,7 +4530,6 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
   public void getPackagesHoldingPermissions_returnPackages() {
     String permissionA = "com.android.providers.permission.test.a";
     String permissionB = "com.android.providers.permission.test.b";
@@ -4419,7 +4556,6 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
   public void getPackagesHoldingPermissions_returnsEmpty() {
     String permissionA = "com.android.providers.permission.test.a";
 

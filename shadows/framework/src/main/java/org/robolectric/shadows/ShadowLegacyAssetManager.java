@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
 import static android.os.Build.VERSION_CODES.KITKAT_WATCH;
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.M;
@@ -27,6 +26,7 @@ import android.os.ParcelFileDescriptor;
 import android.util.AttributeSet;
 import android.util.SparseArray;
 import android.util.TypedValue;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Ordering;
 import dalvik.system.VMRuntime;
 import java.io.ByteArrayInputStream;
@@ -621,7 +621,8 @@ public class ShadowLegacyAssetManager extends ShadowAssetManager {
     return 1;
   }
 
-  @HiddenApi @Implementation(minSdk = JELLY_BEAN_MR2, maxSdk = M)
+  @HiddenApi
+  @Implementation(maxSdk = M)
   final protected int addAssetPathNative(String path) {
     return addAssetPathNative(path, false);
   }
@@ -1486,6 +1487,12 @@ public class ShadowLegacyAssetManager extends ShadowAssetManager {
       }
       reflector(_AssetManager_.class).setSystem(null);
     }
+  }
+
+  @VisibleForTesting
+  @Override
+  long getNativePtr() {
+    return 0;
   }
 
   @ForType(AssetManager.class)
