@@ -109,7 +109,6 @@ import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.Resetter;
 import org.robolectric.util.ReflectionHelpers;
-import android.companion.virtual.IVirtualDeviceManager;
 
 /** Shadow for {@link ServiceManager}. */
 @SuppressWarnings("NewApi")

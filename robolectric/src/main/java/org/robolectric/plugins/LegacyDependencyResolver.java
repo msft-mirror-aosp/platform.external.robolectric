@@ -3,13 +3,10 @@ package org.robolectric.plugins;
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.File;
-import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
-import java.util.stream.Collectors;
-
 import javax.annotation.Priority;
 import javax.inject.Inject;
 import org.robolectric.internal.dependency.DependencyJar;
@@ -65,7 +62,6 @@ public class LegacyDependencyResolver implements DependencyResolver {
   private static DependencyResolver pickOne(
       Properties properties, DefinitelyNotAClassLoader classLoader) {
     String propPath = properties.getProperty("robolectric-deps.properties");
-    Logger.debug("Robolectric-deps.properties path :" + propPath);
     if (propPath != null) {
       Logger.debug(
           "Using a PropertiesDependencyResolver, robolectric-deps.properties=%s", propPath);

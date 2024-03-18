@@ -219,18 +219,19 @@ public class ShadowCompanionDeviceManager {
 
   /** Convert {@link RoboAssociationInfo} to actual {@link AssociationInfo}. */
   private AssociationInfo createAssociationInfo(RoboAssociationInfo info) {
-    AssociationInfoBuilder aiBuilder = AssociationInfoBuilder.newBuilder()
-        .setId(info.id())
-        .setUserId(info.userId())
-        .setPackageName(info.packageName())
-        .setDeviceMacAddress(info.deviceMacAddress())
-        .setDisplayName(info.displayName())
-        .setDeviceProfile(info.deviceProfile())
-        .setAssociatedDevice(info.associatedDevice())
-        .setSelfManaged(info.selfManaged())
-        .setNotifyOnDeviceNearby(info.notifyOnDeviceNearby())
-        .setApprovedMs(info.timeApprovedMs())
-        .setLastTimeConnectedMs(info.lastTimeConnectedMs());
+    AssociationInfoBuilder aiBuilder =
+        AssociationInfoBuilder.newBuilder()
+            .setId(info.id())
+            .setUserId(info.userId())
+            .setPackageName(info.packageName())
+            .setDeviceMacAddress(info.deviceMacAddress())
+            .setDisplayName(info.displayName())
+            .setDeviceProfile(info.deviceProfile())
+            .setAssociatedDevice(info.associatedDevice())
+            .setSelfManaged(info.selfManaged())
+            .setNotifyOnDeviceNearby(info.notifyOnDeviceNearby())
+            .setApprovedMs(info.timeApprovedMs())
+            .setLastTimeConnectedMs(info.lastTimeConnectedMs());
 
     if (ReflectionHelpers.hasField(AssociationInfo.class, "mTag")) {
       ReflectionHelpers.callInstanceMethod(

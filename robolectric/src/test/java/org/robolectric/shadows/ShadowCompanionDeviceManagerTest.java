@@ -373,39 +373,4 @@ public class ShadowCompanionDeviceManagerTest {
       public void onFailure(CharSequence error) {}
     };
   }
-
-  /** Create {@link AssociationInfo}. */
-  private AssociationInfo createDefaultAssociationInfo() {
-    AssociationInfoBuilder aiBuilder = AssociationInfoBuilder.newBuilder()
-        .setId(1)
-        .setUserId(1)
-        .setPackageName("packageName")
-        .setDeviceMacAddress(MAC_ADDRESS)
-        .setDisplayName("displayName")
-        .setDeviceProfile("deviceProfile")
-        .setSelfManaged(false)
-        .setNotifyOnDeviceNearby(false)
-        .setApprovedMs(0)
-        .setLastTimeConnectedMs(0);
-
-    if (ReflectionHelpers.hasField(AssociationInfo.class, "mTag")) {
-      ReflectionHelpers.callInstanceMethod(
-          aiBuilder, "setTag", ClassParameter.from(String.class, "tag"));
-    }
-    if (ReflectionHelpers.hasField(AssociationInfo.class, "mAssociatedDevice")) {
-      ReflectionHelpers.callInstanceMethod(
-          aiBuilder,
-          "setAssociatedDevice",
-          ClassParameter.from(Object.class, null));
-      ReflectionHelpers.callInstanceMethod(
-          aiBuilder,
-          "setSystemDataSyncFlags",
-          ClassParameter.from(int.class, -1));
-    }
-    if (ReflectionHelpers.hasField(AssociationInfo.class, "mRevoked")) {
-      ReflectionHelpers.callInstanceMethod(
-          aiBuilder, "setRevoked", ClassParameter.from(boolean.class, false));
-    }
-    return aiBuilder.build();
-  }
 }

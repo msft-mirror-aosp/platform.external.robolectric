@@ -100,20 +100,20 @@ public class ShadowNfcAdapter {
   public static Tag createMockTag() {
     if (RuntimeEnvironment.getApiLevel() <= TIRAMISU) {
       return ReflectionHelpers.callStaticMethod(
-                Tag.class,
-                "createMockTag",
-                ClassParameter.from(byte[].class, new byte[0]),
-                ClassParameter.from(int[].class, new int[0]),
-                ClassParameter.from(Bundle[].class, new Bundle[0]));
+          Tag.class,
+          "createMockTag",
+          ClassParameter.from(byte[].class, new byte[0]),
+          ClassParameter.from(int[].class, new int[0]),
+          ClassParameter.from(Bundle[].class, new Bundle[0]));
 
     } else {
       return ReflectionHelpers.callStaticMethod(
-                Tag.class,
-                "createMockTag",
-                ClassParameter.from(byte[].class, new byte[0]),
-                ClassParameter.from(int[].class, new int[0]),
-                ClassParameter.from(Bundle[].class, new Bundle[0]),
-                ClassParameter.from(long.class, 0));
+          Tag.class,
+          "createMockTag",
+          ClassParameter.from(byte[].class, new byte[0]),
+          ClassParameter.from(int[].class, new int[0]),
+          ClassParameter.from(Bundle[].class, new Bundle[0]),
+          ClassParameter.from(long.class, 0));
     }
   }
 
