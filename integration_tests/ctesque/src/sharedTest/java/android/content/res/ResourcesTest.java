@@ -773,7 +773,7 @@ public class ResourcesTest {
   @Test
   @SdkSuppress(minSdkVersion = LOLLIPOP)
   @Config(minSdk = LOLLIPOP)
-  // TODO: Remove this once it is fixed in K or we have disabled K's support.
+  // TODO (b/330075029): Remove this once it is fixed in K or we have disabled K's support.
   public void obtainStyledAttributes_shouldCheckXmlFirst_fromXmlLoadedFromResources() throws Exception {
 
     // This simulates a ResourceProvider built from a 21+ SDK as viewportHeight / viewportWidth were introduced in API 21

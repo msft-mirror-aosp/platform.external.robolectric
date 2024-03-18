@@ -1221,9 +1221,6 @@ public static class ResTable_ref
       int offset = myOffset();
       if (isTruthy(flags & ResTable_type.FLAG_OFFSET16)) {
         short off16 = byteBuffer.getShort(offset + header.headerSize + entryIndex * 2);
-        if (off16 == -1) {
-          return -1;
-        }
         // Check for no entry (0xffff short)
         return dtohs(off16) == -1 ? ResTable_type.NO_ENTRY : dtohs(off16) * 4;
       } else if (isTruthy(flags & ResTable_type.FLAG_SPARSE)) {
@@ -1237,11 +1234,6 @@ public static class ResTable_ref
       } else {
         return byteBuffer.getInt(offset + header.headerSize + entryIndex * 4);
       }
-      // from ResTable cpp:
-//            const uint32_t* const eindex = reinterpret_cast<const uint32_t*>(
-//            reinterpret_cast<const uint8_t*>(thisType) + dtohs(thisType->header.headerSize));
-//
-//        uint32_t thisOffset = dtohl(eindex[realEntryIndex]);
     }
 
     // Gets the sparse entry index item at position 'entryIndex'
@@ -1375,7 +1367,7 @@ public static class ResTable_ref
 
       if (isCompact()) {
         byte type = (byte) (dtohs(flags) >> 8);
-        return new Res_value((byte)(dtohs(flags) >> 8), compactData);
+        return new Res_value(type, compactData);
       } else {
         return new Res_value(myBuf(), myOffset() + dtohs(size));
       }
