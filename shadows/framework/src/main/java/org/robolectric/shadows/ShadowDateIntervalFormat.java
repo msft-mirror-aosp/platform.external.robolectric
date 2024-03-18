@@ -1,7 +1,6 @@
 package org.robolectric.shadows;
 
 import static android.os.Build.VERSION_CODES.LOLLIPOP_MR1;
-import static android.os.Build.VERSION_CODES.TIRAMISU;
 
 import java.text.FieldPosition;
 import java.util.HashMap;

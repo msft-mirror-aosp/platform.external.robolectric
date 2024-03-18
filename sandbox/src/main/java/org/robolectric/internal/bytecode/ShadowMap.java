@@ -40,7 +40,6 @@ public class ShadowMap {
     final Map<String, String> shadowPickerMap = new HashMap<>();
 
     // These are sorted in descending order (higher priority providers are first).
-    Logger.debug("Shadow providers: " +  sortedProviders);
     for (ShadowProvider provider : sortedProviders) {
       Logger.debug("Shadow provider: " + provider.getClass().getName());
       for (Map.Entry<String, String> entry : provider.getShadows()) {
