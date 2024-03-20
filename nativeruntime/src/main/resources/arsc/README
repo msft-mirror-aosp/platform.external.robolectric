@@ -1,0 +1,11 @@
+The `color_and_font_res` comes from
+`frameworks/base/core/res/remote_color_resources_res`, with a config XML file
+added. This enables the possibility of both Material You Colors and the usage of
+Google fonts.
+
+To build and update `color_and_font_res.arsc`, please follow the steps below:
+
+1. m color-and-font-res-arsc
+2. cp
+${ANDROID_BUILD_TOP}/out/soong/.intermediates/external/robolectric/nativeruntime/src/main/resources/arsc/color-and-font-res-arsc/gen/color_and_font_res.arsc \
+${ANDROID_BUILD_TOP}/external/robolectric/nativeruntime/src/main/resources/arsc/.
