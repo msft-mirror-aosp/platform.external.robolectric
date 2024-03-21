@@ -23,6 +23,7 @@ import android.view.View;
 import android.view.ViewRootImpl;
 import android.view.WindowInsets;
 import android.view.WindowManager;
+import android.window.ActivityWindowInfo;
 import android.window.ClientWindowFrames;
 import java.util.ArrayList;
 import java.util.Optional;
@@ -123,7 +124,32 @@ public class ShadowViewRootImpl {
   }
 
   public void callDispatchResized() {
-    if (RuntimeEnvironment.getApiLevel() > VERSION_CODES.TIRAMISU) {
+    if (RuntimeEnvironment.getApiLevel() > VERSION_CODES.UPSIDE_DOWN_CAKE) {
+      Display display = getDisplay();
+      Rect frame = new Rect();
+      display.getRectSize(frame);
+
+      ClientWindowFrames frames = new ClientWindowFrames();
+      // set the final field
+      ReflectionHelpers.setField(frames, "frame", frame);
+
+      ReflectionHelpers.callInstanceMethod(
+          ViewRootImpl.class,
+          realObject,
+          "dispatchResized",
+          ClassParameter.from(ClientWindowFrames.class, frames),
+          ClassParameter.from(boolean.class, true), /* reportDraw */
+          ClassParameter.from(
+              MergedConfiguration.class, new MergedConfiguration()), /* mergedConfiguration */
+          ClassParameter.from(InsetsState.class, new InsetsState()), /* insetsState */
+          ClassParameter.from(boolean.class, false), /* forceLayout */
+          ClassParameter.from(boolean.class, false), /* alwaysConsumeSystemBars */
+          ClassParameter.from(int.class, 0), /* displayId */
+          ClassParameter.from(int.class, 0), /* syncSeqId */
+          ClassParameter.from(boolean.class, false), /* dragResizing */
+	  ClassParameter.from(
+              ActivityWindowInfo.class, new ActivityWindowInfo()) /* activityWindowInfo */);
+    } else if (RuntimeEnvironment.getApiLevel() > VERSION_CODES.TIRAMISU) {
       Display display = getDisplay();
       Rect frame = new Rect();
       display.getRectSize(frame);
