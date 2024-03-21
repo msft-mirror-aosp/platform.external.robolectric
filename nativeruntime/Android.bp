@@ -43,4 +43,5 @@ java_library_host {
         "src/main/java/**/*.kt",
     ],
     java_resource_dirs: ["src/main/resources"],
+    java_resources: [":font-resources-arsc"],
 }
