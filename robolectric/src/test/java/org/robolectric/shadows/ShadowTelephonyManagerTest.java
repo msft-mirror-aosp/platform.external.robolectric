@@ -867,6 +867,15 @@ public class ShadowTelephonyManagerTest {
   }
 
   @Test
+  @Config(minSdk = Q)
+  public void shouldGetSimSpecificCarrierId() {
+    int expectedCarrierId = 132;
+    shadowOf(telephonyManager).setSimSpecificCarrierId(expectedCarrierId);
+
+    assertThat(telephonyManager.getSimSpecificCarrierId()).isEqualTo(expectedCarrierId);
+  }
+
+  @Test
   @Config(minSdk = P)
   public void shouldGetSimCarrierIdName() {
     String expectedCarrierIdName = "Fi";
@@ -1493,5 +1502,14 @@ public class ShadowTelephonyManagerTest {
     TelephonyManager tm = Shadow.newInstance(TelephonyManager.class, parameters, arguments);
 
     assertThat(tm.getSubscriptionId()).isEqualTo(123);
+  }
+
+  @Test
+  @Config(minSdk = Q)
+  public void setDataRoamingEnabledChangesIsDataRoamingEnabled() {
+    shadowOf(telephonyManager).setDataRoamingEnabled(false);
+    assertThat(telephonyManager.isDataRoamingEnabled()).isFalse();
+    shadowOf(telephonyManager).setDataRoamingEnabled(true);
+    assertThat(telephonyManager.isDataRoamingEnabled()).isTrue();
   }
 }
