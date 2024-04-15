@@ -520,4 +520,3 @@ public class ShadowViewRootImpl {
     WindowInsets getWindowInsets(boolean forceConstruct);
   }
 }
-
