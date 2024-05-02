@@ -29,4 +29,6 @@ android_robolectric_test {
     upstream: true,
     java_resource_dirs: ["src/sharedTest/resources/android"],
     instrumentation_for: "GlobalRobolectricTestStub",
+
+    strict_mode: false,
 }
