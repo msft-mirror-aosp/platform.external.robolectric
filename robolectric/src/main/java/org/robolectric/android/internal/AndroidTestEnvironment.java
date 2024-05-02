@@ -17,7 +17,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageManager;
 import android.content.pm.PackageParser;
 import android.content.pm.PackageParser.Package;
 import android.content.res.AssetManager;
@@ -97,7 +96,6 @@ import org.robolectric.shadows.ShadowLog;
 import org.robolectric.shadows.ShadowLooper;
 import org.robolectric.shadows.ShadowPackageManager;
 import org.robolectric.shadows.ShadowPackageParser;
-import org.robolectric.shadows.ShadowPackageParser._Package_;
 import org.robolectric.shadows.ShadowPausedLooper;
 import org.robolectric.shadows.ShadowView;
 import org.robolectric.util.Logger;
@@ -368,18 +366,8 @@ public class AndroidTestEnvironment implements TestEnvironment {
           activityThread.getPackageInfo(applicationInfo, null, Context.CONTEXT_INCLUDE_CODE);
       final _LoadedApk_ _loadedApk_ = reflector(_LoadedApk_.class, loadedApk);
 
-      Context contextImpl;
-      if (apiLevel >= VERSION_CODES.LOLLIPOP) {
-        contextImpl = reflector(_ContextImpl_.class).createAppContext(activityThread, loadedApk);
-      } else {
-        try {
-          contextImpl =
-              systemContextImpl.createPackageContext(
-                  applicationInfo.packageName, Context.CONTEXT_INCLUDE_CODE);
-        } catch (PackageManager.NameNotFoundException e) {
-          throw new RuntimeException(e);
-        }
-      }
+      Context contextImpl =
+          reflector(_ContextImpl_.class).createAppContext(activityThread, loadedApk);
       ShadowPackageManager shadowPackageManager = Shadow.extract(contextImpl.getPackageManager());
       shadowPackageManager.addPackageInternal(parsedPackage);
       activityThreadReflector.setInitialApplication(application);
@@ -718,17 +706,8 @@ public class AndroidTestEnvironment implements TestEnvironment {
       applicationInfo.publicSourceDir =
           createTempDir(applicationInfo.packageName + "-publicSourceDir");
     } else {
-      if (apiLevel == VERSION_CODES.KITKAT) {
-        String sourcePath = reflector(_Package_.class, parsedPackage).getPath();
-        if (sourcePath == null) {
-          sourcePath = createTempDir("sourceDir");
-        }
-        applicationInfo.publicSourceDir = sourcePath;
-        applicationInfo.sourceDir = sourcePath;
-      } else {
-        applicationInfo.publicSourceDir = parsedPackage.codePath;
-        applicationInfo.sourceDir = parsedPackage.codePath;
-      }
+      applicationInfo.publicSourceDir = parsedPackage.codePath;
+      applicationInfo.sourceDir = parsedPackage.codePath;
     }
 
     applicationInfo.dataDir = createTempDir(applicationInfo.packageName + "-dataDir");
