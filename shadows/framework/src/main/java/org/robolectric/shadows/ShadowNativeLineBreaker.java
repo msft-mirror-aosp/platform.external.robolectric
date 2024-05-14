@@ -5,6 +5,7 @@ import static android.os.Build.VERSION_CODES.Q;
 import android.annotation.FloatRange;
 import android.annotation.IntRange;
 import android.graphics.text.LineBreaker;
+import org.robolectric.annotation.InDevelopment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.nativeruntime.DefaultNativeRuntimeLoader;
@@ -22,6 +23,7 @@ import org.robolectric.versioning.AndroidVersions.V;
 public class ShadowNativeLineBreaker {
 
   @Implementation(minSdk = V.SDK_INT)
+  @InDevelopment
   protected static void __staticInitializer__() {}
 
   @Implementation(maxSdk = U.SDK_INT)

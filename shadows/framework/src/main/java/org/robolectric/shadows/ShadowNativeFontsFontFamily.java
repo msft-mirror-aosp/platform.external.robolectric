@@ -5,6 +5,7 @@ import static android.os.Build.VERSION_CODES.S;
 import static android.os.Build.VERSION_CODES.TIRAMISU;
 
 import android.graphics.fonts.FontFamily;
+import org.robolectric.annotation.InDevelopment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.nativeruntime.DefaultNativeRuntimeLoader;
@@ -53,6 +54,7 @@ public class ShadowNativeFontsFontFamily {
   public static class ShadowNativeFontFamilyBuilder {
 
     @Implementation(minSdk = V.SDK_INT)
+    @InDevelopment
     protected static void __staticInitializer__() {}
 
     @Implementation(maxSdk = U.SDK_INT)
