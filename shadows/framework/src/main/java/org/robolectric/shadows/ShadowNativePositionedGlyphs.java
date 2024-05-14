@@ -1,7 +1,6 @@
 package org.robolectric.shadows;
 
 import android.graphics.text.PositionedGlyphs;
-import org.robolectric.annotation.InDevelopment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.nativeruntime.DefaultNativeRuntimeLoader;
@@ -23,7 +22,6 @@ public class ShadowNativePositionedGlyphs {
    * deferred starting in Android V.
    */
   @Implementation(minSdk = V.SDK_INT)
-  @InDevelopment
   protected static void __staticInitializer__() {
     // deferred
   }
