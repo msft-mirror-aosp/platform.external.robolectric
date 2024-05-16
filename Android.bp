@@ -69,7 +69,7 @@ java_genrule {
     srcs: [":robolectric_build_props"],
     out: ["robolectric_props.jar"],
     cmd: "cp $(location :robolectric_build_props) . && $(location soong_zip) " +
-        "-o $(location robolectric_props.jar) " + 
+        "-o $(location robolectric_props.jar) " +
         "-f ./build.prop ",
 }
 
@@ -233,6 +233,7 @@ java_host_for_device {
       "//packages/apps/Settings/tests/robotests:__pkg__",
       "//packages/apps/ThemePicker/tests/robotests:__pkg__",
       "//packages/apps/WallpaperPicker2/tests/robotests:__pkg__",
+      "//packages/apps/WallpaperPicker2/tests/robotests/common:__pkg__",
       "//packages/apps/TvSettings/Settings/tests/robotests:__pkg__",
       "//packages/apps/KeyChain/robotests:__pkg__",
       "//packages/apps/CertInstaller/robotests:__pkg__",
