@@ -157,7 +157,8 @@ public class SdkStore {
    * Returns a list of sdks to process, either the compilation's classpaths sdk in a list of size
    * one, or the list of sdks in a sdkFile.
    *
-   * @param localSdk validate sdk found in compile time classpath, takes precedence over sdkFile
+   * @param localSdk validate sdk found in compile time classpath, takes precedence over sdkFile,
+   *     only applies to unreleased versions of Android.
    * @param sdkFileName the sdkFile name, may be null, or empty
    * @param overrideSdkLocation if provided overrides the default lookup of the localSdk, iff
    *     localSdk is on.
@@ -169,13 +170,15 @@ public class SdkStore {
       Sdk sdk = null;
       if (overrideSdkLocation != null) {
         sdk = new Sdk(overrideSdkLocation, overrideSdkInt);
+        return sdk == null ? ImmutableList.of() : ImmutableList.of(sdk);
       } else {
         String target = compilationSdkTarget();
         if (target != null) {
           sdk = new Sdk(target);
+          return sdk == null || sdk.sdkRelease.isReleased()
+              ? ImmutableList.of() : ImmutableList.of(sdk);
         }
       }
-      return sdk == null ? ImmutableList.of() : ImmutableList.of(sdk);
     }
     if (sdkFileName == null || Files.notExists(Paths.get(sdkFileName))) {
       return ImmutableList.of();
