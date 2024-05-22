@@ -22,8 +22,8 @@ java_library {
     java_resource_dirs: ["src/main/resources"],
     javacflags: [
         "-Aorg.robolectric.annotation.processing.shadowPackage=org.robolectric",
-        //"-Aorg.robolectric.annotation.processing.sdkCheckMode=ERROR",
-        //"-Aorg.robolectric.annotation.processing.validateCompileSdk=true",
+        "-Aorg.robolectric.annotation.processing.sdkCheckMode=ERROR",
+        "-Aorg.robolectric.annotation.processing.validateCompileSdk=true",
         // Uncomment the below to debug annotation processors not firing.
         //"-verbose",
         //"-XprintRounds",
