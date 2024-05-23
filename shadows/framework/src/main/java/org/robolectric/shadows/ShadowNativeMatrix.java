@@ -11,7 +11,6 @@ import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.nativeruntime.DefaultNativeRuntimeLoader;
 import org.robolectric.nativeruntime.MatrixNatives;
-// import org.robolectric.shadows.ShadowNativeMatrix.ShadowExtraNatives.Picker;
 import org.robolectric.versioning.AndroidVersions.U;
 import org.robolectric.versioning.AndroidVersions.V;
 
@@ -266,5 +265,22 @@ public class ShadowNativeMatrix extends ShadowMatrix {
   @Override
   public String getDescription() {
     throw new UnsupportedOperationException("Legacy ShadowMatrix APIs are not supported");
+  }
+
+  /** Shadow for {@link Matrix$ExtraNatives} that contains native functions. */
+  @Implements(
+      className = "android.graphics.Matrix$ExtraNatives",
+      isInAndroidSdk = false,
+      callNativeMethodsByDefault = true,
+      shadowPicker = ShadowNativeMatrix.ShadowExtraNatives.Picker.class,
+      minSdk = V.SDK_INT)
+  @SuppressWarnings("robolectric.internal.IgnoreMissingClass")
+  public static class ShadowExtraNatives {
+    /** Shadow picker for {@link Matrix.ExtraNatives}. */
+    public static final class Picker extends GraphicsShadowPicker<Object> {
+      public Picker() {
+        super(null, ShadowNativeMatrix.ShadowExtraNatives.class);
+      }
+    }
   }
 }

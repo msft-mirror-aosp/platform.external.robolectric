@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import org.robolectric.annotation.Implements;
 import org.robolectric.shadows.ShadowMatrix.Picker;
-import org.robolectric.versioning.AndroidVersions.V;
 
 @SuppressWarnings({"UnusedDeclaration"})
 @Implements(value = Matrix.class, shadowPicker = Picker.class)
@@ -47,21 +46,6 @@ public abstract class ShadowMatrix {
   public static final class Picker extends GraphicsShadowPicker<Object> {
     public Picker() {
       super(ShadowLegacyMatrix.class, ShadowNativeMatrix.class);
-    }
-  }
-
-  @Implements(
-      className = "android.graphics.Matrix$ExtraNatives",
-      isInAndroidSdk = false,
-      callNativeMethodsByDefault = true,
-      shadowPicker = ShadowMatrix.ShadowExtraNatives.Picker.class,
-      minSdk = V.SDK_INT)
-  public static class ShadowExtraNatives {
-    /** Shadow picker for {@link Matrix.ExtraNatives}. */
-    public static final class Picker extends GraphicsShadowPicker<Object> {
-      public Picker() {
-        super(null, ShadowMatrix.ShadowExtraNatives.class);
-      }
     }
   }
 }
