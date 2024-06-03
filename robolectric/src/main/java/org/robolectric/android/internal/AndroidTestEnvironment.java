@@ -2,7 +2,6 @@ package org.robolectric.android.internal;
 
 import static android.os.Build.VERSION_CODES.P;
 import static android.os.Build.VERSION_CODES.Q;
-import static android.os.Build.VERSION_CODES.O;
 import static org.robolectric.shadow.api.Shadow.newInstanceOf;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
@@ -41,7 +40,6 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Locale;
-import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.inject.Named;
 import javax.net.ssl.HostnameVerifier;
@@ -57,7 +55,6 @@ import org.robolectric.android.Bootstrap;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.ConscryptMode;
 import org.robolectric.annotation.GraphicsMode;
-import org.robolectric.annotation.GraphicsMode.Mode;
 import org.robolectric.annotation.LooperMode;
 import org.robolectric.annotation.SQLiteMode;
 import org.robolectric.annotation.experimental.LazyApplication.LazyLoad;
@@ -157,7 +154,7 @@ public class AndroidTestEnvironment implements TestEnvironment {
 
     // Starting in Android V and above, the native runtime does not support begin lazy-loaded, it
     // must be loaded upfront.
-    if (shouldLoadNativeRuntime() && RuntimeEnvironment.getApiLevel() >= AndroidVersions.V.SDK_INT) {
+    if (shouldLoadNativeRuntime() && RuntimeEnvironment.getApiLevel() >= V.SDK_INT) {
       DefaultNativeRuntimeLoader.injectAndLoad();
     }
 
@@ -167,8 +164,6 @@ public class AndroidTestEnvironment implements TestEnvironment {
       RuntimeEnvironment.setMainThread(Thread.currentThread());
       ShadowLegacyLooper.internalInitializeBackgroundThreadScheduler();
     }
-
-    exportNativeruntimeProperties();
 
     if (!loggingInitialized) {
       ShadowLog.setupLogging();
@@ -734,26 +729,5 @@ public class AndroidTestEnvironment implements TestEnvironment {
         application.registerReceiver((BroadcastReceiver) newInstanceOf(receiverClassName), filter);
       }
     }
-  }
-
-  private static String replaceLastDotWith$IfInnerStaticClass(String receiverClassName) {
-    String[] splits = receiverClassName.split("\\.", 0);
-    String staticInnerClassRegex = "[A-Z][a-zA-Z]*";
-    if (splits.length > 1
-        && splits[splits.length - 1].matches(staticInnerClassRegex)
-        && splits[splits.length - 2].matches(staticInnerClassRegex)) {
-      int lastDotIndex = receiverClassName.lastIndexOf(".");
-      StringBuilder buffer = new StringBuilder(receiverClassName);
-      buffer.setCharAt(lastDotIndex, '$');
-      return buffer.toString();
-    }
-    return receiverClassName;
-  }
-
-  private static void exportNativeruntimeProperties() {
-    GraphicsMode.Mode graphicsMode = ConfigurationRegistry.get(GraphicsMode.Mode.class);
-    System.setProperty(
-        "robolectric.nativeruntime.enableGraphics",
-        Boolean.toString(graphicsMode == Mode.NATIVE && RuntimeEnvironment.getApiLevel() >= O));
   }
 }

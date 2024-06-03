@@ -161,8 +161,7 @@ public class SdkStore {
    * one, or the list of sdks in a sdkFile. This should not be needed unless building in the android
    * codebase. Otherwise, should prefer using the sdks.txt and the released jars.
    *
-   * @param localSdk validate sdk found in compile time classpath, takes precedence over sdkFile,
-   *     only applies to unreleased versions of Android.
+   * @param localSdk validate sdk found in compile time classpath, takes precedence over sdkFile
    * @param sdkFileName the sdkFile name, may be null, or empty
    * @param overrideSdkLocation if provided overrides the default lookup of the localSdk, iff
    *     localSdk is on.

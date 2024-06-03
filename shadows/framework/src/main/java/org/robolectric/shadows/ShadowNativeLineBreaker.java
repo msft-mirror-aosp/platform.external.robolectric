@@ -5,7 +5,6 @@ import static android.os.Build.VERSION_CODES.Q;
 import android.annotation.FloatRange;
 import android.annotation.IntRange;
 import android.graphics.text.LineBreaker;
-import org.robolectric.annotation.InDevelopment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.nativeruntime.DefaultNativeRuntimeLoader;
@@ -20,7 +19,6 @@ import org.robolectric.versioning.AndroidVersions.U;
     shadowPicker = Picker.class,
     callNativeMethodsByDefault = true)
 public class ShadowNativeLineBreaker {
-
   @Implementation(maxSdk = U.SDK_INT)
   protected static long nInit(
       int breakStrategy, int hyphenationFrequency, boolean isJustified, int[] indents) {

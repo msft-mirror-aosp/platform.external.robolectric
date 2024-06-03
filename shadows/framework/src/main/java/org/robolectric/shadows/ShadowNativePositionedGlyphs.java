@@ -1,7 +1,6 @@
 package org.robolectric.shadows;
 
 import android.graphics.text.PositionedGlyphs;
-import org.robolectric.annotation.InDevelopment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.nativeruntime.DefaultNativeRuntimeLoader;
@@ -17,7 +16,6 @@ import org.robolectric.versioning.AndroidVersions.U;
     shadowPicker = Picker.class,
     callNativeMethodsByDefault = true)
 public class ShadowNativePositionedGlyphs {
-
   @Implementation(maxSdk = U.SDK_INT)
   protected static int nGetGlyphCount(long minikinLayout) {
     return PositionedGlyphsNatives.nGetGlyphCount(minikinLayout);

@@ -2,8 +2,6 @@ package org.robolectric.shadows;
 
 import android.os.Build;
 import android.provider.DeviceConfig;
-import android.provider.DeviceConfig.Properties;
-import java.util.HashMap;
 import java.util.Map;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Implements;
@@ -12,7 +10,7 @@ import org.robolectric.util.ReflectionHelpers;
 
 @Implements(value = DeviceConfig.class, isInAndroidSdk = false, minSdk = Build.VERSION_CODES.Q)
 public class ShadowDeviceConfig {
-
+  @Resetter
   public static void reset() {
     Object lock = ReflectionHelpers.getStaticField(DeviceConfig.class, "sLock");
     //noinspection SynchronizationOnLocalVariableOrMethodParameter
