@@ -17,7 +17,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageManager;
 import android.content.pm.PackageParser;
 import android.content.pm.PackageParser.Package;
 import android.content.res.AssetManager;
@@ -97,15 +96,16 @@ import org.robolectric.shadows.ShadowLog;
 import org.robolectric.shadows.ShadowLooper;
 import org.robolectric.shadows.ShadowPackageManager;
 import org.robolectric.shadows.ShadowPackageParser;
-import org.robolectric.shadows.ShadowPackageParser._Package_;
 import org.robolectric.shadows.ShadowPausedLooper;
 import org.robolectric.shadows.ShadowView;
 import org.robolectric.util.Logger;
 import org.robolectric.util.PerfStatsCollector;
 import org.robolectric.util.ReflectionHelpers;
+import org.robolectric.util.ReflectionHelpers.ClassParameter;
 import org.robolectric.util.Scheduler;
 import org.robolectric.util.TempDirectory;
 import org.robolectric.versioning.AndroidVersions;
+import org.robolectric.versioning.AndroidVersions.V;
 
 @SuppressLint("NewApi")
 public class AndroidTestEnvironment implements TestEnvironment {
@@ -366,18 +366,8 @@ public class AndroidTestEnvironment implements TestEnvironment {
           activityThread.getPackageInfo(applicationInfo, null, Context.CONTEXT_INCLUDE_CODE);
       final _LoadedApk_ _loadedApk_ = reflector(_LoadedApk_.class, loadedApk);
 
-      Context contextImpl;
-      if (apiLevel >= VERSION_CODES.LOLLIPOP) {
-        contextImpl = reflector(_ContextImpl_.class).createAppContext(activityThread, loadedApk);
-      } else {
-        try {
-          contextImpl =
-              systemContextImpl.createPackageContext(
-                  applicationInfo.packageName, Context.CONTEXT_INCLUDE_CODE);
-        } catch (PackageManager.NameNotFoundException e) {
-          throw new RuntimeException(e);
-        }
-      }
+      Context contextImpl =
+          reflector(_ContextImpl_.class).createAppContext(activityThread, loadedApk);
       ShadowPackageManager shadowPackageManager = Shadow.extract(contextImpl.getPackageManager());
       shadowPackageManager.addPackageInternal(parsedPackage);
       activityThreadReflector.setInitialApplication(application);
@@ -404,20 +394,18 @@ public class AndroidTestEnvironment implements TestEnvironment {
         populateAssetPaths(appResources.getAssets(), appManifest);
       }
 
-      if (AndroidVersions.CURRENT.getSdkInt() >= AndroidVersions.V.SDK_INT) {
+      // Circumvent the 'No Compatibility callbacks set!' log. See #8509
+      if (apiLevel >= AndroidVersions.V.SDK_INT) {
         // Adds loggableChanges parameter.
         ReflectionHelpers.callStaticMethod(
             AppCompatCallbacks.class,
             "install",
-            ReflectionHelpers.ClassParameter.from(long[].class, new long[0]),
-            ReflectionHelpers.ClassParameter.from(long[].class, new long[0]));
-      } else if (AndroidVersions.CURRENT.getSdkInt() >= AndroidVersions.R.SDK_INT) {
-        // Invoke the previous version. Circumvents the 'No Compatibility callbacks set!' log. See
-        // #8509.
+            ClassParameter.from(long[].class, new long[0]),
+            ClassParameter.from(long[].class, new long[0]));
+      } else if (apiLevel >= AndroidVersions.R.SDK_INT) {
+        // Invoke the previous version.
         ReflectionHelpers.callStaticMethod(
-            AppCompatCallbacks.class,
-            "install",
-            ReflectionHelpers.ClassParameter.from(long[].class, new long[0]));
+            AppCompatCallbacks.class, "install", ClassParameter.from(long[].class, new long[0]));
       }
 
       PerfStatsCollector.getInstance()
@@ -599,8 +587,12 @@ public class AndroidTestEnvironment implements TestEnvironment {
     }
   }
 
+  protected Instrumentation pickInstrumentation() {
+    return new RoboMonitoringInstrumentation();
+  }
+
   private Instrumentation createInstrumentation() {
-    Instrumentation androidInstrumentation = new RoboMonitoringInstrumentation();
+    Instrumentation androidInstrumentation = pickInstrumentation();
     androidInstrumentation.runOnMainSync(
         () -> {
           ActivityThread activityThread = ReflectionHelpers.callConstructor(ActivityThread.class);
@@ -714,17 +706,8 @@ public class AndroidTestEnvironment implements TestEnvironment {
       applicationInfo.publicSourceDir =
           createTempDir(applicationInfo.packageName + "-publicSourceDir");
     } else {
-      if (apiLevel == VERSION_CODES.KITKAT) {
-        String sourcePath = reflector(_Package_.class, parsedPackage).getPath();
-        if (sourcePath == null) {
-          sourcePath = createTempDir("sourceDir");
-        }
-        applicationInfo.publicSourceDir = sourcePath;
-        applicationInfo.sourceDir = sourcePath;
-      } else {
-        applicationInfo.publicSourceDir = parsedPackage.codePath;
-        applicationInfo.sourceDir = parsedPackage.codePath;
-      }
+      applicationInfo.publicSourceDir = parsedPackage.codePath;
+      applicationInfo.sourceDir = parsedPackage.codePath;
     }
 
     applicationInfo.dataDir = createTempDir(applicationInfo.packageName + "-dataDir");

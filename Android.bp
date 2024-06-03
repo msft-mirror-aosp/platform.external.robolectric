@@ -63,6 +63,17 @@ robolectric_build_props {
 }
 
 java_genrule {
+    name: "robolectric_props_jar",
+    host_supported: true,
+    tools: ["soong_zip"],
+    srcs: [":robolectric_build_props"],
+    out: ["robolectric_props.jar"],
+    cmd: "cp $(location :robolectric_build_props) . && $(location soong_zip) " +
+        "-o $(location robolectric_props.jar) " +
+        "-f ./build.prop ",
+}
+
+java_genrule {
     name: "robolectric_framework_res",
     host_supported: true,
     tools: ["zip2zip"],
@@ -97,12 +108,15 @@ java_device_for_host {
     ],
 }
 
-java_library_host {
+java_library {
     name: "robolectric-host-android_all",
+    host_supported: true,
+    device_supported: false,
     static_libs: [
         "robolectric_android-all-device-deps",
         "robolectric_tzdata",
         "robolectric_framework_res",
+        "robolectric_props_jar",
     ],
     // WARNING: DO NOT ADD NEW DEPENDENCIES ON THIS MODULE OR ITS DIST JAR
     // This dist jar is an internal implementation detail. For external Gradle builds (outside
@@ -120,11 +134,6 @@ java_library_host {
         ],
         dest: "android-all-robolectric.jar",
     },
-
-    java_resources: [
-        // Copy the build.prop
-        ":robolectric_build_props",
-    ],
     visibility: [
         ":__subpackages__",
         "//prebuilts/misc/common/robolectric",
@@ -197,9 +206,8 @@ java_host_for_device {
       "//frameworks/base/packages/CredentialManager:__subpackages__",
       "//frameworks/base/packages/SettingsLib:__subpackages__",
       "//frameworks/base/packages/SystemUI:__pkg__",
+      "//frameworks/libs/systemui:__subpackages__",
       "//packages/apps/Launcher3/tests:__pkg__",
-      "//frameworks/libs/systemui/animationlib:__pkg__",
-      "//frameworks/libs/systemui/tracinglib:__pkg__",
       "//frameworks/base/tests/InputScreenshotTest:__subpackages__",
       "//frameworks/opt/car/setupwizard/library/main/tests/robotests:__pkg__",
       "//frameworks/opt/localepicker/tests:__pkg__",
@@ -225,6 +233,7 @@ java_host_for_device {
       "//packages/apps/Settings/tests/robotests:__pkg__",
       "//packages/apps/ThemePicker/tests/robotests:__pkg__",
       "//packages/apps/WallpaperPicker2/tests/robotests:__pkg__",
+      "//packages/apps/WallpaperPicker2/tests/robotests/common:__pkg__",
       "//packages/apps/TvSettings/Settings/tests/robotests:__pkg__",
       "//packages/apps/KeyChain/robotests:__pkg__",
       "//packages/apps/CertInstaller/robotests:__pkg__",

@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import org.robolectric.annotation.InDevelopment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.RealObject;
@@ -46,6 +47,7 @@ public class ShadowNativeFont {
    * This must be deferred starting in Android V.
    */
   @Implementation(minSdk = V.SDK_INT)
+  @InDevelopment
   protected static void __staticInitializer__() {}
 
   @Implementation(minSdk = S, maxSdk = U.SDK_INT)

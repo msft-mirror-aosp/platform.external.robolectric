@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
+import org.robolectric.annotation.InDevelopment;
 import org.robolectric.annotation.RealObject;
 import org.robolectric.annotation.Resetter;
 import org.robolectric.util.ReflectionHelpers;
@@ -84,6 +85,7 @@ public class ShadowCameraManager {
   }
 
   @Implementation(minSdk = U.SDK_INT)
+  @InDevelopment
   protected CameraDevice openCameraDeviceUserAsync(
       String cameraId,
       CameraDevice.StateCallback callback,
@@ -205,14 +207,14 @@ public class ShadowCameraManager {
     return deviceImpl;
   }
 
-  @Implementation(minSdk = VERSION_CODES.LOLLIPOP)
+  @Implementation
   protected void registerAvailabilityCallback(
       CameraManager.AvailabilityCallback callback, Handler handler) {
     Preconditions.checkNotNull(callback);
     registeredCallbacks.add(callback);
   }
 
-  @Implementation(minSdk = VERSION_CODES.LOLLIPOP)
+  @Implementation
   protected void unregisterAvailabilityCallback(CameraManager.AvailabilityCallback callback) {
     Preconditions.checkNotNull(callback);
     registeredCallbacks.remove(callback);

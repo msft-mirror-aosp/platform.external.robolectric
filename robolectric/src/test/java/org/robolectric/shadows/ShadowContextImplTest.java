@@ -1,9 +1,9 @@
 package org.robolectric.shadows;
 
 import static android.os.Build.VERSION_CODES.KITKAT;
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.Q;
+import static android.os.Build.VERSION_CODES.TIRAMISU;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 import static org.robolectric.Shadows.shadowOf;
@@ -187,7 +187,6 @@ public class ShadowContextImplTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void bindServiceAsUser() {
     Intent serviceIntent = new Intent().setPackage("dummy.package");
     ServiceConnection serviceConnection = buildServiceConnection();
@@ -202,7 +201,6 @@ public class ShadowContextImplTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void bindServiceAsUser_shouldThrowOnImplicitIntent() {
     Intent serviceIntent = new Intent();
     ServiceConnection serviceConnection = buildServiceConnection();
@@ -340,6 +338,18 @@ public class ShadowContextImplTest {
   }
 
   @Test
+  @Config(minSdk = TIRAMISU)
+  public void sendBroadcastWithBundle_sendBroadcast() {
+    String action = "foo-action";
+    Bundle options = new Bundle();
+    Intent intent = new Intent(action);
+    context.sendBroadcast(intent, null, options);
+
+    assertThat(shadowOf(context).getBroadcastIntents().get(0).getAction()).isEqualTo(action);
+    assertThat(shadowOf(context).getBroadcastOptions(intent)).isEqualTo(options);
+  }
+
+  @Test
   public void sendOrderedBroadcastAsUser_sendsBroadcast() {
     UserHandle userHandle = Process.myUserHandle();
     String action = "foo-action";
@@ -370,7 +380,6 @@ public class ShadowContextImplTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void startActivityAsUser() {
     Intent intent = new Intent();
     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);

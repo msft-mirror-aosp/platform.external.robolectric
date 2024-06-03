@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.Q;
 import static com.google.common.truth.Truth.assertThat;
@@ -66,14 +65,12 @@ public class ShadowBackupManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void setBackupEnabled_setToTrue_shouldEnableBackup() {
     backupManager.setBackupEnabled(true);
     assertThat(backupManager.isBackupEnabled()).isTrue();
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void setBackupEnabled_multipleInstances_shouldBeEnabled() {
     // BackupManager is used by creating new instances, but all of them talk to the same
     // BackupManagerService in Android, so methods that route through the service will share states.
@@ -83,14 +80,12 @@ public class ShadowBackupManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void setBackupEnabled_setToFalse_shouldDisableBackup() {
     backupManager.setBackupEnabled(false);
     assertThat(backupManager.isBackupEnabled()).isFalse();
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isBackupEnabled_noPermission_shouldThrowSecurityException() {
     shadowOf((Application) ApplicationProvider.getApplicationContext())
         .denyPermissions(android.Manifest.permission.BACKUP);
@@ -112,6 +107,19 @@ public class ShadowBackupManagerTest {
         .asList()
         .comparingElementsUsing(fieldCorrespondence("token"))
         .containsExactly(123L, 456L);
+  }
+
+  @Test
+  public void getAvailableRestoreToken_setNullAvailableRestoreSets_returnsNull() {
+    shadowOf(backupManager).setNullAvailableRestoreSets(true);
+    RestoreSession restoreSession = backupManager.beginRestoreSession();
+
+    int result = restoreSession.getAvailableRestoreSets(restoreObserver);
+    shadowMainLooper().idle();
+
+    assertThat(result).isEqualTo(BackupManager.SUCCESS);
+    assertThat(restoreObserver.restoreSetsAvailableCalled).isTrue();
+    assertThat(restoreObserver.getRestoreSets()).isNull();
   }
 
   @Test
@@ -291,12 +299,14 @@ public class ShadowBackupManagerTest {
 
   private static class TestRestoreObserver extends RestoreObserver {
     @Nullable private RestoreSet[] restoreSets;
+    private boolean restoreSetsAvailableCalled;
     @Nullable private Integer restoreStartingNumPackages;
     @Nullable private Integer restoreFinishedResult;
 
     @Override
     public void restoreSetsAvailable(RestoreSet[] restoreSets) {
       this.restoreSets = restoreSets;
+      this.restoreSetsAvailableCalled = true;
     }
 
     @Override
