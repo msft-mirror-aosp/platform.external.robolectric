@@ -2,6 +2,7 @@ package org.robolectric.versioning;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.lang.reflect.Field;
 import org.junit.Test;
