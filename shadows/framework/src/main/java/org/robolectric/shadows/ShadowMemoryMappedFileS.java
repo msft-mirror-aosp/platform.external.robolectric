@@ -10,7 +10,6 @@ import java.io.InputStream;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.util.regex.Pattern;
 import libcore.io.Streams;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
@@ -24,15 +23,13 @@ public class ShadowMemoryMappedFileS {
   private static final String TZ_DATA_2 = "/usr/share/zoneinfo/tzdata";
   private static final String TZ_DATA_3 = "/misc/zoneinfo/current/tzdata";
   private static final String TZ_DATA_4 = "/etc/tz/tzdata";
-  private static final Pattern VERSIONED_TZDATA = Pattern.compile(".*/tz/versioned/\\d+/tzdata");
 
   @Implementation
   public static MemoryMappedFile mmapRO(String path) throws Throwable {
     if (path.endsWith(TZ_DATA_1)
         || path.endsWith(TZ_DATA_2)
         || path.endsWith(TZ_DATA_3)
-        || path.endsWith(TZ_DATA_4)
-        || VERSIONED_TZDATA.matcher(path).matches()) {
+        || path.endsWith(TZ_DATA_4)) {
       InputStream is = MemoryMappedFile.class.getResourceAsStream(TZ_DATA_2);
       if (is == null) {
         throw new ErrnoException("open", -1);
