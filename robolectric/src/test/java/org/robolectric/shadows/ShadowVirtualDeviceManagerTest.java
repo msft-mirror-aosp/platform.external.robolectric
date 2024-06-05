@@ -18,6 +18,10 @@ import android.companion.virtual.sensor.VirtualSensorCallback;
 import android.companion.virtual.sensor.VirtualSensorConfig;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Rect;
+import android.graphics.SurfaceTexture;
+import android.hardware.display.VirtualDisplay;
+import android.hardware.display.VirtualDisplayConfig;
 import android.hardware.input.VirtualKeyEvent;
 import android.hardware.input.VirtualKeyboard;
 import android.hardware.input.VirtualKeyboardConfig;
@@ -29,8 +33,12 @@ import android.hardware.input.VirtualMouseScrollEvent;
 import android.hardware.input.VirtualTouchEvent;
 import android.hardware.input.VirtualTouchscreen;
 import android.hardware.input.VirtualTouchscreenConfig;
+import android.util.DisplayMetrics;
+import android.view.Display;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.Surface;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.time.Duration;
 import java.util.function.IntConsumer;
 import org.junit.Before;
@@ -56,9 +64,11 @@ public class ShadowVirtualDeviceManagerTest {
   private Context context;
   private VirtualDeviceManager virtualDeviceManager;
   @Mock private IntConsumer mockCallback;
+  @Mock private VirtualDisplay.Callback mockDisplayCallback;
 
   private static final int DISPLAY_WIDTH = 720;
   private static final int DISPLAY_HEIGHT = 1280;
+  private static final int DISPLAY_DPI = 160;
 
   @Before
   public void setUp() throws Exception {
@@ -206,7 +216,11 @@ public class ShadowVirtualDeviceManagerTest {
         new VirtualMouseRelativeEvent.Builder().setRelativeX(0.1f).setRelativeY(0.1f).build();
 
     VirtualMouse virtualMouse =
-        virtualDevice.createVirtualMouse(new VirtualMouseConfig.Builder().build());
+        virtualDevice.createVirtualMouse(
+            new VirtualMouseConfig.Builder()
+                .setAssociatedDisplayId(0)
+                .setInputDeviceName("mouse")
+                .build());
     virtualMouse.sendButtonEvent(buttonDownEvent);
     virtualMouse.sendButtonEvent(buttonUpEvent);
     virtualMouse.sendScrollEvent(scrollEvent);
@@ -236,7 +250,10 @@ public class ShadowVirtualDeviceManagerTest {
 
     VirtualTouchscreen virtualTouchscreen =
         virtualDevice.createVirtualTouchscreen(
-            new VirtualTouchscreenConfig.Builder(DISPLAY_WIDTH, DISPLAY_HEIGHT).build());
+            new VirtualTouchscreenConfig.Builder(DISPLAY_WIDTH, DISPLAY_HEIGHT)
+                .setAssociatedDisplayId(0)
+                .setInputDeviceName("touchscreen")
+                .build());
     virtualTouchscreen.sendTouchEvent(virtualTouchEvent);
 
     assertThat(virtualTouchscreen).isNotNull();
@@ -258,7 +275,11 @@ public class ShadowVirtualDeviceManagerTest {
             .build();
 
     VirtualKeyboard virtualKeyboard =
-        virtualDevice.createVirtualKeyboard(new VirtualKeyboardConfig.Builder().build());
+        virtualDevice.createVirtualKeyboard(
+            new VirtualKeyboardConfig.Builder()
+                .setAssociatedDisplayId(0)
+                .setInputDeviceName("keyboard")
+                .build());
     virtualKeyboard.sendKeyEvent(keyEvent1);
     virtualKeyboard.sendKeyEvent(keyEvent2);
 
@@ -273,12 +294,23 @@ public class ShadowVirtualDeviceManagerTest {
         virtualDeviceManager.createVirtualDevice(
             0, new VirtualDeviceParams.Builder().setName("foo").build());
     VirtualKeyboard virtualKeyboard =
-        virtualDevice.createVirtualKeyboard(new VirtualKeyboardConfig.Builder().build());
+        virtualDevice.createVirtualKeyboard(
+            new VirtualKeyboardConfig.Builder()
+                .setAssociatedDisplayId(0)
+                .setInputDeviceName("keyboard")
+                .build());
     VirtualTouchscreen virtualTouchscreen =
         virtualDevice.createVirtualTouchscreen(
-            new VirtualTouchscreenConfig.Builder(DISPLAY_WIDTH, DISPLAY_HEIGHT).build());
+            new VirtualTouchscreenConfig.Builder(DISPLAY_WIDTH, DISPLAY_HEIGHT)
+                .setAssociatedDisplayId(1)
+                .setInputDeviceName("touchscreen")
+                .build());
     VirtualMouse virtualMouse =
-        virtualDevice.createVirtualMouse(new VirtualMouseConfig.Builder().build());
+        virtualDevice.createVirtualMouse(
+            new VirtualMouseConfig.Builder()
+                .setAssociatedDisplayId(2)
+                .setInputDeviceName("mouse")
+                .build());
 
     virtualKeyboard.close();
     virtualTouchscreen.close();
@@ -290,5 +322,38 @@ public class ShadowVirtualDeviceManagerTest {
     assertThat(shadowVirtualKeyboard.isClosed()).isTrue();
     assertThat(shadowVirtualTouchscreen.isClosed()).isTrue();
     assertThat(shadowVirtualMouse.isClosed()).isTrue();
+  }
+
+  @Test
+  public void testCreateVirtualDisplay() {
+    VirtualDevice virtualDevice =
+        virtualDeviceManager.createVirtualDevice(
+            0, new VirtualDeviceParams.Builder().setName("foo").build());
+
+    Surface surface = new Surface(new SurfaceTexture(0));
+
+    VirtualDisplay virtualDisplay =
+        virtualDevice.createVirtualDisplay(
+            new VirtualDisplayConfig.Builder("name", DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_DPI)
+                .setSurface(surface)
+                .setFlags(123)
+                .build(),
+            MoreExecutors.directExecutor(),
+            mockDisplayCallback);
+
+    Rect size = new Rect();
+    virtualDisplay.getDisplay().getRectSize(size);
+    DisplayMetrics displayMetrics = new DisplayMetrics();
+    virtualDisplay.getDisplay().getMetrics(displayMetrics);
+
+    assertThat(displayMetrics.densityDpi).isEqualTo(DISPLAY_DPI);
+    assertThat(displayMetrics.heightPixels).isEqualTo(DISPLAY_HEIGHT);
+    assertThat(displayMetrics.widthPixels).isEqualTo(DISPLAY_WIDTH);
+    assertThat(size).isEqualTo(new Rect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT));
+
+    assertThat(virtualDisplay.getSurface()).isEqualTo(surface);
+    assertThat(virtualDisplay.getDisplay().getDisplayId()).isNotEqualTo(Display.DEFAULT_DISPLAY);
+    assertThat(virtualDisplay.getDisplay().getName()).isEqualTo("name");
+    assertThat(virtualDisplay.getDisplay().getFlags()).isEqualTo(123);
   }
 }
