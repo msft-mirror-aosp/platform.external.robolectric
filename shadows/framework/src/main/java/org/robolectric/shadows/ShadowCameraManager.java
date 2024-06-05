@@ -32,8 +32,11 @@ import org.robolectric.annotation.Resetter;
 import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.ReflectionHelpers.ClassParameter;
 import org.robolectric.util.reflector.Accessor;
+import org.robolectric.util.reflector.Constructor;
 import org.robolectric.util.reflector.ForType;
+import org.robolectric.util.reflector.WithType;
 import org.robolectric.versioning.AndroidVersions.U;
+import org.robolectric.versioning.AndroidVersions.V;
 
 /** Shadow class for {@link CameraManager} */
 @Implements(value = CameraManager.class, minSdk = VERSION_CODES.LOLLIPOP)
@@ -84,8 +87,7 @@ public class ShadowCameraManager {
     }
   }
 
-  @Implementation(minSdk = U.SDK_INT)
-  @InDevelopment
+  @Implementation(minSdk = U.SDK_INT, maxSdk = U.SDK_INT)
   protected CameraDevice openCameraDeviceUserAsync(
       String cameraId,
       CameraDevice.StateCallback callback,
@@ -93,6 +95,18 @@ public class ShadowCameraManager {
       final int uid,
       final int oomScoreOffset,
       boolean overrideToPortrait) {
+    return openCameraDeviceUserAsync(cameraId, callback, executor, uid, oomScoreOffset);
+  }
+
+  @Implementation(minSdk = V.SDK_INT)
+  @InDevelopment
+  protected CameraDevice openCameraDeviceUserAsync(
+      String cameraId,
+      CameraDevice.StateCallback callback,
+      Executor executor,
+      final int uid,
+      final int oomScoreOffset,
+      int rotationOverride) {
     return openCameraDeviceUserAsync(cameraId, callback, executor, uid, oomScoreOffset);
   }
 
@@ -106,15 +120,7 @@ public class ShadowCameraManager {
     CameraCharacteristics characteristics = getCameraCharacteristics(cameraId);
     Context context = RuntimeEnvironment.getApplication();
     CameraDeviceImpl deviceImpl =
-        ReflectionHelpers.callConstructor(
-            CameraDeviceImpl.class,
-            ClassParameter.from(String.class, cameraId),
-            ClassParameter.from(CameraDevice.StateCallback.class, callback),
-            ClassParameter.from(Executor.class, executor),
-            ClassParameter.from(CameraCharacteristics.class, characteristics),
-            ClassParameter.from(Map.class, Collections.emptyMap()),
-            ClassParameter.from(int.class, context.getApplicationInfo().targetSdkVersion),
-            ClassParameter.from(Context.class, context));
+        createCameraDeviceImpl(cameraId, callback, executor, characteristics, context);
     createdCameras.add(deviceImpl);
     updateCameraCallback(deviceImpl, callback, null, executor);
     executor.execute(() -> callback.onOpened(deviceImpl));
@@ -232,6 +238,37 @@ public class ShadowCameraManager {
     torchCallbacks.remove(callback);
   }
 
+  private CameraDeviceImpl createCameraDeviceImpl(
+      String cameraId,
+      CameraDevice.StateCallback callback,
+      Executor executor,
+      CameraCharacteristics characteristics,
+      Context context) {
+    Map<String, CameraCharacteristics> cameraCharacteristicsMap = Collections.emptyMap();
+    if (RuntimeEnvironment.getApiLevel() >= V.SDK_INT) {
+      return reflector(ReflectorCameraDeviceImpl.class)
+          .newCameraDeviceImplV(
+              cameraId,
+              callback,
+              executor,
+              characteristics,
+              realObject,
+              context.getApplicationInfo().targetSdkVersion,
+              context,
+              null);
+    } else {
+      return reflector(ReflectorCameraDeviceImpl.class)
+          .newCameraDeviceImpl(
+              cameraId,
+              callback,
+              executor,
+              characteristics,
+              cameraCharacteristicsMap,
+              context.getApplicationInfo().targetSdkVersion,
+              context);
+    }
+  }
+
   /**
    * Calls all registered callbacks's onCameraAvailable method. This is a no-op if no callbacks are
    * registered.
@@ -320,6 +357,31 @@ public class ShadowCameraManager {
       cameraDevice.close();
     }
     createdCameras.clear();
+  }
+
+  @ForType(CameraDeviceImpl.class)
+  interface ReflectorCameraDeviceImpl {
+    @Constructor
+    CameraDeviceImpl newCameraDeviceImpl(
+        String cameraId,
+        CameraDevice.StateCallback callback,
+        Executor executor,
+        CameraCharacteristics characteristics,
+        Map<String, CameraCharacteristics> characteristicsMap,
+        int targetSdkVersion,
+        Context context);
+
+    @Constructor
+    CameraDeviceImpl newCameraDeviceImplV(
+        String cameraId,
+        CameraDevice.StateCallback callback,
+        Executor executor,
+        CameraCharacteristics characteristics,
+        CameraManager cameraManager,
+        int targetSdkVersion,
+        Context context,
+        @WithType("android.hardware.camera2.CameraDevice$CameraDeviceSetup")
+            Object cameraDeviceSetup);
   }
 
   /** Accessor interface for {@link CameraManager}'s internals. */
