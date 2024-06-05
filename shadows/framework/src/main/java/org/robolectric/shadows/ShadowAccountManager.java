@@ -1,7 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.LOLLIPOP_MR1;
 import static android.os.Build.VERSION_CODES.O;
 
@@ -14,12 +12,12 @@ import android.accounts.AuthenticatorException;
 import android.accounts.IAccountManager;
 import android.accounts.OnAccountsUpdateListener;
 import android.accounts.OperationCanceledException;
+import android.annotation.Nullable;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
-import androidx.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -603,8 +601,10 @@ public class ShadowAccountManager {
     previousNames.put(account, previousName);
   }
 
-  /** @see #setPreviousAccountName(Account, String) */
-  @Implementation(minSdk = LOLLIPOP)
+  /**
+   * @see #setPreviousAccountName(Account, String)
+   */
+  @Implementation
   protected String getPreviousName(Account account) {
     return previousNames.get(account);
   }
@@ -724,7 +724,7 @@ public class ShadowAccountManager {
     return future;
   }
 
-  @Implementation(minSdk = JELLY_BEAN_MR2)
+  @Implementation
   protected Account[] getAccountsByTypeForPackage(String type, String packageName) {
     List<Account> result = new ArrayList<>();
 

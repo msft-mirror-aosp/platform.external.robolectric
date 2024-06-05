@@ -244,11 +244,9 @@ public class LoadedArsc {
     // Make sure that there is enough room for the entry offsets.
     int offsets_offset = dtohs(header.header.headerSize);
     int entries_offset = dtohl(header.entriesStart);
-    int offsets_length = isTruthy(header.flags & ResTable_type.FLAG_OFFSET16)
-                                    ? 2 * entry_count
-                                    : 4 * entry_count;
-
-    if (offsets_offset > entries_offset || entries_offset - offsets_offset < offsets_length) {
+    int bytesPerEntry = isTruthy(header.flags & ResTable_type.FLAG_OFFSET16) ? 2 : 4;
+    int offsetsLength = bytesPerEntry * entry_count;
+    if (offsets_offset > entries_offset || entries_offset - offsets_offset < offsetsLength) {
       logError("RES_TABLE_TYPE_TYPE entry offsets overlap actual entry data.");
       return false;
     }
@@ -293,16 +291,16 @@ public class LoadedArsc {
     //       reinterpret_cast<uint8_t*>(type) + entry_offset);
     ResTable_entry entry = new ResTable_entry(type.myBuf(), type.myOffset() + entry_offset);
 
-    int entry_size = entry.isCompact() ? ResTable_entry.SIZEOF : dtohs(entry.size);
-    if (entry_size < ResTable_entry.SIZEOF) {
-      logError("ResTable_entry size " + entry_size + " at offset " + entry_offset
-          + " is too small.");
+    int entrySize = entry.isCompact() ? ResTable_entry.SIZEOF : dtohs(entry.size);
+    if (entrySize < ResTable_entry.SIZEOF) {
+      logError(
+          "ResTable_entry size " + entrySize + " at offset " + entry_offset + " is too small.");
       return false;
     }
 
-    if (entry_size > chunk_size || entry_offset > chunk_size - entry_size) {
-      logError("ResTable_entry size " + entry_size + " at offset " + entry_offset
-          + " is too large.");
+    if (entrySize > chunk_size || entry_offset > chunk_size - entrySize) {
+      logError(
+          "ResTable_entry size " + entrySize + " at offset " + entry_offset + " is too large.");
       return false;
     }
 
@@ -311,9 +309,9 @@ public class LoadedArsc {
       return true;
     }
 
-    if (entry_size < ResTable_map_entry.BASE_SIZEOF) {
+    if (entrySize < ResTable_map_entry.BASE_SIZEOF) {
       // There needs to be room for one Res_value struct.
-      if (entry_offset + entry_size > chunk_size - Res_value.SIZEOF) {
+      if (entry_offset + entrySize > chunk_size - Res_value.SIZEOF) {
         logError("No room for Res_value after ResTable_entry at offset " + entry_offset
             + " for type " + (int) type.id + ".");
         return false;
@@ -328,7 +326,7 @@ public class LoadedArsc {
         return false;
       }
 
-      if (value_size > chunk_size || entry_offset + entry_size > chunk_size - value_size) {
+      if (value_size > chunk_size || entry_offset + entrySize > chunk_size - value_size) {
         logError("Res_value size " + value_size + " at offset " + entry_offset
             + " is too large.");
         return false;
@@ -336,14 +334,14 @@ public class LoadedArsc {
     } else {
       ResTable_map_entry map = new ResTable_map_entry(entry.myBuf(), entry.myOffset());
       int map_entry_count = dtohl(map.count);
-      int map_entries_start = entry_offset + entry_size;
-      if (isTruthy(map_entries_start & 0x03)) {
+      int mapEntriesStart = entry_offset + entrySize;
+      if (isTruthy(mapEntriesStart & 0x03)) {
         logError("Map entries at offset " + entry_offset + " start at unaligned offset.");
         return false;
       }
 
       // Each entry is sizeof(ResTable_map) big.
-      if (map_entry_count > ((chunk_size - map_entries_start) / ResTable_map.SIZEOF)) {
+      if (map_entry_count > ((chunk_size - mapEntriesStart) / ResTable_map.SIZEOF)) {
         logError("Too many map entries in ResTable_map_entry at offset " + entry_offset + ".");
         return false;
       }
@@ -781,30 +779,31 @@ public class LoadedArsc {
 
             // loaded_package.dynamic_package_map_.reserve(dtohl(lib.count));
 
-            // ResTable_lib_entry entry_begin =
+            // ResTable_lib_entry entryBegin =
             //     reinterpret_cast<ResTable_lib_entry*>(child_chunk.data_ptr());
-            ResTable_lib_entry entry_begin =
+            ResTable_lib_entry entryBegin =
                 child_chunk.asResTable_lib_entry();
-            // ResTable_lib_entry entry_end = entry_begin + dtohl(lib.count);
-            // for (auto entry_iter = entry_begin; entry_iter != entry_end; ++entry_iter) {
-            for (ResTable_lib_entry entry_iter = entry_begin;
-                entry_iter.myOffset() != entry_begin.myOffset() + dtohl(lib.count);
-                entry_iter = new ResTable_lib_entry(entry_iter.myBuf(), entry_iter.myOffset() + ResTable_lib_entry.SIZEOF)) {
+            // ResTable_lib_entry entry_end = entryBegin + dtohl(lib.count);
+            // for (auto entryIter = entryBegin; entryIter != entry_end; ++entryIter) {
+            for (ResTable_lib_entry entryIter = entryBegin;
+                entryIter.myOffset() != entryBegin.myOffset() + dtohl(lib.count);
+                entryIter = new ResTable_lib_entry(
+                    entryIter.myBuf(), entryIter.myOffset() + ResTable_lib_entry.SIZEOF)) {
               String package_name =
-                  Util.ReadUtf16StringFromDevice(entry_iter.packageName,
-                      entry_iter.packageName.length);
+                  Util.ReadUtf16StringFromDevice(entryIter.packageName,
+                      entryIter.packageName.length);
               
-              if (dtohl(entry_iter.packageId) >= 255) {
+              if (dtohl(entryIter.packageId) >= 255) {
                 logError(String.format(
                     "Package ID %02x in RES_TABLE_LIBRARY_TYPE too large for package '%s'.",
-                    dtohl(entry_iter.packageId), package_name));
+                    dtohl(entryIter.packageId), package_name));
                 return emptyBraces();
               }
 
               // loaded_package.dynamic_package_map_.emplace_back(std.move(package_name),
-              //     dtohl(entry_iter.packageId));
+              //     dtohl(entryIter.packageId));
               loaded_package.dynamic_package_map_.add(new DynamicPackageEntry(package_name,
-                  dtohl(entry_iter.packageId)));
+                  dtohl(entryIter.packageId)));
             }
 
           } break;

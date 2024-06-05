@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.KITKAT;
 import static android.os.Build.VERSION_CODES.P;
 import static android.os.Build.VERSION_CODES.S;
 import static java.util.stream.Collectors.toCollection;
@@ -9,6 +8,9 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHeadset;
 import android.bluetooth.BluetoothProfile;
 import android.content.Intent;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.primitives.Ints;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -33,7 +35,8 @@ public class ShadowBluetoothHeadset {
 
   /**
    * Overrides behavior of {@link getConnectedDevices}. Returns list of devices that is set up by
-   * call(s) to {@link ShadowBluetoothHeadset#addConnectedDevice}. Returns an empty list by default.
+   * call(s) to {@link ShadowBluetoothHeadset#addConnectedDevice} or {@link connect}. Returns an
+   * empty list by default.
    */
   @Implementation
   protected List<BluetoothDevice> getConnectedDevices() {
@@ -66,12 +69,52 @@ public class ShadowBluetoothHeadset {
    * Overrides behavior of {@link getConnectionState}.
    *
    * @return {@code BluetoothProfile.STATE_CONNECTED} if the given device has been previously added
-   *     by a call to {@link ShadowBluetoothHeadset#addConnectedDevice}, and {@code
-   *     BluetoothProfile.STATE_DISCONNECTED} otherwise.
+   *     by a call to {@link ShadowBluetoothHeadset#addConnectedDevice} or {@link connect}, and
+   *     {@code BluetoothProfile.STATE_DISCONNECTED} otherwise.
    */
   @Implementation
   protected int getConnectionState(BluetoothDevice device) {
     return bluetoothDevices.getOrDefault(device, BluetoothProfile.STATE_DISCONNECTED);
+  }
+
+  @Implementation
+  protected List<BluetoothDevice> getDevicesMatchingConnectionStates(int[] states) {
+    ImmutableSet<Integer> statesSet = ImmutableSet.copyOf(Ints.asList(states));
+    List<BluetoothDevice> matchingDevices = new ArrayList<>();
+    for (Map.Entry<BluetoothDevice, Integer> entry : bluetoothDevices.entrySet()) {
+      if (statesSet.contains(entry.getValue())) {
+        matchingDevices.add(entry.getKey());
+      }
+    }
+    return ImmutableList.copyOf(matchingDevices);
+  }
+
+  /**
+   * Overrides behavior of {@link connect}. Returns {@code true} and adds {@code device} to the
+   * shadow profile's connected device list if {@code device} is currently disconnected, and returns
+   * {@code false} otherwise.
+   */
+  @Implementation
+  protected boolean connect(BluetoothDevice device) {
+    if (getConnectedDevices().contains(device)) {
+      return false;
+    }
+    addConnectedDevice(device);
+    return true;
+  }
+
+  /**
+   * Overrides behavior of {@link disconnect}. Returns {@code true} and removes {@code device} from
+   * the shadow profile's connected device list if {@code device} is currently connected, and
+   * returns {@code false} otherwise.
+   */
+  @Implementation
+  protected boolean disconnect(BluetoothDevice device) {
+    if (!getConnectedDevices().contains(device)) {
+      return false;
+    }
+    removeDevice(device);
+    return true;
   }
 
   /**
@@ -99,7 +142,7 @@ public class ShadowBluetoothHeadset {
 
   /**
    * Overrides the behavior of {@link stopVoiceRecognition}. Returns false if voice recognition was
-   * not started or voice recogntion has already ended on this headset. If this function returns
+   * not started or voice recognition has already ended on this headset. If this function returns
    * true, {@link ACTION_AUDIO_STATE_CHANGED} intent is broadcasted with {@link
    * BluetoothProfile.EXTRA_STATE} set to {@link STATE_DISCONNECTED}.
    */
@@ -122,12 +165,12 @@ public class ShadowBluetoothHeadset {
    * Overrides behavior of {@link sendVendorSpecificResultCode}.
    *
    * @return 'true' only if the given device has been previously added by a call to {@link
-   *     ShadowBluetoothHeadset#addConnectedDevice} and {@link
+   *     ShadowBluetoothHeadset#addConnectedDevice} or {@link connect}, and {@link
    *     ShadowBluetoothHeadset#setAllowsSendVendorSpecificResultCode} has not been called with
    *     'false' argument.
    * @throws IllegalArgumentException if 'command' argument is null, per Android API
    */
-  @Implementation(minSdk = KITKAT)
+  @Implementation
   protected boolean sendVendorSpecificResultCode(
       BluetoothDevice device, String command, String arg) {
     if (command == null) {

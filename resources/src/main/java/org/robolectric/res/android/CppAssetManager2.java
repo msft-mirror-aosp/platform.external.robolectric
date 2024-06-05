@@ -39,6 +39,7 @@ import org.robolectric.res.android.ResourceTypes.ResTable_map;
 import org.robolectric.res.android.ResourceTypes.ResTable_map_entry;
 import org.robolectric.res.android.ResourceTypes.ResTable_type;
 import org.robolectric.res.android.ResourceTypes.Res_value;
+import org.robolectric.util.PerfStatsCollector;
 
 // transliterated from https://android.googlesource.com/platform/frameworks/base/+/android-9.0.0_r12/libs/androidfw/include/androidfw/AssetManager2.h
 // and https://android.googlesource.com/platform/frameworks/base/+/android-9.0.0_r12/libs/androidfw/AssetManager2.cpp
@@ -667,7 +668,9 @@ public class CppAssetManager2 {
     // and we don't need to match the configurations, since they already matched.
     boolean use_fast_path = desired_config == configuration_;
 
-    for (int pi = 0; pi < package_count; pi++) {
+    // Search the entry in reverse order. This favors the newly added package in case neither
+    // configuration is considered "better than" the other.
+    for (int pi = package_count - 1; pi >= 0; pi--) {
       ConfiguredPackage loaded_package_impl = package_group.packages_.get(pi);
       LoadedPackage loaded_package = loaded_package_impl.loaded_package_;
       ApkAssetsCookie cookie = package_group.cookies_.get(pi);
@@ -882,7 +885,10 @@ public class CppAssetManager2 {
     out_value.set(device_value.copy());
 
     // Convert the package ID to the runtime assigned package ID.
-    entry.get().dynamic_ref_table.lookupResourceValue(out_value);
+    int err = entry.get().dynamic_ref_table.lookupResourceValue(out_value);
+    if (err != NO_ERROR) {
+      return K_INVALID_COOKIE;
+    }
 
     out_selected_config.set(new ResTable_config(entry.get().config));
     out_flags.set(entry.get().type_flags);
@@ -1293,36 +1299,43 @@ public class CppAssetManager2 {
   // Triggers the re-construction of lists of types that match the set configuration.
   // This should always be called when mutating the AssetManager's configuration or ApkAssets set.
   void RebuildFilterList() {
-    for (PackageGroup group : package_groups_) {
-      for (ConfiguredPackage impl : group.packages_) {
-        // // Destroy it.
-        // impl.filtered_configs_.~ByteBucketArray();
-        //
-        // // Re-create it.
-        // new (impl.filtered_configs_) ByteBucketArray<FilteredConfigGroup>();
-        impl.filtered_configs_ =
-            new ByteBucketArray<FilteredConfigGroup>(new FilteredConfigGroup()) {
-              @Override
-              FilteredConfigGroup newInstance() {
-                return new FilteredConfigGroup();
-              }
-            };
+    PerfStatsCollector.getInstance()
+        .measure(
+            "RebuildFilterList",
+            () -> {
+              for (PackageGroup group : package_groups_) {
+                for (ConfiguredPackage impl : group.packages_) {
+                  // // Destroy it.
+                  // impl.filtered_configs_.~ByteBucketArray();
+                  //
+                  // // Re-create it.
+                  // new (impl.filtered_configs_) ByteBucketArray<FilteredConfigGroup>();
+                  impl.filtered_configs_ =
+                      new ByteBucketArray<FilteredConfigGroup>(new FilteredConfigGroup()) {
+                        @Override
+                        FilteredConfigGroup newInstance() {
+                          return new FilteredConfigGroup();
+                        }
+                      };
 
-        // Create the filters here.
-        impl.loaded_package_.ForEachTypeSpec((TypeSpec spec, byte type_index) -> {
-          FilteredConfigGroup configGroup = impl.filtered_configs_.editItemAt(type_index);
-          // const auto iter_end = spec->types + spec->type_count;
-          //   for (auto iter = spec->types; iter != iter_end; ++iter) {
-          for (ResTable_type iter : spec.types) {
-            ResTable_config this_config = ResTable_config.fromDtoH(iter.config);
-            if (this_config.match(configuration_)) {
-              configGroup.configurations.add(this_config);
-              configGroup.types.add(iter);
-            }
-          }
-        });
-      }
-    }
+                  // Create the filters here.
+                  impl.loaded_package_.ForEachTypeSpec(
+                      (TypeSpec spec, byte type_index) -> {
+                        FilteredConfigGroup configGroup =
+                            impl.filtered_configs_.editItemAt(type_index);
+                        // const auto iter_end = spec->types + spec->type_count;
+                        //   for (auto iter = spec->types; iter != iter_end; ++iter) {
+                        for (ResTable_type iter : spec.types) {
+                          if (iter.config.match(configuration_)) {
+                            ResTable_config this_config = ResTable_config.fromDtoH(iter.config);
+                            configGroup.configurations.add(this_config);
+                            configGroup.types.add(iter);
+                          }
+                        }
+                      });
+                }
+              }
+            });
   }
 
   // Purge all resources that are cached and vary by the configuration axis denoted by the

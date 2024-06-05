@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.KITKAT;
 import static android.os.Build.VERSION_CODES.S_V2;
 import static android.os.Build.VERSION_CODES.TIRAMISU;
 import static org.robolectric.util.reflector.Reflector.reflector;
@@ -24,6 +23,7 @@ import org.robolectric.shadow.api.Shadow;
 import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.reflector.Accessor;
 import org.robolectric.util.reflector.ForType;
+import org.robolectric.versioning.AndroidVersions.U;
 
 /** Shadow for {@link android.media.ImageReader} */
 @Implements(value = ImageReader.class, looseSignatures = true)
@@ -40,13 +40,13 @@ public class ShadowImageReader {
   @RealObject private ImageReader imageReader;
   private Canvas canvas;
 
-  @Implementation(minSdk = KITKAT)
+  @Implementation
   protected void close() {
     readerValid.set(false);
     openedImages.clear();
   }
 
-  @Implementation(minSdk = KITKAT, maxSdk = S_V2)
+  @Implementation(maxSdk = S_V2)
   protected int nativeImageSetup(Image image) {
     if (!readerValid.get()) {
       throw new IllegalStateException("ImageReader closed.");
@@ -69,17 +69,17 @@ public class ShadowImageReader {
     return nativeImageSetup(image);
   }
 
-  @Implementation(minSdk = ShadowBuild.UPSIDE_DOWN_CAKE)
+  @Implementation(minSdk = U.SDK_INT)
   protected int nativeImageSetup(Object /* Image */ image) {
     return nativeImageSetup((Image) image);
   }
 
-  @Implementation(minSdk = KITKAT)
+  @Implementation
   protected void nativeReleaseImage(Image i) {
     openedImages.remove(i);
   }
 
-  @Implementation(minSdk = KITKAT)
+  @Implementation
   protected Surface nativeGetSurface() {
     if (surface == null) {
       surface = new FakeSurface();
@@ -131,19 +131,19 @@ public class ShadowImageReader {
   public static class ShadowSurfaceImage {
     @RealObject Object surfaceImage;
 
-    @Implementation(minSdk = KITKAT)
+    @Implementation
     protected int getWidth() {
       ImageReader reader = ReflectionHelpers.getField(surfaceImage, "this$0");
       return reader.getWidth();
     }
 
-    @Implementation(minSdk = KITKAT)
+    @Implementation
     protected int getHeight() {
       ImageReader reader = ReflectionHelpers.getField(surfaceImage, "this$0");
       return reader.getHeight();
     }
 
-    @Implementation(minSdk = KITKAT)
+    @Implementation
     protected int getFormat() {
       ImageReader reader = ReflectionHelpers.getField(surfaceImage, "this$0");
       return reader.getImageFormat();

@@ -1,8 +1,9 @@
 package org.robolectric.internal.bytecode;
 
-import static org.robolectric.util.ReflectionHelpers.newInstance;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.robolectric.util.ReflectionHelpers.setStaticField;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -14,6 +15,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import javax.inject.Inject;
 import org.robolectric.shadow.api.Shadow;
+import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.Util;
 
 public class Sandbox {
@@ -90,7 +92,10 @@ public class Sandbox {
     setStaticField(invokeDynamicSupportClass, "INTERCEPTORS", interceptors);
 
     Class<?> shadowClass = bootstrappedClass(Shadow.class);
-    setStaticField(shadowClass, "SHADOW_IMPL", newInstance(bootstrappedClass(ShadowImpl.class)));
+    setStaticField(
+        shadowClass,
+        "SHADOW_IMPL",
+        ReflectionHelpers.newInstance(bootstrappedClass(ShadowImpl.class)));
   }
 
   public void runOnMainThread(Runnable runnable) {
@@ -99,6 +104,22 @@ public class Sandbox {
           runnable.run();
           return null;
         });
+  }
+
+  /** Cleans up resources that have been opened by this Sandbox. */
+  public void shutdown() {
+    executorService.shutdown();
+
+    try {
+      executorService.awaitTermination(5, SECONDS);
+    } catch (InterruptedException e) {
+      throw new AssertionError(e);
+    }
+    try {
+      sandboxClassLoader.close();
+    } catch (IOException e) {
+      throw new AssertionError(e);
+    }
   }
 
   public <T> T runOnMainThread(Callable<T> callable) {

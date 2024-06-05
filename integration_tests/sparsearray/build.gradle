@@ -1,24 +1,15 @@
 import org.robolectric.gradle.AndroidProjectConfigPlugin
-
 apply plugin: 'com.android.library'
 apply plugin: AndroidProjectConfigPlugin
 apply plugin: 'kotlin-android'
-apply plugin: "com.diffplug.spotless"
-
-spotless {
-    kotlin {
-        target '**/*.kt'
-        ktfmt('0.42').googleStyle()
-    }
-}
-
+apply plugin: "io.gitlab.arturbosch.detekt"
 android {
-    compileSdk 33
+    compileSdk 34
     namespace 'org.robolectric.sparsearray'
 
     defaultConfig {
-        minSdk 16
-        targetSdk 33
+        minSdk 19
+        targetSdk 34
     }
 
     compileOptions {
@@ -26,15 +17,16 @@ android {
         targetCompatibility = '1.8'
     }
 
-    android {
-        testOptions {
-            unitTests {
-                includeAndroidResources = true
-            }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
         }
     }
 }
-
 dependencies {
     compileOnly AndroidSdk.MAX_SDK.coordinates
     implementation project(path: ':shadowapi', configuration: 'default')

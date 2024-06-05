@@ -40,7 +40,6 @@ public class ShadowMap {
     final Map<String, String> shadowPickerMap = new HashMap<>();
 
     // These are sorted in descending order (higher priority providers are first).
-    Logger.debug("Shadow providers: " +  sortedProviders);
     for (ShadowProvider provider : sortedProviders) {
       Logger.debug("Shadow provider: " + provider.getClass().getName());
       for (Map.Entry<String, String> entry : provider.getShadows()) {
@@ -70,7 +69,7 @@ public class ShadowMap {
   }
 
   public boolean hasShadowPicker(MutableClass mutableClass) {
-    return shadowPickers.containsKey(mutableClass.getName().replace('$', '.'));
+    return shadowPickers.containsKey(mutableClass.getName());
   }
 
   public ShadowInfo getShadowInfo(Class<?> clazz, ShadowMatcher shadowMatcher) {
@@ -265,10 +264,18 @@ public class ShadowMap {
         String realClassName,
         String shadowClassName,
         boolean callThroughByDefault,
+        boolean callNativeMethodsByDefault,
         boolean looseSignatures) {
       addShadowInfo(
           new ShadowInfo(
-              realClassName, shadowClassName, callThroughByDefault, looseSignatures, -1, -1, null));
+              realClassName,
+              shadowClassName,
+              callThroughByDefault,
+              callNativeMethodsByDefault,
+              looseSignatures,
+              -1,
+              -1,
+              null));
       return this;
     }
 

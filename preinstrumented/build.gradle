@@ -19,7 +19,9 @@ java {
 dependencies {
     implementation libs.guava
     implementation project(":sandbox")
-    implementation project(":shadows:versioning")
+
+    testImplementation libs.junit4
+    testImplementation libs.mockito
 }
 
 tasks.register('instrumentAll') {
@@ -32,7 +34,7 @@ tasks.register('instrumentAll') {
         sdksToInstrument().each { androidSdk ->
             println("Instrumenting ${androidSdk.coordinates}")
             def inputPath = "${androidAllMavenLocal}/${androidSdk.version}/${androidSdk.jarFileName}"
-            def outputPath = "${buildDir}/${androidSdk.preinstrumentedJarFileName}"
+            def outputPath = layout.buildDirectory.file(androidSdk.preinstrumentedJarFileName).get().asFile.path
 
             javaexec {
                 classpath = sourceSets.main.runtimeClasspath
@@ -43,11 +45,11 @@ tasks.register('instrumentAll') {
     }
 }
 
-tasks.register('sourcesJar', Jar) {
+tasks.register('emptySourcesJar', Jar) {
     archiveClassifier = "sources"
 }
 
-tasks.register('javadocJar', Jar) {
+tasks.register('emptyJavadocJar', Jar) {
     archiveClassifier = "javadoc"
 }
 
@@ -63,10 +65,10 @@ if (System.getenv('PUBLISH_PREINSTRUMENTED_JARS') == "true") {
         publications {
             sdksToInstrument().each { androidSdk ->
                 "sdk${androidSdk.apiLevel}"(MavenPublication) {
-                    artifact "${buildDir}/${androidSdk.preinstrumentedJarFileName}"
+                    artifact = layout.buildDirectory.file(androidSdk.preinstrumentedJarFileName).get().asFile.path
                     artifactId 'android-all-instrumented'
-                    artifact sourcesJar
-                    artifact javadocJar
+                    artifact emptySourcesJar
+                    artifact emptyJavadocJar
                     version androidSdk.preinstrumentedVersion
 
                     pom {
@@ -115,22 +117,36 @@ if (System.getenv('PUBLISH_PREINSTRUMENTED_JARS') == "true") {
             sign publishing.publications."sdk${androidSdk.apiLevel}"
         }
     }
+
+
+    // Workaround for https://github.com/gradle/gradle/issues/26132
+    // For some reason, Gradle has inferred that all publishing tasks depend on all signing tasks,
+    // so we must explicitly declare this here.
+    afterEvaluate {
+        tasks.configureEach {
+            if (name.startsWith("publishSdk")) {
+                sdksToInstrument().each { androidSdk ->
+                    dependsOn(tasks.named("signSdk${androidSdk.apiLevel}Publication"))
+                }
+            }
+        }
+    }
 }
 
 static def sdksToInstrument() {
-  var result = AndroidSdk.ALL_SDKS
-  var preInstrumentedSdkVersions = (System.getenv('PREINSTRUMENTED_SDK_VERSIONS') ?: "")
-  if (preInstrumentedSdkVersions.length() > 0) {
-    var sdkFilter = preInstrumentedSdkVersions.split(",").collect { it as Integer }
-    if (sdkFilter.size > 0) {
-      result = result.findAll { sdkFilter.contains(it.apiLevel) }
+    var result = AndroidSdk.ALL_SDKS
+    var preInstrumentedSdkVersions = (System.getenv('PREINSTRUMENTED_SDK_VERSIONS') ?: "")
+    if (preInstrumentedSdkVersions.length() > 0) {
+        var sdkFilter = preInstrumentedSdkVersions.split(",").collect { it as Integer }
+        if (sdkFilter.size > 0) {
+            result = result.findAll { sdkFilter.contains(it.apiLevel) }
+        }
     }
-  }
-  return result
+    return result
 }
 
 clean.doFirst {
     AndroidSdk.ALL_SDKS.each { androidSdk ->
-        delete "${buildDir}/${androidSdk.preinstrumentedJarFileName}"
+        delete layout.buildDirectory.file(androidSdk.preinstrumentedJarFileName)
     }
 }

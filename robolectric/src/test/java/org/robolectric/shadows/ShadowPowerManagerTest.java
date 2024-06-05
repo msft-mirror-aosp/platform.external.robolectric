@@ -2,7 +2,6 @@ package org.robolectric.shadows;
 
 import static android.content.Intent.ACTION_SCREEN_OFF;
 import static android.content.Intent.ACTION_SCREEN_ON;
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.P;
@@ -10,6 +9,9 @@ import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.R;
 import static android.os.Build.VERSION_CODES.S;
 import static android.os.Build.VERSION_CODES.TIRAMISU;
+import static android.os.PowerManager.LowPowerStandbyPortDescription.MATCH_PORT_REMOTE;
+import static android.os.PowerManager.LowPowerStandbyPortDescription.PROTOCOL_TCP;
+import static android.os.PowerManager.LowPowerStandbyPortDescription.PROTOCOL_UDP;
 import static com.google.common.truth.Truth.assertThat;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.Assert.fail;
@@ -19,9 +21,12 @@ import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
 import android.os.PowerManager;
+import android.os.PowerManager.LowPowerStandbyPortDescription;
+import android.os.PowerManager.LowPowerStandbyPortsLock;
 import android.os.WorkSource;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
+import com.google.common.collect.ImmutableList;
 import com.google.common.truth.Correspondence;
 import java.time.Duration;
 import org.junit.Before;
@@ -30,6 +35,8 @@ import org.junit.runner.RunWith;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
+import org.robolectric.shadows.ShadowPowerManager.ShadowLowPowerStandbyPortsLock;
+import org.robolectric.versioning.AndroidVersions.U;
 
 @RunWith(AndroidJUnit4.class)
 public class ShadowPowerManagerTest {
@@ -60,7 +67,6 @@ public class ShadowPowerManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isWakeLockLevelSupported() {
     assertThat(powerManager.isWakeLockLevelSupported(PowerManager.PARTIAL_WAKE_LOCK)).isFalse();
 
@@ -155,7 +161,6 @@ public class ShadowPowerManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isInteractive_shouldGetAndSet() {
     shadowOf(powerManager).turnScreenOn(false);
     assertThat(powerManager.isInteractive()).isFalse();
@@ -173,7 +178,6 @@ public class ShadowPowerManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isPowerSaveMode_shouldGetAndSet() {
     assertThat(powerManager.isPowerSaveMode()).isFalse();
     shadowOf(powerManager).setIsPowerSaveMode(true);
@@ -266,10 +270,12 @@ public class ShadowPowerManagerTest {
 
     String rebootReason = "reason";
     powerManager.reboot(rebootReason);
+    powerManager.reboot(null);
 
-    assertThat(shadowOf(powerManager).getTimesRebooted()).isEqualTo(1);
-    assertThat(shadowOf(powerManager).getRebootReasons()).hasSize(1);
-    assertThat(shadowOf(powerManager).getRebootReasons()).contains(rebootReason);
+    assertThat(shadowOf(powerManager).getTimesRebooted()).isEqualTo(2);
+    assertThat(shadowOf(powerManager).getRebootReasons())
+        .containsExactly(rebootReason, null)
+        .inOrder();
   }
 
   @Test
@@ -605,5 +611,123 @@ public class ShadowPowerManagerTest {
     assertThat(powerManager.isDeviceLightIdleMode()).isTrue();
     shadowPowerManager.setIsDeviceLightIdleMode(false);
     assertThat(powerManager.isDeviceLightIdleMode()).isFalse();
+  }
+
+  @Test
+  @Config(minSdk = U.SDK_INT)
+  public void setLowPowerStandbySupported() {
+    ShadowPowerManager shadowPowerManager = Shadow.extract(powerManager);
+    shadowPowerManager.setLowPowerStandbySupported(true);
+    assertThat(powerManager.isLowPowerStandbySupported()).isTrue();
+  }
+
+  @Test
+  @Config(minSdk = U.SDK_INT)
+  public void setLowPowerStandbyEnabled() {
+    ShadowPowerManager shadowPowerManager = Shadow.extract(powerManager);
+    shadowPowerManager.setLowPowerStandbySupported(true);
+    shadowPowerManager.setLowPowerStandbyEnabled(true);
+    assertThat(powerManager.isLowPowerStandbyEnabled()).isTrue();
+  }
+
+  @Test
+  @Config(minSdk = U.SDK_INT)
+  public void setLowPowerStandbyEnabled_notSupported() {
+    ShadowPowerManager shadowPowerManager = Shadow.extract(powerManager);
+    shadowPowerManager.setLowPowerStandbySupported(false);
+    shadowPowerManager.setLowPowerStandbyEnabled(true);
+    assertThat(powerManager.isLowPowerStandbyEnabled()).isFalse();
+  }
+
+  @Test
+  @Config(minSdk = U.SDK_INT)
+  public void isAllowedInLowPowerStandby() {
+    ShadowPowerManager shadowPowerManager = Shadow.extract(powerManager);
+    shadowPowerManager.addAllowedInLowPowerStandby("hello world");
+    assertThat(powerManager.isAllowedInLowPowerStandby("hello world")).isTrue();
+  }
+
+  @Test
+  @Config(minSdk = U.SDK_INT)
+  public void isAllowedInLowPowerStandby_notSupported() {
+    ShadowPowerManager shadowPowerManager = Shadow.extract(powerManager);
+    shadowPowerManager.setLowPowerStandbySupported(false);
+    assertThat(powerManager.isAllowedInLowPowerStandby("hello world")).isTrue();
+  }
+
+  @Test
+  @Config(minSdk = U.SDK_INT)
+  public void isExemptFromLowPowerStandby() {
+    ShadowPowerManager shadowPowerManager = Shadow.extract(powerManager);
+    shadowPowerManager.setExemptFromLowPowerStandby(true);
+    assertThat(powerManager.isExemptFromLowPowerStandby()).isTrue();
+  }
+
+  @Test
+  @Config(minSdk = U.SDK_INT)
+  public void isExemptFromLowPowerStandby_notSupported() {
+    ShadowPowerManager shadowPowerManager = Shadow.extract(powerManager);
+    shadowPowerManager.setLowPowerStandbySupported(false);
+    assertThat(powerManager.isExemptFromLowPowerStandby()).isTrue();
+  }
+
+  @Test
+  @Config(minSdk = U.SDK_INT)
+  public void newLowPowerStandbyPortsLock_setsPorts() {
+    LowPowerStandbyPortDescription port1 =
+        new LowPowerStandbyPortDescription(PROTOCOL_TCP, MATCH_PORT_REMOTE, 42);
+    LowPowerStandbyPortDescription port2 =
+        new LowPowerStandbyPortDescription(PROTOCOL_UDP, MATCH_PORT_REMOTE, 314);
+    ImmutableList<LowPowerStandbyPortDescription> ports = ImmutableList.of(port1, port2);
+
+    LowPowerStandbyPortsLock lock = powerManager.newLowPowerStandbyPortsLock(ports);
+
+    ShadowLowPowerStandbyPortsLock shadowLock =
+        (ShadowLowPowerStandbyPortsLock) Shadow.extract(lock);
+    assertThat(shadowLock.getPorts()).isEqualTo(ports);
+  }
+
+  @Test
+  @Config(minSdk = U.SDK_INT)
+  public void shadowLowPowerStandbyPortsLock_getAcquireCount() {
+    LowPowerStandbyPortDescription defaultPort =
+        new LowPowerStandbyPortDescription(PROTOCOL_TCP, MATCH_PORT_REMOTE, 42);
+    ImmutableList<LowPowerStandbyPortDescription> portDescriptions = ImmutableList.of(defaultPort);
+
+    LowPowerStandbyPortsLock lock = powerManager.newLowPowerStandbyPortsLock(portDescriptions);
+    ShadowLowPowerStandbyPortsLock shadowLock =
+        (ShadowLowPowerStandbyPortsLock) Shadow.extract(lock);
+    lock.acquire();
+    lock.acquire();
+    assertThat(shadowLock.getAcquireCount()).isEqualTo(2);
+  }
+
+  @Test
+  @Config(minSdk = U.SDK_INT)
+  public void shadowLowPowerStandbyPortsLock_acquire_held() {
+    LowPowerStandbyPortDescription defaultPort =
+        new LowPowerStandbyPortDescription(PROTOCOL_TCP, MATCH_PORT_REMOTE, 42);
+    ImmutableList<LowPowerStandbyPortDescription> portDescriptions = ImmutableList.of(defaultPort);
+
+    LowPowerStandbyPortsLock lock = powerManager.newLowPowerStandbyPortsLock(portDescriptions);
+    ShadowLowPowerStandbyPortsLock shadowLock =
+        (ShadowLowPowerStandbyPortsLock) Shadow.extract(lock);
+    lock.acquire();
+    assertThat(shadowLock.isAcquired()).isTrue();
+  }
+
+  @Test
+  @Config(minSdk = U.SDK_INT)
+  public void shadowLowPowerStandbyPortsLock_acquire_released() {
+    LowPowerStandbyPortDescription defaultPort =
+        new LowPowerStandbyPortDescription(PROTOCOL_TCP, MATCH_PORT_REMOTE, 42);
+    ImmutableList<LowPowerStandbyPortDescription> portDescriptions = ImmutableList.of(defaultPort);
+
+    LowPowerStandbyPortsLock lock = powerManager.newLowPowerStandbyPortsLock(portDescriptions);
+    ShadowLowPowerStandbyPortsLock shadowLock =
+        (ShadowLowPowerStandbyPortsLock) Shadow.extract(lock);
+    lock.acquire();
+    lock.release();
+    assertThat(shadowLock.isAcquired()).isFalse();
   }
 }

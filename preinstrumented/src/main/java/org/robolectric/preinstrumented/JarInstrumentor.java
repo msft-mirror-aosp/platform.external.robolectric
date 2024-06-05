@@ -1,5 +1,6 @@
 package org.robolectric.preinstrumented;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -33,6 +34,10 @@ public class JarInstrumentor {
   private final ClassInstrumentor classInstrumentor;
   private final InstrumentationConfiguration instrumentationConfiguration;
 
+  public static void main(String[] args) throws IOException, ClassNotFoundException {
+    new JarInstrumentor().processCommandLine(args);
+  }
+
   public JarInstrumentor() {
     AndroidConfigurer androidConfigurer = INJECTOR.getInstance(AndroidConfigurer.class);
     classInstrumentor = INJECTOR.getInstance(ClassInstrumentor.class);
@@ -43,18 +48,37 @@ public class JarInstrumentor {
     instrumentationConfiguration = builder.build();
   }
 
-  public static void main(String[] args) throws IOException, ClassNotFoundException {
-    if (args.length != 2) {
-      System.err.println("Usage: JarInstrumentor <source jar> <dest jar>");
-      System.exit(1);
+  @VisibleForTesting
+  void processCommandLine(String[] args) throws IOException, ClassNotFoundException {
+    if (args.length == 2) {
+      File sourceFile = new File(args[0]);
+      File destJarFile = new File(args[1]);
+
+      instrumentJar(sourceFile, destJarFile);
+      return;
     }
-    new JarInstrumentor().instrumentJar(new File(args[0]), new File(args[1]));
+
+    System.err.println("Usage: JarInstrumentor <source jar> <dest jar> ");
+    exit(1);
   }
 
-  private void instrumentJar(File sourceFile, File destFile)
+  /** Calls {@link System#exit(int)}. Overridden during tests to avoid exiting during tests. */
+  @VisibleForTesting
+  protected void exit(int status) {
+    System.exit(status);
+  }
+
+  /**
+   * Performs the JAR instrumentation.
+   *
+   * @param sourceJarFile The source JAR to process.
+   * @param destJarFile The destination JAR with the instrumented method calls.
+   */
+  @VisibleForTesting
+  protected void instrumentJar(File sourceJarFile, File destJarFile)
       throws IOException, ClassNotFoundException {
     long startNs = System.nanoTime();
-    JarFile jarFile = new JarFile(sourceFile);
+    JarFile jarFile = new JarFile(sourceJarFile);
     ClassNodeProvider classNodeProvider =
         new ClassNodeProvider() {
           @Override
@@ -70,11 +94,11 @@ public class JarInstrumentor {
     try {
       classInstrumentor.setAndroidJarSDKVersion(getJarAndroidSDKVersion(jarFile));
     } catch (Exception e) {
-      throw new AssertionError("Unable to get Android SDK version from Jar File", e);
+      throw new AssertionError("Unable to get Android SDK version from Jar file", e);
     }
 
     try (JarOutputStream jarOut =
-        new JarOutputStream(new BufferedOutputStream(new FileOutputStream(destFile), ONE_MB))) {
+        new JarOutputStream(new BufferedOutputStream(new FileOutputStream(destJarFile), ONE_MB))) {
       Enumeration<JarEntry> entries = jarFile.entries();
       while (entries.hasMoreElements()) {
         JarEntry jarEntry = entries.nextElement();
@@ -109,6 +133,7 @@ public class JarInstrumentor {
         }
       }
     }
+
     long elapsedNs = System.nanoTime() - startNs;
     System.out.println(
         String.format(

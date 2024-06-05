@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.KITKAT;
 import static android.os.Build.VERSION_CODES.P;
 import static android.os.Build.VERSION_CODES.S;
 import static android.os.Looper.getMainLooper;
@@ -106,6 +105,64 @@ public class ShadowBluetoothHeadsetTest {
   public void getConnectionState_canBeSetUpWithAddConnectedDevice() {
     assertThat(bluetoothHeadset.getConnectionState(device1))
         .isEqualTo(BluetoothProfile.STATE_DISCONNECTED);
+  }
+
+  @Test
+  public void getDevicesMatchingConnectionStates_returnsMatchingDevices() {
+    shadowOf(bluetoothHeadset).addDevice(device1, BluetoothProfile.STATE_CONNECTING);
+    shadowOf(bluetoothHeadset).addDevice(device2, BluetoothProfile.STATE_DISCONNECTED);
+
+    assertThat(
+            bluetoothHeadset.getDevicesMatchingConnectionStates(
+                new int[] {BluetoothProfile.STATE_CONNECTING, BluetoothProfile.STATE_DISCONNECTED}))
+        .containsExactly(device1, device2);
+  }
+
+  @Test
+  public void getDevicesMatchingConnectionStates_subsetOfAvailableStates_returnsMatchingDevices() {
+    shadowOf(bluetoothHeadset).addDevice(device1, BluetoothProfile.STATE_CONNECTING);
+    shadowOf(bluetoothHeadset).addDevice(device2, BluetoothProfile.STATE_DISCONNECTED);
+
+    assertThat(
+            bluetoothHeadset.getDevicesMatchingConnectionStates(
+                new int[] {BluetoothProfile.STATE_CONNECTING}))
+        .containsExactly(device1);
+  }
+
+  @Test
+  public void connect_addsDeviceToConnectedListAndReturnsTrue() {
+    boolean result = bluetoothHeadset.connect(device1);
+
+    assertThat(bluetoothHeadset.getConnectedDevices()).containsExactly(device1);
+    assertThat(result).isTrue();
+  }
+
+  @Test
+  public void connect_alreadyConnectedDevice_returnsFalse() {
+    bluetoothHeadset.connect(device1);
+    boolean result = bluetoothHeadset.connect(device1);
+
+    assertThat(bluetoothHeadset.getConnectedDevices()).containsExactly(device1);
+    assertThat(result).isFalse();
+  }
+
+  @Test
+  public void disconnect_removesDeviceFromConnectedListAndReturnsTrue() {
+    bluetoothHeadset.connect(device1);
+    boolean result = bluetoothHeadset.disconnect(device1);
+
+    assertThat(bluetoothHeadset.getConnectedDevices()).isEmpty();
+    assertThat(result).isTrue();
+  }
+
+  @Test
+  public void disconnect_alreadyDisconnectedDevice_returnsFalse() {
+    bluetoothHeadset.connect(device1);
+    bluetoothHeadset.disconnect(device1);
+    boolean result = bluetoothHeadset.disconnect(device1);
+
+    assertThat(bluetoothHeadset.getConnectedDevices()).isEmpty();
+    assertThat(result).isFalse();
   }
 
   @Test
@@ -220,7 +277,6 @@ public class ShadowBluetoothHeadsetTest {
   }
 
   @Test
-  @Config(minSdk = KITKAT)
   public void sendVendorSpecificResultCode_defaultsToTrueForConnectedDevice() {
     shadowOf(bluetoothHeadset).addConnectedDevice(device1);
 
@@ -228,13 +284,11 @@ public class ShadowBluetoothHeadsetTest {
   }
 
   @Test
-  @Config(minSdk = KITKAT)
   public void sendVendorSpecificResultCode_alwaysFalseForDisconnectedDevice() {
     assertThat(bluetoothHeadset.sendVendorSpecificResultCode(device1, "command", "arg")).isFalse();
   }
 
   @Test
-  @Config(minSdk = KITKAT)
   public void sendVendorSpecificResultCode_canBeForcedToFalseForConnectedDevice() {
     shadowOf(bluetoothHeadset).addConnectedDevice(device1);
     shadowOf(bluetoothHeadset).setAllowsSendVendorSpecificResultCode(false);
@@ -243,7 +297,6 @@ public class ShadowBluetoothHeadsetTest {
   }
 
   @Test
-  @Config(minSdk = KITKAT)
   public void sendVendorSpecificResultCode_throwsOnNullCommand() {
     try {
       bluetoothHeadset.sendVendorSpecificResultCode(device1, null, "arg");

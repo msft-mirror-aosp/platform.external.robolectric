@@ -18,7 +18,6 @@ import static android.app.admin.DevicePolicyManager.STATE_USER_SETUP_COMPLETE;
 import static android.app.admin.DevicePolicyManager.STATE_USER_SETUP_FINALIZED;
 import static android.app.admin.DevicePolicyManager.STATE_USER_SETUP_INCOMPLETE;
 import static android.app.admin.DevicePolicyManager.STATE_USER_UNMANAGED;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.LOLLIPOP_MR1;
 import static android.os.Build.VERSION_CODES.M;
@@ -46,6 +45,7 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.ResolveInfo;
@@ -97,7 +97,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
   public void isDeviceOwnerAppShouldReturnFalseForNonDeviceOwnerApp() {
     // GIVEN an test package which is not the device owner app of the device
     String testPackage = testComponent.getPackageName();
@@ -108,7 +107,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isDeviceOwnerShouldReturnFalseForProfileOwner() {
     // GIVEN an test package which is the profile owner app of the device
     String testPackage = testComponent.getPackageName();
@@ -120,7 +118,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
   public void isDeviceOwnerShouldReturnTrueForDeviceOwner() {
     // GIVEN an test package which is the device owner app of the device
     String testPackage = testComponent.getPackageName();
@@ -132,7 +129,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
   public void getDeviceOwnerShouldReturnDeviceOwnerPackageName() {
     // GIVEN an test package which is the device owner app of the device
     String testPackage = testComponent.getPackageName();
@@ -144,7 +140,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
   public void getDeviceOwnerShouldReturnNullWhenThereIsNoDeviceOwner() {
     // WHEN DevicePolicyManager#getProfileOwner is called without a device owner
     // THEN the method should return null
@@ -171,7 +166,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isProfileOwnerAppShouldReturnFalseForNonProfileOwnerApp() {
     // GIVEN an test package which is not the profile owner app of the device
     String testPackage = testComponent.getPackageName();
@@ -182,7 +176,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isProfileOwnerShouldReturnFalseForDeviceOwner() {
     // GIVEN an test package which is the device owner app of the device
     String testPackage = testComponent.getPackageName();
@@ -194,7 +187,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isProfileOwnerShouldReturnTrueForProfileOwner() {
     // GIVEN an test package which is the profile owner app of the device
     String testPackage = testComponent.getPackageName();
@@ -206,7 +198,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getProfileOwnerShouldReturnDeviceOwnerComponentName() {
     // GIVEN an test package which is the profile owner app of the device
     shadowOf(devicePolicyManager).setProfileOwner(testComponent);
@@ -217,7 +208,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getProfileOwnerShouldReturnNullWhenThereIsNoProfileOwner() {
     // WHEN DevicePolicyManager#getProfileOwner is called without a profile owner
     // THEN the method should return null
@@ -290,7 +280,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
   public void getActiveAdminsShouldReturnDeviceOwner() {
     // GIVEN an test package which is the device owner app of the device
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -301,7 +290,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getActiveAdminsShouldReturnProfileOwner() {
     // GIVEN an test package which is the profile owner app of the device
     shadowOf(devicePolicyManager).setProfileOwner(testComponent);
@@ -312,7 +300,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void addUserRestrictionShouldWorkAsIntendedForDeviceOwner() {
     // GIVEN a user restriction to set
     String restrictionKey = "restriction key";
@@ -329,7 +316,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void addUserRestrictionShouldWorkAsIntendedForProfileOwner() {
     // GIVEN a user restriction to set
     String restrictionKey = "restriction key";
@@ -346,7 +332,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void clearUserRestrictionShouldWorkAsIntendedForActiveAdmins() {
     // GIVEN the caller is the device owner, and thus an active admin
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -364,7 +349,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isApplicationHiddenShouldReturnTrueForNotExistingApps() {
     // GIVEN the caller is the device owner, and thus an active admin
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -378,7 +362,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isApplicationHiddenShouldReturnFalseForAppsByDefault() {
     // GIVEN the caller is the device owner, and thus an active admin
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -393,7 +376,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isApplicationHiddenShouldReturnTrueForHiddenApps() {
     // GIVEN the caller is the device owner, and thus an active admin
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -409,7 +391,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isApplicationHiddenShouldReturnFalseForNonHiddenApps() {
     // GIVEN the caller is the device owner, and thus an active admin
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -425,7 +406,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void setApplicationHiddenShouldBeAbleToUnhideHiddenApps() {
     // GIVEN the caller is the device owner, and thus an active admin
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -443,7 +423,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void setApplicationHiddenShouldReturnFalseForNotExistingApps() {
     // GIVEN the caller is the device owner, and thus an active admin
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -456,7 +435,110 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
+  public void setApplicationHiddenShouldFailForNeitherOwnerNorDelegated() {
+    // GIVEN the caller is the device owner, and thus an active admin
+    shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
+
+    // GIVEN an app and it is not hidden
+    String nonHiddenApp = "com.example.non.hidden";
+    PackageInfo packageInfo = new PackageInfo();
+    packageInfo.packageName = nonHiddenApp;
+    ApplicationInfo applicationInfo = new ApplicationInfo();
+    applicationInfo.packageName = nonHiddenApp;
+    packageInfo.applicationInfo = applicationInfo;
+    shadowOf(packageManager).installPackage(packageInfo);
+
+    // Create a component that is neither device owner nor delegated
+    String notDelegatedApp = "com.example.not.delegated.app";
+    ComponentName notDelegatedComponent = new ComponentName(notDelegatedApp, "Activity");
+
+    // Then DevicePolicyManager#setApplicationHidden should fail with SecurityException
+    try {
+      devicePolicyManager.setApplicationHidden(
+          notDelegatedComponent, nonHiddenApp, /* hidden= */ true);
+      fail("expected SecurityException");
+    } catch (SecurityException expected) {
+    }
+  }
+
+  @Test
+  public void setApplicationHiddenShouldFailForNeitherOwnerNorDelegatedAdminIsNull() {
+    // GIVEN the caller is the device owner, and thus an active admin
+    shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
+
+    // GIVEN an app and it is not hidden
+    String nonHiddenApp = "com.example.non.hidden";
+    PackageInfo packageInfo = new PackageInfo();
+    packageInfo.packageName = nonHiddenApp;
+    ApplicationInfo applicationInfo = new ApplicationInfo();
+    applicationInfo.packageName = nonHiddenApp;
+    packageInfo.applicationInfo = applicationInfo;
+    shadowOf(packageManager).installPackage(packageInfo);
+
+    // Then DevicePolicyManager#setApplicationHidden should fail with SecurityException
+    try {
+      devicePolicyManager.setApplicationHidden(null, nonHiddenApp, /* hidden= */ true);
+      fail("expected SecurityException");
+    } catch (SecurityException expected) {
+    }
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void setApplicationHiddenShouldFailForNeitherOwnerNorCallerDelegated() {
+    // GIVEN the caller is the device owner, and thus an active admin
+    shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
+
+    // GIVEN an app and it is not hidden
+    String nonHiddenApp = "com.example.non.hidden";
+    PackageInfo packageInfo = new PackageInfo();
+    packageInfo.packageName = nonHiddenApp;
+    ApplicationInfo applicationInfo = new ApplicationInfo();
+    applicationInfo.packageName = nonHiddenApp;
+    packageInfo.applicationInfo = applicationInfo;
+    shadowOf(packageManager).installPackage(packageInfo);
+
+    // Delegate DELEGATION_PACKAGE_ACCESS scope to an app but not caller
+    String delegatedApp = "com.example.not.caller";
+    List<String> scopes = Arrays.asList(DevicePolicyManager.DELEGATION_PACKAGE_ACCESS);
+    devicePolicyManager.setDelegatedScopes(testComponent, delegatedApp, scopes);
+
+    // Then DevicePolicyManager#setApplicationHidden should fail with SecurityException
+    try {
+      devicePolicyManager.setApplicationHidden(null, nonHiddenApp, /* hidden= */ true);
+      fail("expected SecurityException");
+    } catch (SecurityException expected) {
+    }
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void setApplicationHiddenShouldWorkAsIntendedForCallerDelegatedPackages() {
+    // GIVEN the caller is the device owner, and thus an active admin
+    shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
+
+    // GIVEN an app and it is not hidden
+    String nonHiddenApp = "com.example.non.hidden";
+    PackageInfo packageInfo = new PackageInfo();
+    packageInfo.packageName = nonHiddenApp;
+    ApplicationInfo applicationInfo = new ApplicationInfo();
+    applicationInfo.packageName = nonHiddenApp;
+    packageInfo.applicationInfo = applicationInfo;
+    shadowOf(packageManager).installPackage(packageInfo);
+
+    // Delegate DELEGATION_PACKAGE_ACCESS scope to another app such that the delegated app
+    // has the access to call setApplicationHidden
+    String delegatedApp = context.getPackageName();
+    List<String> scopes = Arrays.asList(DevicePolicyManager.DELEGATION_PACKAGE_ACCESS);
+    devicePolicyManager.setDelegatedScopes(testComponent, delegatedApp, scopes);
+
+    // Then DevicePolicyManager#setApplicationHidden is called to hide the app,
+    // it should return true
+    devicePolicyManager.setApplicationHidden(null, nonHiddenApp, /* hidden= */ true);
+    assertThat(devicePolicyManager.isApplicationHidden(null, nonHiddenApp)).isTrue();
+  }
+
+  @Test
   public void wasPackageEverHiddenShouldReturnFalseForPackageNeverHidden() {
     // GIVEN the caller is the device owner, and thus an active admin
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -471,7 +553,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void wasPackageEverHiddenShouldReturnTrueForPackageWhichIsHidden() {
     // GIVEN the caller is the device owner, and thus an active admin
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -487,7 +568,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void wasPackageEverHiddenShouldReturnTrueForPackageWhichWasHidden() {
     // GIVEN the caller is the device owner, and thus an active admin
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -504,7 +584,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void enableSystemAppShouldWorkForActiveAdmins() {
     // GIVEN the caller is the device owner, and thus an active admin
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -520,7 +599,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isUninstallBlockedShouldReturnFalseForAppsNeverBeingBlocked() {
     // GIVEN the caller is the device owner, and thus an active admin
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -534,7 +612,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isUninstallBlockedShouldReturnTrueForAppsBeingUnblocked() {
     // GIVEN the caller is the device owner, and thus an active admin
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -549,7 +626,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isUninstallBlockedShouldReturnFalseForAppsBeingBlocked() {
     // GIVEN the caller is the device owner, and thus an active admin
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -609,7 +685,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void setApplicationRestrictionsShouldWorkAsIntendedForDeviceOwner() {
     // GIVEN the caller is the device owner
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -631,7 +706,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void setApplicationRestrictionsShouldWorkAsIntendedForProfileOwner() {
     // GIVEN the caller is the profile owner
     shadowOf(devicePolicyManager).setProfileOwner(testComponent);
@@ -653,7 +727,104 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
+  public void setApplicationRestrictionsShouldFailForNeitherOwnerNorDelegated() {
+    // GIVEN the caller is the device owner
+    shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
+
+    // GIVEN an application restriction bundle
+    Bundle restrictions = new Bundle();
+    restrictions.putString("key", "value");
+
+    // GIVEN an app which the restriction is set to
+    String app = "com.example.app";
+
+    // Create a component that is neither device owner nor delegated
+    String notDelegatedApp = "com.example.not.delegated.app";
+    ComponentName notDelegatedComponent = new ComponentName(notDelegatedApp, "Activity");
+
+    // Then DevicePolicyManager#setApplicationRestrictions should fail with SecurityException
+    try {
+      devicePolicyManager.setApplicationRestrictions(notDelegatedComponent, app, restrictions);
+      fail("expected SecurityException");
+    } catch (SecurityException expected) {
+    }
+  }
+
+  @Test
+  public void setApplicationRestrictionsShouldFailForNeitherOwnerNorDelegatedAdminIsNull() {
+    // GIVEN the caller is the device owner
+    shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
+
+    // GIVEN an application restriction bundle
+    Bundle restrictions = new Bundle();
+    restrictions.putString("key", "value");
+
+    // GIVEN an app which the restriction is set to
+    String app = "com.example.app";
+
+    // Then DevicePolicyManager#setApplicationRestrictions should fail with SecurityException
+    try {
+      devicePolicyManager.setApplicationRestrictions(null, app, restrictions);
+      fail("expected SecurityException");
+    } catch (SecurityException expected) {
+    }
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void setApplicationRestrictionsShouldFailForNeitherOwnerNorCallerDelegated() {
+    // GIVEN the caller is the device owner
+    shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
+
+    // GIVEN an application restriction bundle
+    Bundle restrictions = new Bundle();
+    restrictions.putString("key", "value");
+
+    // GIVEN an app which the restriction is set to
+    String app = "com.example.app";
+
+    // Delegate DELEGATION_APP_RESTRICTIONS scope to an app but not caller
+    String delegatedApp = "com.example.not.caller";
+    List<String> scopes = Arrays.asList(DevicePolicyManager.DELEGATION_APP_RESTRICTIONS);
+    devicePolicyManager.setDelegatedScopes(testComponent, delegatedApp, scopes);
+
+    // Then DevicePolicyManager#setApplicationRestrictions should fail with SecurityException
+    try {
+      devicePolicyManager.setApplicationRestrictions(null, app, restrictions);
+      fail("expected SecurityException");
+    } catch (SecurityException expected) {
+    }
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void setApplicationRestrictionsShouldWorkAsIntendedForCallerDelegatedPackages() {
+    // GIVEN the caller is the device owner
+    shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
+
+    // GIVEN an application restriction bundle
+    Bundle restrictions = new Bundle();
+    restrictions.putString("key", "value");
+
+    // GIVEN an app which the restriction is set to
+    String app = "com.example.app";
+
+    // Delegate DELEGATION_APP_RESTRICTIONS scope to another app such that the delegated app
+    // has the access to call setApplicationRestriction
+    String delegatedApp = context.getPackageName();
+    List<String> scopes = Arrays.asList(DevicePolicyManager.DELEGATION_APP_RESTRICTIONS);
+    devicePolicyManager.setDelegatedScopes(testComponent, delegatedApp, scopes);
+
+    // WHEN DevicePolicyManager#setApplicationRestrictions is called to set the restrictions
+    // to the app
+    devicePolicyManager.setApplicationRestrictions(null, app, restrictions);
+
+    // THEN the restrictions should be set correctly
+    Bundle actualRestrictions = devicePolicyManager.getApplicationRestrictions(null, app);
+    assertThat(actualRestrictions.getString("key", "default value")).isEqualTo("value");
+  }
+
+  @Test
   public void getApplicationRestrictionsShouldReturnEmptyBundleIfAppHasNone() {
     // GIVEN the caller is the device owner
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -669,7 +840,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getAccountTypesWithManagementDisabledShouldReturnNothingWhenNoAccountIsDislabed() {
     // GIVEN no account type has ever been disabled
 
@@ -680,7 +850,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getAccountTypesWithManagementDisabledShouldReturnDisabledAccountTypesIfAny() {
     // GIVEN the caller is the device owner
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -697,7 +866,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getAccountTypesWithManagementDisabledShouldNotReturnReenabledAccountTypesIfAny() {
     // GIVEN the caller is the device owner
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -855,7 +1023,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getAutoTimeRequiredShouldWorkAsIntendedForDeviceOwner() {
     // GIVEN the caller is the device owner
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -868,7 +1035,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getAutoTimeRequiredShouldWorkAsIntendedForProfileOwner() {
     // GIVEN the caller is the profile owner
     shadowOf(devicePolicyManager).setProfileOwner(testComponent);
@@ -881,7 +1047,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getAutoTimeRequiredShouldReturnFalseIfNotSet() {
     // GIVEN the caller is the device owner
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -1034,7 +1199,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getPermittedAccessibilityServicesShouldWorkAsIntendedForDeviceOwner() {
     List<String> accessibilityServices =
         Arrays.asList("com.example.accessibility1", "com.example.accessibility2");
@@ -1051,7 +1215,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getPermittedAccessibilityServicesShouldWorkAsIntendedForProfileOwner() {
     List<String> accessibilityServices = new ArrayList<>();
 
@@ -1066,7 +1229,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getPermittedAccessibilityServicesShouldReturnNullIfNullIsSet() {
     List<String> accessibilityServices = null;
 
@@ -1081,7 +1243,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getPermittedInputMethodsShouldWorkAsIntendedForDeviceOwner() {
     List<String> inputMethods = Arrays.asList("com.example.input1", "com.example.input2");
 
@@ -1096,7 +1257,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getPermittedInputMethodsShouldWorkAsIntendedForProfileOwner() {
     List<String> inputMethods = new ArrayList<>();
 
@@ -1111,7 +1271,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getPermittedInputMethodsShouldReturnNullIfNullIsSet() {
     List<String> inputMethods = null;
 
@@ -1573,6 +1732,109 @@ public final class ShadowDevicePolicyManagerTest {
 
   @Test
   @Config(minSdk = N)
+  public void setPackagesSuspended_failForNeitherOwnerNorDelegated() {
+    // GIVEN the caller is the device owner
+    shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
+
+    // GIVEN an app and it is not suspended
+    PackageInfo packageInfo = new PackageInfo();
+    packageInfo.packageName = "package";
+    ApplicationInfo applicationInfo = new ApplicationInfo();
+    applicationInfo.packageName = "package";
+    packageInfo.applicationInfo = applicationInfo;
+    shadowOf(packageManager).installPackage(packageInfo);
+
+    // Create a component that is neither device owner nor delegated
+    String notDelegatedApp = "com.example.not.delegated.app";
+    ComponentName notDelegatedComponent = new ComponentName(notDelegatedApp, "Activity");
+
+    // Then DevicePolicyManager#setPackagesSuspended should fail with SecurityException
+    try {
+      devicePolicyManager.setPackagesSuspended(
+          notDelegatedComponent, new String[] {"package"}, /* suspended= */ true);
+      fail("expected SecurityException");
+    } catch (SecurityException expected) {
+    }
+  }
+
+  @Test
+  @Config(minSdk = N)
+  public void setPackagesSuspended_failForNeitherOwnerNorDelegatedAdminIsNull() {
+    // GIVEN the caller is the device owner
+    shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
+
+    // GIVEN an app and it is not suspended
+    PackageInfo packageInfo = new PackageInfo();
+    packageInfo.packageName = "package";
+    ApplicationInfo applicationInfo = new ApplicationInfo();
+    applicationInfo.packageName = "package";
+    packageInfo.applicationInfo = applicationInfo;
+    shadowOf(packageManager).installPackage(packageInfo);
+
+    // Then DevicePolicyManager#setPackagesSuspended should fail with SecurityException
+    try {
+      devicePolicyManager.setPackagesSuspended(
+          null, new String[] {"package"}, /* suspended= */ true);
+      fail("expected SecurityException");
+    } catch (SecurityException expected) {
+    }
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void setPackagesSuspended_failForNeitherOwnerNorCallerDelegated() {
+    // GIVEN the caller is the device owner
+    shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
+
+    // GIVEN an app and it is not suspended
+    PackageInfo packageInfo = new PackageInfo();
+    packageInfo.packageName = "package";
+    ApplicationInfo applicationInfo = new ApplicationInfo();
+    applicationInfo.packageName = "package";
+    packageInfo.applicationInfo = applicationInfo;
+    shadowOf(packageManager).installPackage(packageInfo);
+
+    // Delegate DELEGATION_PACKAGE_ACCESS scope to an app but not caller
+    String delegatedApp = "com.example.not.caller";
+    List<String> scopes = Arrays.asList(DevicePolicyManager.DELEGATION_PACKAGE_ACCESS);
+    devicePolicyManager.setDelegatedScopes(testComponent, delegatedApp, scopes);
+
+    // Then DevicePolicyManager#setPackagesSuspended should fail with SecurityException
+    try {
+      devicePolicyManager.setPackagesSuspended(
+          null, new String[] {"package"}, /* suspended= */ true);
+      fail("expected SecurityException");
+    } catch (SecurityException expected) {
+    }
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void setPackagesSuspended_callerDelegatedPackages() throws Exception {
+    // GIVEN the caller is the device owner
+    shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
+
+    // GIVEN an app and it is not suspended
+    PackageInfo packageInfo = new PackageInfo();
+    packageInfo.packageName = "package";
+    ApplicationInfo applicationInfo = new ApplicationInfo();
+    applicationInfo.packageName = "package";
+    packageInfo.applicationInfo = applicationInfo;
+    shadowOf(packageManager).installPackage(packageInfo);
+
+    // Delegate DELEGATION_PACKAGE_ACCESS scope to another app such that the delegated app
+    // has the access to call setPackageSuspended
+    String delegatedApp = context.getPackageName();
+    List<String> scopes = Arrays.asList(DevicePolicyManager.DELEGATION_PACKAGE_ACCESS);
+    devicePolicyManager.setDelegatedScopes(testComponent, delegatedApp, scopes);
+
+    // Then DevicePolicyManager#setPackageSuspended is called to suspend the package
+    devicePolicyManager.setPackagesSuspended(null, new String[] {"package"}, /* suspended= */ true);
+    assertThat(devicePolicyManager.isPackageSuspended(null, "package")).isTrue();
+  }
+
+  @Test
+  @Config(minSdk = N)
   public void isPackagesSuspended_defaultsFalse() throws Exception {
     shadowOf(devicePolicyManager).setProfileOwner(testComponent);
     shadowOf(packageManager).addPackage("package");
@@ -1621,7 +1883,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getProfileOwnerNameAsUser() {
     int userId = 0;
     String orgName = "organization";
@@ -1633,7 +1894,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void setPersistentPreferrecActivity_exists() {
     ComponentName randomActivity = new ComponentName("random.package", "Activity");
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
@@ -1669,7 +1929,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void clearPersistentPreferredActivity_packageNotAdded() {
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
     devicePolicyManager.clearPackagePersistentPreferredActivities(testComponent, "package");
@@ -1683,7 +1942,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void clearPersistentPreferredActivity_packageAdded() {
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
     ComponentName randomActivity = new ComponentName("random.package", "Activity");
@@ -1823,7 +2081,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getLockTaskPackages_notOwner() {
     try {
       devicePolicyManager.getLockTaskPackages(testComponent);
@@ -1834,7 +2091,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void setLockTaskPackages_notOwner() {
     try {
       devicePolicyManager.setLockTaskPackages(testComponent, new String[] {"allowed.package"});
@@ -1844,7 +2100,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getSetLockTaskPackages() {
     shadowOf(devicePolicyManager).setProfileOwner(testComponent);
 
@@ -1858,7 +2113,6 @@ public final class ShadowDevicePolicyManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isLockTaskPermitted() {
     assertThat(devicePolicyManager.isLockTaskPermitted("allowed.package")).isFalse();
 

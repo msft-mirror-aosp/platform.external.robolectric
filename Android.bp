@@ -16,6 +16,8 @@ package {
     default_visibility: [
         "//external/robolectric:__subpackages__",
         "//test/robolectric-extensions:__subpackages__",
+        "//frameworks/base/packages/SettingsLib:__subpackages__",
+        "//packages/apps/Settings/tests/robotests:__subpackages__",
     ],
     default_applicable_licenses: ["external_robolectric_license"],
 }
@@ -57,24 +59,36 @@ java_library {
 
 // build.prop file created by module type defined in soong/robolectric.go
 robolectric_build_props {
-    name: "robolectric_build_props_upstream",
+    name: "robolectric_build_props",
 }
 
-java_genrule_host {
-    name: "robolectric_framework_res_upstream",
+java_genrule {
+    name: "robolectric_props_jar",
+    host_supported: true,
+    tools: ["soong_zip"],
+    srcs: [":robolectric_build_props"],
+    out: ["robolectric_props.jar"],
+    cmd: "cp $(location :robolectric_build_props) . && $(location soong_zip) " +
+        "-o $(location robolectric_props.jar) " +
+        "-f ./build.prop ",
+}
+
+java_genrule {
+    name: "robolectric_framework_res",
+    host_supported: true,
     tools: ["zip2zip"],
     srcs: [":framework-res"],
-    out: ["robolectric_framework_res_upstream.jar"],
+    out: ["robolectric_framework_res.jar"],
     cmd: "$(location zip2zip) " +
         "-i $(location :framework-res) " +
-        "-o $(location robolectric_framework_res_upstream.jar) " +
+        "-o $(location robolectric_framework_res.jar) " +
         "-x classes.dex " +
         "-x META-INF/**/* " +
         "-0 resources.arsc",
 }
 
 java_device_for_host {
-    name: "robolectric_android-all-device-deps_upstream",
+    name: "robolectric_android-all-device-deps",
     libs: [
         "conscrypt-for-host",
         "core-icu4j-for-host",
@@ -90,66 +104,42 @@ java_device_for_host {
         "services.accessibility",
         "telephony-common",
         "android.car",
-        "androidx.test.monitor",
-        "androidx.test.ext.truth", // -nodep?
+        "android.car.builtin",
     ],
 }
 
-java_library_host {
-    name: "robolectric-host-android_all_upstream",
+java_library {
+    name: "robolectric-host-android_all",
+    host_supported: true,
+    device_supported: false,
     static_libs: [
-        "robolectric_android-all-device-deps_upstream",
+        "robolectric_android-all-device-deps",
         "robolectric_tzdata",
-        "robolectric_framework_res_upstream",
+        "robolectric_framework_res",
+        "robolectric_props_jar",
     ],
+    // WARNING: DO NOT ADD NEW DEPENDENCIES ON THIS MODULE OR ITS DIST JAR
+    // This dist jar is an internal implementation detail. For external Gradle builds (outside
+    // the platform), consumers should access robolectric via the maven repository. For
+    // platform robolectric usage (in Soong), consumers should use the
+    // android_robolectric_test module type.
     dist: {
         targets: [
+            // Add android-all-robolectric.jar to private_api_stubs dist target for easier
+            // packaging by scripts. This jar is useful for running robolectric tests on
+            // platform app Gradle builds that compile against hidden platform APIs.
+            "private_api_stubs",
             "sdk",
             "win_sdk",
         ],
-        dest: "android-all-robolectric_upstream.jar",
+        dest: "android-all-robolectric.jar",
     },
-
-    java_resources: [
-        // Copy the build.prop
-        ":robolectric_build_props_upstream",
-    ],
     visibility: [
         ":__subpackages__",
         "//prebuilts/misc/common/robolectric",
         "//test/robolectric-extensions:__subpackages__",
+        "//frameworks/base/packages/SettingsLib:__subpackages__",
     ],
-}
-
-//#############################################
-// Assemble Robolectric_all
-//#############################################
-
-// This is a hack and should be removed with proper resource merging a la maven-shaded-plugin
-//
-// In order to use AndroidXTest APIs in Robolectric (e.g. ActivityScenario), it
-// is necessary to define the service metadata at the top-level. The classes
-// themselves (e.g. LocalUiController) do not use `@AutoService` at the moment.
-// When they are migrated to `@AutoService` the AndroidXTest service metadata
-// can be removed.
-java_genrule_host {
-    name: "robolectric_meta_service_file",
-    out: ["robolectric_meta_service_file.jar"],
-    tools: ["soong_zip"],
-    cmd: "mkdir -p $(genDir)/META-INF/services/ && " +
-        "echo -e 'org.robolectric.Shadows\norg.robolectric.shadows.httpclient.Shadows\norg.robolectric.shadows.multidex.Shadows' > " +
-        "$(genDir)/META-INF/services/org.robolectric.internal.ShadowProvider &&" +
-        "echo org.robolectric.android.internal.LocalUiController > " +
-        "$(genDir)/META-INF/services/androidx.test.platform.ui.UiController &&" +
-        "echo org.robolectric.android.internal.LocalActivityInvoker > " +
-        "$(genDir)/META-INF/services/androidx.test.internal.platform.app.ActivityInvoker &&" +
-        "echo org.robolectric.android.internal.LocalPermissionGranter  > " +
-        "$(genDir)/META-INF/services/androidx.test.internal.platform.content.PermissionGranter &&" +
-        "echo org.robolectric.android.internal.NoOpThreadChecker > " +
-        "$(genDir)/META-INF/services/androidx.test.internal.platform.ThreadChecker &&" +
-        "echo org.robolectric.android.internal.LocalControlledLooper > " +
-        "$(genDir)/META-INF/services/androidx.test.internal.platform.os.ControlledLooper &&" +
-        "$(location soong_zip) -o $(out) -C $(genDir) -D $(genDir)/META-INF/services/",
 }
 
 java_library_host {
@@ -157,7 +147,6 @@ java_library_host {
 
     static_libs: [
         "Robolectric-aosp-plugins",
-        "robolectric_meta_service_file",
         "Robolectric_shadows_httpclient_upstream",
         "Robolectric_shadows_framework_upstream",
         "Robolectric_shadows_multidex_upstream",
@@ -200,17 +189,26 @@ java_host_for_device {
       //java references
       "//frameworks/opt/net/wifi/libs/WifiTrackerLib/tests:__pkg__",
       "//prebuilts/sdk/current/androidx:__pkg__",
+      "//prebuilts/sdk/current/androidx/m2repository/androidx/car/app/app-testing/1.4.0-alpha01:__pkg__",
       "//prebuilts/sdk/current/aaos-libs:__pkg__",
       "//packages/apps/TV/tests/common:__pkg__",
+      "//external/android_onboarding/src/com/android/onboarding/contracts/testing:__pkg__",
+      "//external/android_onboarding/src/com/android/onboarding/testing:__pkg__",
+      "//external/android_onboarding/src/com/android/onboarding/nodes/testing:__pkg__",
       //robolectric tests
       "//platform_testing/libraries/runner:__pkg__",
+      "//platform_testing/libraries/screenshot/material_components:__pkg__",
       "//vendor:__subpackages__",
       "//platform_testing/robolab/roboStandaloneProj/tests:__pkg__",
       "//external/mobile-data-download/javatests:__pkg__",
       "//frameworks/base/services/robotests:__pkg__",
       "//frameworks/base/services/robotests/backup:__pkg__",
-      "//frameworks/base/packages/SettingsLib/tests/robotests:__pkg__",
+      "//frameworks/base/packages/CredentialManager:__subpackages__",
+      "//frameworks/base/packages/SettingsLib:__subpackages__",
       "//frameworks/base/packages/SystemUI:__pkg__",
+      "//frameworks/libs/systemui:__subpackages__",
+      "//packages/apps/Launcher3/tests:__pkg__",
+      "//frameworks/base/tests/InputScreenshotTest:__subpackages__",
       "//frameworks/opt/car/setupwizard/library/main/tests/robotests:__pkg__",
       "//frameworks/opt/localepicker/tests:__pkg__",
       "//frameworks/opt/wear/signaldetector/robotests:__pkg__",
@@ -219,6 +217,7 @@ java_host_for_device {
       "//packages/modules/Connectivity/nearby/tests/multidevices/clients/test_support/snippet_helper/tests:__pkg__",
       "//packages/modules/Connectivity/nearby/tests/robotests:__pkg__",
       "//packages/modules/DeviceLock/DeviceLockController/tests/robolectric:__pkg__",
+      "//packages/modules/DeviceLock/tests/unittests:__pkg__",
       "//packages/services/Car/tests/CarLibTests:__pkg__",
       "//packages/services/Mms/tests/robotests:__pkg__",
       "//packages/apps/QuickAccessWallet/tests/robolectric:__pkg__",
@@ -226,6 +225,7 @@ java_host_for_device {
       "//packages/apps/Car/libs/car-media-common/tests/robotests",
       "//packages/apps/Car/libs/car-ui-lib",
       "//packages/apps/Car/Notification/tests/robotests:__pkg__",
+      "//packages/apps/Car/Launcher/libs/appgrid/lib/robotests:__pkg__",
       "//packages/apps/Car/Cluster/DirectRenderingCluster/tests/robotests:__pkg__",
       "//packages/apps/Car/Settings/tests/robotests:__pkg__",
       "//packages/apps/EmergencyInfo/tests/robolectric:__pkg__",
@@ -233,12 +233,17 @@ java_host_for_device {
       "//packages/apps/Settings/tests/robotests:__pkg__",
       "//packages/apps/ThemePicker/tests/robotests:__pkg__",
       "//packages/apps/WallpaperPicker2/tests/robotests:__pkg__",
+      "//packages/apps/WallpaperPicker2/tests/robotests/common:__pkg__",
       "//packages/apps/TvSettings/Settings/tests/robotests:__pkg__",
       "//packages/apps/KeyChain/robotests:__pkg__",
       "//packages/apps/CertInstaller/robotests:__pkg__",
+      "//packages/providers/MediaProvider:__subpackages__",
+      "//packages/apps/TV:__subpackages__",
+      "//frameworks/base/libs/WindowManager/Shell:__subpackages__",
       //tm-dev additions
       "//frameworks/base/packages/BackupEncryption/test/robolectric-integration:__pkg__",
       "//frameworks/base/packages/BackupEncryption/test/robolectric:__pkg__",
+      "//packages/apps/Settings/tests/screenshot:__pkg__",
     ],
 }
 
@@ -259,6 +264,11 @@ java_device_for_host {
 }
 
 java_device_for_host {
+    name: "robolectric-host-androidx-test-ext-truth_upstream",
+    libs: ["androidx.test.ext.truth"],
+}
+
+java_device_for_host {
     name: "robolectric-host-androidx-test-runner_upstream",
     libs: ["androidx.test.runner"],
 }
@@ -272,11 +282,6 @@ java_device_for_host {
     name: "robolectric-host-androidx_test_espresso",
     libs: ["androidx.test.espresso.idling-resource"],
 }
-
-//java_device_for_host {
-//    name: "robolectric-host-android-support-v4_upstream",
-//    libs: ["android-support-v4"],
-//}
 
 java_device_for_host {
     name: "robolectric-host-android-support-multidex_upstream",

@@ -21,7 +21,6 @@ import static org.robolectric.res.android.Util.CHECK;
 import static org.robolectric.res.android.Util.JNI_FALSE;
 import static org.robolectric.res.android.Util.JNI_TRUE;
 import static org.robolectric.res.android.Util.isTruthy;
-import static org.robolectric.shadow.api.Shadow.invokeConstructor;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
 import android.annotation.AnyRes;
@@ -36,9 +35,9 @@ import android.content.res.Configuration;
 import android.content.res.Configuration.NativeConfig;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
-import android.util.ArraySet;
 import android.util.SparseArray;
 import android.util.TypedValue;
+import com.google.common.annotations.VisibleForTesting;
 import dalvik.system.VMRuntime;
 import java.io.File;
 import java.io.FileDescriptor;
@@ -77,10 +76,11 @@ import org.robolectric.res.android.ResourceTypes.Res_value;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.util.PerfStatsCollector;
 import org.robolectric.util.ReflectionHelpers;
-import org.robolectric.util.ReflectionHelpers.ClassParameter;
 import org.robolectric.util.reflector.Direct;
 import org.robolectric.util.reflector.ForType;
 import org.robolectric.util.reflector.Static;
+import org.robolectric.versioning.AndroidVersions.U;
+
 // TODO: update path to released version.
 // transliterated from
 // https://android.googlesource.com/platform/frameworks/base/+/android-10.0.0_rXX/core/jni/android_util_AssetManager.cpp
@@ -106,9 +106,7 @@ public class ShadowArscAssetManager10 extends ShadowAssetManager.ArscBase {
 
   private static CppAssetManager2 systemCppAssetManager2;
   private static long systemCppAssetManager2Ref;
-  private static boolean inNonSystemConstructor;
-  private static ApkAssets[] cachedSystemApkAssets;
-  private static ArraySet<ApkAssets> cachedSystemApkAssetsSet;
+  private static boolean inResourcesGetSystem;
 
   @RealObject AssetManager realAssetManager;
 
@@ -211,38 +209,11 @@ public class ShadowArscAssetManager10 extends ShadowAssetManager.ArscBase {
   //
   // // ----------------------------------------------------------------------------
 
-  @Implementation(maxSdk = Q)
-  protected static void createSystemAssetsInZygoteLocked() {
-    _AssetManager28_ _assetManagerStatic_ = reflector(_AssetManager28_.class);
-    AssetManager sSystem = _assetManagerStatic_.getSystem();
-    if (sSystem != null) {
-      return;
-    }
-
-    if (systemCppAssetManager2 == null) {
-      // first time! let the framework create a CppAssetManager2 and an AssetManager, which we'll
-      // hang on to.
-      reflector(AssetManagerReflector.class).createSystemAssetsInZygoteLocked();
-      cachedSystemApkAssets = _assetManagerStatic_.getSystemApkAssets();
-      cachedSystemApkAssetsSet = _assetManagerStatic_.getSystemApkAssetsSet();
-    } else {
-      // reuse the shared system CppAssetManager2; create a new AssetManager around it.
-      _assetManagerStatic_.setSystemApkAssets(cachedSystemApkAssets);
-      _assetManagerStatic_.setSystemApkAssetsSet(cachedSystemApkAssetsSet);
-
-      sSystem =
-          ReflectionHelpers.callConstructor(
-              AssetManager.class, ClassParameter.from(boolean.class, true /*sentinel*/));
-      sSystem.setApkAssets(cachedSystemApkAssets, false /*invalidateCaches*/);
-      ReflectionHelpers.setStaticField(AssetManager.class, "sSystem", sSystem);
-    }
-  }
-
   @Resetter
   public static void reset() {
     // todo: ShadowPicker doesn't discriminate properly between concrete shadow classes for
     // resetters...
-    if (!useLegacy() && RuntimeEnvironment.getApiLevel() >= P) {
+    if (RuntimeEnvironment.getApiLevel() >= P) {
       _AssetManager28_ _assetManagerStatic_ = reflector(_AssetManager28_.class);
       _assetManagerStatic_.setSystemApkAssetsSet(null);
       _assetManagerStatic_.setSystemApkAssets(null);
@@ -257,6 +228,12 @@ public class ShadowArscAssetManager10 extends ShadowAssetManager.ArscBase {
 
   static ApkAssetsCookie JavaCookieToApkAssetsCookie(int cookie) {
     return ApkAssetsCookie.forInt(cookie > 0 ? (cookie - 1) : kInvalidCookie);
+  }
+
+  @VisibleForTesting
+  @Override
+  long getNativePtr() {
+    return reflector(_AssetManager_.class, realAssetManager).getNativePtr();
   }
 
   // This is called by zygote (running as user root) as part of preloadResources.
@@ -470,16 +447,15 @@ public class ShadowArscAssetManager10 extends ShadowAssetManager.ArscBase {
     return ParcelFileDescriptor.open(asset.getFile(), ParcelFileDescriptor.MODE_READ_ONLY);
   }
 
-  /** Used for the creation of system assets. */
   @Implementation(minSdk = P)
-  protected void __constructor__(boolean sentinel) {
-    inNonSystemConstructor = true;
+  protected static AssetManager getSystem() {
+    // The Android code of AssetManager.getSystem is locked on a static variable, so there is not
+    // a concurrency concern here.
+    inResourcesGetSystem = true;
     try {
-      // call real constructor so field initialization happens.
-      invokeConstructor(
-          AssetManager.class, realAssetManager, ClassParameter.from(boolean.class, sentinel));
+      return reflector(_AssetManager_.class).getSystem();
     } finally {
-      inNonSystemConstructor = false;
+      inResourcesGetSystem = false;
     }
   }
 
@@ -517,17 +493,17 @@ public class ShadowArscAssetManager10 extends ShadowAssetManager.ArscBase {
     long cppAssetManagerRef;
 
     // we want to share a single instance of the system CppAssetManager2
-    if (inNonSystemConstructor) {
-      CppAssetManager2 appAssetManager = new CppAssetManager2();
-      cppAssetManagerRef = Registries.NATIVE_ASSET_MANAGER_REGISTRY.register(appAssetManager);
-    } else {
+    if (inResourcesGetSystem) {
       if (systemCppAssetManager2 == null) {
         systemCppAssetManager2 = new CppAssetManager2();
         systemCppAssetManager2Ref =
             Registries.NATIVE_ASSET_MANAGER_REGISTRY.register(systemCppAssetManager2);
       }
-
       cppAssetManagerRef = systemCppAssetManager2Ref;
+
+    } else {
+      CppAssetManager2 appAssetManager = new CppAssetManager2();
+      cppAssetManagerRef = Registries.NATIVE_ASSET_MANAGER_REGISTRY.register(appAssetManager);
     }
 
     return cppAssetManagerRef;
@@ -547,7 +523,7 @@ public class ShadowArscAssetManager10 extends ShadowAssetManager.ArscBase {
 
   // static void NativeSetApkAssets(JNIEnv* env, jclass /*clazz*/, jlong ptr,
   //                                jobjectArray apk_assets_array, jboolean invalidate_caches) {
-  @Implementation(minSdk = P)
+  @Implementation(minSdk = P, maxSdk = U.SDK_INT)
   protected static void nativeSetApkAssets(
       long ptr,
       @NonNull android.content.res.ApkAssets[] apk_assets_array,

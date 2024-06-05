@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
 import static android.os.Build.VERSION_CODES.Q;
 
 import android.os.Binder;
@@ -47,7 +46,7 @@ public class ShadowBinder {
   }
 
   @Implementation
-  protected static final int getCallingPid() {
+  protected static int getCallingPid() {
     if (callingPid != null) {
       return callingPid;
     }
@@ -55,7 +54,7 @@ public class ShadowBinder {
   }
 
   @Implementation
-  protected static final int getCallingUid() {
+  protected static int getCallingUid() {
     if (callingUid != null) {
       return callingUid;
     }
@@ -71,7 +70,7 @@ public class ShadowBinder {
    * @throws IllegalStateException if no UID has been set
    */
   @Implementation(minSdk = Q)
-  protected static final int getCallingUidOrThrow() {
+  protected static int getCallingUidOrThrow() {
     if (callingUid != null) {
       return callingUid;
     }
@@ -80,8 +79,8 @@ public class ShadowBinder {
     throw new IllegalStateException("Thread is not in a binder transcation");
   }
 
-  @Implementation(minSdk = JELLY_BEAN_MR1)
-  protected static final UserHandle getCallingUserHandle() {
+  @Implementation
+  protected static UserHandle getCallingUserHandle() {
     if (callingUserHandle != null) {
       return callingUserHandle;
     }

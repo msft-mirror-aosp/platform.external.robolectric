@@ -1,16 +1,17 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN;
-import static android.os.Build.VERSION_CODES.KITKAT;
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.O;
 import static android.os.Build.VERSION_CODES.O_MR1;
 import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.S;
+import static android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
+import android.annotation.AnimRes;
+import android.annotation.ColorInt;
+import android.annotation.RequiresApi;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.ActivityOptions;
@@ -32,6 +33,7 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.res.Configuration;
 import android.database.Cursor;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
@@ -42,6 +44,7 @@ import android.os.Looper;
 import android.os.Parcel;
 import android.text.Selection;
 import android.text.SpannableStringBuilder;
+import android.util.SparseArray;
 import android.view.Display;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -49,7 +52,6 @@ import android.view.MenuInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
-import androidx.annotation.RequiresApi;
 import com.android.internal.app.IVoiceInteractor;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -89,6 +91,8 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
   private Integer lastShownDialogId = null;
   private int pendingTransitionEnterAnimResId = -1;
   private int pendingTransitionExitAnimResId = -1;
+  private SparseArray<OverriddenActivityTransition> overriddenActivityTransitions =
+      new SparseArray<>();
   private Object lastNonConfigurationInstance;
   private Map<Integer, Dialog> dialogForId = new HashMap<>();
   private ArrayList<Cursor> managedCursors = new ArrayList<>();
@@ -299,12 +303,12 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
   }
 
   @Implementation
-  protected final void setResult(int resultCode) {
+  protected void setResult(int resultCode) {
     this.resultCode = resultCode;
   }
 
   @Implementation
-  protected final void setResult(int resultCode, Intent data) {
+  protected void setResult(int resultCode, Intent data) {
     this.resultCode = resultCode;
     this.resultIntent = data;
   }
@@ -332,7 +336,7 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
   }
 
   @Implementation
-  protected final Activity getParent() {
+  protected Activity getParent() {
     return parent;
   }
 
@@ -358,7 +362,7 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
     reflector(_Activity_.class, realActivity).setFinished(true);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void finishAndRemoveTask() {
     // Sets the mFinished field in the real activity so NoDisplay activities can be tested.
     reflector(_Activity_.class, realActivity).setFinished(true);
@@ -382,7 +386,7 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
    * is because `finish` modifies the members of {@link ShadowActivity#realActivity}, so
    * `isFinishing` should refer to those same members.
    */
-  @Implementation(minSdk = JELLY_BEAN)
+  @Implementation
   protected boolean isFinishing() {
     return reflector(DirectActivityReflector.class, realActivity).isFinishing();
   }
@@ -475,7 +479,7 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
     lastIntentSenderRequest.send();
   }
 
-  @Implementation(minSdk = KITKAT)
+  @Implementation
   protected void reportFullyDrawn() {
     hasReportedFullyDrawn = true;
   }
@@ -514,6 +518,7 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
    * @return the next started {@code Intent} for an activity, wrapped in an {@link
    *     ShadowActivity.IntentForResult} object
    */
+  @Override
   public IntentForResult getNextStartedActivityForResult() {
     ActivityThread activityThread = (ActivityThread) RuntimeEnvironment.getActivityThread();
     ShadowInstrumentation shadowInstrumentation =
@@ -528,6 +533,7 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
    * @return the most recently started {@code Intent}, wrapped in an {@link
    *     ShadowActivity.IntentForResult} object
    */
+  @Override
   public IntentForResult peekNextStartedActivityForResult() {
     ActivityThread activityThread = (ActivityThread) RuntimeEnvironment.getActivityThread();
     ShadowInstrumentation shadowInstrumentation =
@@ -569,6 +575,24 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
 
   public int getPendingTransitionExitAnimationResourceId() {
     return pendingTransitionExitAnimResId;
+  }
+
+  /**
+   * Get the overridden {@link Activity} transition, set by {@link
+   * Activity#overrideActivityTransition}.
+   *
+   * @param overrideType Use {@link Activity#OVERRIDE_TRANSITION_OPEN} to get the overridden
+   *     activity transition animation details when starting/entering an activity. Use {@link
+   *     Activity#OVERRIDE_TRANSITION_CLOSE} to get the overridden activity transition animation
+   *     details when finishing/closing an activity.
+   * @return overridden activity transition details after calling {@link
+   *     Activity#overrideActivityTransition(int, int, int, int)} or null if was not overridden.
+   * @see #clearOverrideActivityTransition(int)
+   */
+  @Nullable
+  @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+  public OverriddenActivityTransition getOverriddenActivityTransition(int overrideType) {
+    return overriddenActivityTransitions.get(overrideType, null);
   }
 
   @Implementation
@@ -670,27 +694,12 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
   }
 
   @Implementation
-  protected final void showDialog(int id) {
+  protected void showDialog(int id) {
     showDialog(id, null);
   }
 
   @Implementation
-  protected final void dismissDialog(int id) {
-    final Dialog dialog = dialogForId.get(id);
-    if (dialog == null) {
-      throw new IllegalArgumentException();
-    }
-
-    dialog.dismiss();
-  }
-
-  @Implementation
-  protected final void removeDialog(int id) {
-    dialogForId.remove(id);
-  }
-
-  @Implementation
-  protected final boolean showDialog(int id, Bundle bundle) {
+  protected boolean showDialog(int id, Bundle bundle) {
     this.lastShownDialogId = id;
     Dialog dialog = dialogForId.get(id);
 
@@ -712,12 +721,27 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
     return true;
   }
 
+  @Implementation
+  protected void dismissDialog(int id) {
+    final Dialog dialog = dialogForId.get(id);
+    if (dialog == null) {
+      throw new IllegalArgumentException();
+    }
+
+    dialog.dismiss();
+  }
+
+  @Implementation
+  protected void removeDialog(int id) {
+    dialogForId.remove(id);
+  }
+
   public void setIsTaskRoot(boolean isRoot) {
     mIsTaskRoot = isRoot;
   }
 
   @Implementation
-  protected final boolean isTaskRoot() {
+  protected boolean isTaskRoot() {
     return mIsTaskRoot;
   }
 
@@ -737,6 +761,27 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
   protected void overridePendingTransition(int enterAnim, int exitAnim) {
     pendingTransitionEnterAnimResId = enterAnim;
     pendingTransitionExitAnimResId = exitAnim;
+  }
+
+  @Implementation(minSdk = UPSIDE_DOWN_CAKE)
+  protected void overrideActivityTransition(
+      int overrideType,
+      @AnimRes int enterAnim,
+      @AnimRes int exitAnim,
+      @ColorInt int backgroundColor) {
+    overriddenActivityTransitions.put(
+        overrideType, new OverriddenActivityTransition(enterAnim, exitAnim, backgroundColor));
+
+    reflector(DirectActivityReflector.class, realActivity)
+        .overrideActivityTransition(overrideType, enterAnim, exitAnim, backgroundColor);
+  }
+
+  @Implementation(minSdk = UPSIDE_DOWN_CAKE)
+  protected void clearOverrideActivityTransition(int overrideType) {
+    overriddenActivityTransitions.remove(overrideType);
+
+    reflector(DirectActivityReflector.class, realActivity)
+        .clearOverrideActivityTransition(overrideType);
   }
 
   public Dialog getDialogById(int dialogId) {
@@ -778,17 +823,17 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
   }
 
   @Implementation
-  protected final void setVolumeControlStream(int streamType) {
+  protected void setVolumeControlStream(int streamType) {
     this.streamType = streamType;
   }
 
   @Implementation
-  protected final int getVolumeControlStream() {
+  protected int getVolumeControlStream() {
     return streamType;
   }
 
   @Implementation(minSdk = M)
-  protected final void requestPermissions(String[] permissions, int requestCode) {
+  protected void requestPermissions(String[] permissions, int requestCode) {
     lastRequestedPermission = new PermissionsRequest(permissions, requestCode);
     reflector(DirectActivityReflector.class, realActivity)
         .requestPermissions(permissions, requestCode);
@@ -800,7 +845,7 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
    * <p>The status of the lock task can be verified using {@link #isLockTask} method. Otherwise this
    * implementation has no effect.
    */
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void startLockTask() {
     Shadow.<ShadowActivityManager>extract(getActivityManager())
         .setLockTaskModeState(ActivityManager.LOCK_TASK_MODE_LOCKED);
@@ -812,7 +857,7 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
    * <p>The status of the lock task can be verified using {@link #isLockTask} method. Otherwise this
    * implementation has no effect.
    */
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void stopLockTask() {
     Shadow.<ShadowActivityManager>extract(getActivityManager())
         .setLockTaskModeState(ActivityManager.LOCK_TASK_MODE_NONE);
@@ -916,6 +961,22 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
         });
   }
 
+  /**
+   * Class to hold overridden activity transition details after calling {@link
+   * Activity#overrideActivityTransition(int, int, int, int)}
+   */
+  public static class OverriddenActivityTransition {
+    @AnimRes public final int enterAnim;
+    @AnimRes public final int exitAnim;
+    @ColorInt public final int backgroundColor;
+
+    public OverriddenActivityTransition(int enterAnim, int exitAnim, int backgroundColor) {
+      this.enterAnim = enterAnim;
+      this.exitAnim = exitAnim;
+      this.backgroundColor = backgroundColor;
+    }
+  }
+
   /** Class to hold a permissions request, including its request code. */
   public static class PermissionsRequest {
     public final int requestCode;
@@ -986,6 +1047,11 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
     void onDestroy();
 
     boolean isFinishing();
+
+    void overrideActivityTransition(
+        int overrideType, int enterAnim, int exitAnim, int backgroundColor);
+
+    void clearOverrideActivityTransition(int overrideType);
 
     Window getWindow();
 

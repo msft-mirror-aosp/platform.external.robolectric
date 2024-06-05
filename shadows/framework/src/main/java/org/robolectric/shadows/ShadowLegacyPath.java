@@ -1,8 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN;
-import static android.os.Build.VERSION_CODES.KITKAT;
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static org.robolectric.shadow.api.Shadow.extract;
 import static org.robolectric.shadows.ShadowPath.Point.Type.LINE_TO;
 import static org.robolectric.shadows.ShadowPath.Point.Type.MOVE_TO;
@@ -110,7 +107,7 @@ public class ShadowLegacyPath extends ShadowPath {
     points.clear();
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected float[] approximate(float acceptableError) {
     PathIterator iterator = mPath.getPathIterator(null, acceptableError);
 
@@ -174,13 +171,13 @@ public class ShadowLegacyPath extends ShadowPath {
     mPath.append(shadowSrc.mPath, false /*connect*/);
   }
 
-  @Implementation(minSdk = KITKAT)
+  @Implementation
   protected boolean op(Path path1, Path path2, Path.Op op) {
     Log.w(TAG, "android.graphics.Path#op() not supported yet.");
     return false;
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected boolean isConvex() {
     Log.w(TAG, "android.graphics.Path#isConvex() not supported yet.");
     return true;
@@ -333,7 +330,7 @@ public class ShadowLegacyPath extends ShadowPath {
     arcTo(oval.left, oval.top, oval.right, oval.bottom, startAngle, sweepAngle, forceMoveTo);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void arcTo(
       float left,
       float top,
@@ -387,7 +384,7 @@ public class ShadowLegacyPath extends ShadowPath {
     resetLastPointFromPath();
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void addOval(float left, float top, float right, float bottom, Path.Direction dir) {
     mPath.append(new Ellipse2D.Float(left, top, right - left, bottom - top), false);
   }
@@ -397,7 +394,7 @@ public class ShadowLegacyPath extends ShadowPath {
     mPath.append(new Ellipse2D.Float(x - radius, y - radius, radius * 2, radius * 2), false);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void addArc(
       float left, float top, float right, float bottom, float startAngle, float sweepAngle) {
     mPath.append(
@@ -406,12 +403,12 @@ public class ShadowLegacyPath extends ShadowPath {
         false);
   }
 
-  @Implementation(minSdk = JELLY_BEAN)
+  @Implementation
   protected void addRoundRect(RectF rect, float rx, float ry, Direction dir) {
     addRoundRect(rect.left, rect.top, rect.right, rect.bottom, rx, ry, dir);
   }
 
-  @Implementation(minSdk = JELLY_BEAN)
+  @Implementation
   protected void addRoundRect(RectF rect, float[] radii, Direction dir) {
     if (rect == null) {
       throw new NullPointerException("need rect parameter");
@@ -419,14 +416,14 @@ public class ShadowLegacyPath extends ShadowPath {
     addRoundRect(rect.left, rect.top, rect.right, rect.bottom, radii, dir);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void addRoundRect(
       float left, float top, float right, float bottom, float rx, float ry, Path.Direction dir) {
     mPath.append(
         new RoundRectangle2D.Float(left, top, right - left, bottom - top, rx * 2, ry * 2), false);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void addRoundRect(
       float left, float top, float right, float bottom, float[] radii, Path.Direction dir) {
     if (radii.length < 8) {

@@ -1,9 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
-import static android.os.Build.VERSION_CODES.KITKAT;
-import static android.os.Build.VERSION_CODES.KITKAT_WATCH;
 import static android.os.Build.VERSION_CODES.LOLLIPOP_MR1;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.N_MR1;
@@ -35,6 +31,7 @@ import org.robolectric.util.reflector.Constructor;
 import org.robolectric.util.reflector.Direct;
 import org.robolectric.util.reflector.ForType;
 import org.robolectric.util.reflector.WithType;
+import org.robolectric.versioning.AndroidVersions.U;
 
 /**
  * Shadow of {@link DisplayEventReceiver}. The {@link Choreographer} is a subclass of {@link
@@ -73,17 +70,10 @@ public class ShadowDisplayEventReceiver {
     return nativeObjRegistry.register(new NativeDisplayEventReceiver(receiver));
   }
 
-  @Implementation(minSdk = KITKAT_WATCH, maxSdk = LOLLIPOP_MR1)
+  @Implementation(maxSdk = LOLLIPOP_MR1)
   protected static long nativeInit(DisplayEventReceiver receiver, MessageQueue msgQueue) {
     return nativeObjRegistry.register(
         new NativeDisplayEventReceiver(new WeakReference<>(receiver)));
-  }
-
-  @Implementation(maxSdk = KITKAT)
-  protected static int nativeInit(Object receiver, Object msgQueue) {
-    return (int)
-        nativeObjRegistry.register(
-            new NativeDisplayEventReceiver(new WeakReference<>((DisplayEventReceiver) receiver)));
   }
 
   @Implementation(minSdk = R, maxSdk = TIRAMISU)
@@ -95,7 +85,7 @@ public class ShadowDisplayEventReceiver {
     return nativeInit(receiver, msgQueue);
   }
 
-  @Implementation(minSdk = ShadowBuild.UPSIDE_DOWN_CAKE)
+  @Implementation(minSdk = U.SDK_INT)
   protected static long nativeInit(
       WeakReference<DisplayEventReceiver> receiver,
       WeakReference<Object> vsyncEventData,
@@ -106,7 +96,7 @@ public class ShadowDisplayEventReceiver {
     return nativeInit(receiver, msgQueue);
   }
 
-  @Implementation(minSdk = KITKAT_WATCH, maxSdk = TIRAMISU)
+  @Implementation(maxSdk = TIRAMISU)
   protected static void nativeDispose(long receiverPtr) {
     NativeDisplayEventReceiver receiver = nativeObjRegistry.unregister(receiverPtr);
     if (receiver != null) {
@@ -114,25 +104,13 @@ public class ShadowDisplayEventReceiver {
     }
   }
 
-  @Implementation(maxSdk = KITKAT)
-  protected static void nativeDispose(int receiverPtr) {
-    NativeDisplayEventReceiver receiver = nativeObjRegistry.unregister(receiverPtr);
-    if (receiver != null) {
-      receiver.dispose();
-    }
-  }
-
-  @Implementation(minSdk = KITKAT_WATCH)
+  @Implementation
   protected static void nativeScheduleVsync(long receiverPtr) {
     nativeObjRegistry.getNativeObject(receiverPtr).scheduleVsync();
   }
 
-  @Implementation(maxSdk = KITKAT)
-  protected static void nativeScheduleVsync(int receiverPtr) {
-    nativeObjRegistry.getNativeObject(receiverPtr).scheduleVsync();
-  }
 
-  @Implementation(minSdk = JELLY_BEAN_MR1, maxSdk = R)
+  @Implementation(maxSdk = R)
   protected void dispose(boolean finalized) {
     CloseGuard closeGuard = displayEventReceiverReflector.getCloseGuard();
     // Suppresses noisy CloseGuard warning
@@ -143,9 +121,7 @@ public class ShadowDisplayEventReceiver {
   }
 
   protected void onVsync() {
-    if (RuntimeEnvironment.getApiLevel() <= JELLY_BEAN) {
-      displayEventReceiverReflector.onVsync(ShadowSystem.nanoTime(), 1);
-    } else if (RuntimeEnvironment.getApiLevel() < Q) {
+    if (RuntimeEnvironment.getApiLevel() < Q) {
       displayEventReceiverReflector.onVsync(
           ShadowSystem.nanoTime(), 0, /* SurfaceControl.BUILT_IN_DISPLAY_ID_MAIN */ 1);
     } else if (RuntimeEnvironment.getApiLevel() < S) {

@@ -11,14 +11,20 @@ android_library {
     platform_apis: true,
     manifest: "AndroidManifest.xml",
     optimize: {
-        enabled: false
+        enabled: false,
+    },
+    lint: {
+        baseline_filename: "lint-baseline.xml",
     },
 }
 
 android_app {
     name: "NativeGraphicsPseudoApp",
     srcs: [],
-    static_libs: ["NativeGraphicsTestsAssetsLib"],
+    static_libs: [
+        "NativeGraphicsTestsAssetsLib",
+        "androidx.core_core",
+    ],
     manifest: "robo-manifest.xml",
     aaptflags: [
         "--extra-packages",
@@ -35,6 +41,9 @@ android_app {
     kotlincflags: ["-Xjvm-default=all"],
 
     plugins: ["dagger2-compiler"],
+    lint: {
+        baseline_filename: "lint-baseline.xml",
+    },
 }
 
 android_robolectric_test {
@@ -44,7 +53,6 @@ android_robolectric_test {
         "src/**/*.java",
     ],
     static_libs: [
-        "androidx.core_core",
         "androidx.test.uiautomator_uiautomator",
         "androidx.test.ext.junit",
     ],
@@ -52,9 +60,12 @@ android_robolectric_test {
         "android.test.runner",
         "android.test.base",
         "android.test.mock",
-        "truth-prebuilt",
+        "truth",
+        "guava-android-testlib",
     ],
     upstream: true,
     java_resource_dirs: ["config"],
     instrumentation_for: "NativeGraphicsPseudoApp",
+
+    strict_mode: false,
 }

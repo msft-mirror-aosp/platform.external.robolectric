@@ -1,12 +1,12 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.O_MR1;
 import static android.os.Build.VERSION_CODES.P;
 import static android.os.Build.VERSION_CODES.Q;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 import static org.robolectric.Shadows.shadowOf;
+import static org.robolectric.annotation.Config.OLDEST_SDK;
 
 import android.graphics.Typeface;
 import android.graphics.fonts.Font;
@@ -146,7 +146,7 @@ public class ShadowTypefaceTest {
 
   /** Check that there is no spurious error message about /system/etc/fonts.xml */
   @Test
-  @Config(minSdk = LOLLIPOP, maxSdk = O_MR1)
+  @Config(minSdk = OLDEST_SDK, maxSdk = O_MR1)
   public void init_shouldNotComplainAboutSystemFonts() {
     ShadowLog.clear();
     ReflectionHelpers.callStaticMethod(Typeface.class, "init");
@@ -166,5 +166,17 @@ public class ShadowTypefaceTest {
     Typeface typeface =
         new Typeface.CustomFallbackBuilder(family).setStyle(font.getStyle()).build();
     assertThat(typeface).isNotNull();
+  }
+
+  @Test
+  @Config(minSdk = Q)
+  public void createTypeface_withCustomFallbackBuilder() throws IOException {
+    Font font = new Font.Builder(fontFile).build();
+    FontFamily family = new FontFamily.Builder(font).build();
+    Typeface typeface =
+        new Typeface.CustomFallbackBuilder(family).setStyle(font.getStyle()).build();
+    Typeface typeface2 = Typeface.create(typeface, Typeface.BOLD);
+    assertThat(typeface2).isNotNull();
+    assertThat(typeface2.toString()).isNotEmpty();
   }
 }

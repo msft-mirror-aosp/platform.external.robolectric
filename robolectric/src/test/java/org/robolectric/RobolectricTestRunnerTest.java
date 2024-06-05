@@ -31,6 +31,7 @@ import javax.inject.Named;
 import org.junit.After;
 import org.junit.AssumptionViolatedException;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -42,12 +43,9 @@ import org.junit.runner.notification.RunListener;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.JUnit4;
 import org.junit.runners.MethodSorters;
-import org.junit.runners.model.FrameworkMethod;
-import org.robolectric.RobolectricTestRunner.ResModeStrategy;
 import org.robolectric.RobolectricTestRunner.RobolectricFrameworkMethod;
 import org.robolectric.android.internal.AndroidTestEnvironment;
 import org.robolectric.annotation.Config;
-import org.robolectric.annotation.Config.Implementation;
 import org.robolectric.annotation.experimental.LazyApplication;
 import org.robolectric.annotation.experimental.LazyApplication.LazyLoad;
 import org.robolectric.config.ConfigurationRegistry;
@@ -117,38 +115,30 @@ public class RobolectricTestRunnerTest {
 
   @Test
   public void testsWithUnsupportedSdkShouldBeIgnored() throws Exception {
-    RobolectricTestRunner runner = new RobolectricTestRunner(
-        TestWithTwoMethods.class,
-        defaultInjector()
-            .bind(SdkProvider.class, () ->
-                Arrays.asList(TestUtil.getSdkCollection().getSdk(17),
-                    new StubSdk(18, false)))
-            .build());
+    RobolectricTestRunner runner =
+        new RobolectricTestRunner(
+            TestWithTwoMethods.class,
+            defaultInjector()
+                .bind(
+                    SdkProvider.class,
+                    () ->
+                        Arrays.asList(
+                            TestUtil.getSdkCollection().getSdk(33), new StubSdk(34, false)))
+                .build());
     runner.run(notifier);
-    assertThat(events).containsExactly(
-        "started: first[17]", "finished: first[17]",
-        "started: first",
-        "ignored: first: Failed to create a Robolectric sandbox: unsupported",
-        "finished: first",
-        "started: second[17]", "finished: second[17]",
-        "started: second",
-        "ignored: second: Failed to create a Robolectric sandbox: unsupported",
-        "finished: second"
-    ).inOrder();
-  }
-
-  @Test
-  public void supportsOldGetConfigUntil4dot3() throws Exception {
-    Implementation overriddenConfig = Config.Builder.defaults().build();
-    List<FrameworkMethod> children = new SingleSdkRobolectricTestRunner(TestWithTwoMethods.class) {
-      @Override
-      public Config getConfig(Method method) {
-        return overriddenConfig;
-      }
-    }.getChildren();
-    Config config = ((RobolectricFrameworkMethod) children.get(0))
-        .getConfiguration().get(Config.class);
-    assertThat(config).isSameInstanceAs(overriddenConfig);
+    assertThat(events)
+        .containsExactly(
+            "started: first[33]",
+            "finished: first[33]",
+            "started: first",
+            "ignored: first: Failed to create a Robolectric sandbox: unsupported",
+            "finished: first",
+            "started: second[33]",
+            "finished: second[33]",
+            "started: second",
+            "ignored: second: Failed to create a Robolectric sandbox: unsupported",
+            "finished: second")
+        .inOrder();
   }
 
   @Test
@@ -211,8 +201,7 @@ public class RobolectricTestRunnerTest {
             mock(AndroidManifest.class),
             sdkCollection.getSdk(16),
             mock(Configuration.class),
-            ResourcesMode.LEGACY,
-            ResModeStrategy.legacy,
+            ResourcesMode.BINARY,
             false);
     RobolectricFrameworkMethod rfm17 =
         new RobolectricFrameworkMethod(
@@ -220,8 +209,7 @@ public class RobolectricTestRunnerTest {
             mock(AndroidManifest.class),
             sdkCollection.getSdk(17),
             mock(Configuration.class),
-            ResourcesMode.LEGACY,
-            ResModeStrategy.legacy,
+            ResourcesMode.BINARY,
             false);
     RobolectricFrameworkMethod rfm16b =
         new RobolectricFrameworkMethod(
@@ -229,22 +217,11 @@ public class RobolectricTestRunnerTest {
             mock(AndroidManifest.class),
             sdkCollection.getSdk(16),
             mock(Configuration.class),
-            ResourcesMode.LEGACY,
-            ResModeStrategy.legacy,
-            false);
-    RobolectricFrameworkMethod rfm16c =
-        new RobolectricFrameworkMethod(
-            method,
-            mock(AndroidManifest.class),
-            sdkCollection.getSdk(16),
-            mock(Configuration.class),
             ResourcesMode.BINARY,
-            ResModeStrategy.legacy,
             false);
 
     assertThat(rfm16).isNotEqualTo(rfm17);
     assertThat(rfm16).isEqualTo(rfm16b);
-    assertThat(rfm16).isNotEqualTo(rfm16c);
 
     assertThat(rfm16.hashCode()).isEqualTo(rfm16b.hashCode());
   }
@@ -257,8 +234,8 @@ public class RobolectricTestRunnerTest {
     RobolectricTestRunner runner =
         new SingleSdkRobolectricTestRunner(
             TestWithTwoMethods.class,
-            RobolectricTestRunner.defaultInjector()
-                .bind(PerfStatsReporter[].class, new PerfStatsReporter[]{reporter})
+            SingleSdkRobolectricTestRunner.defaultInjector()
+                .bind(PerfStatsReporter[].class, new PerfStatsReporter[] {reporter})
                 .build());
 
     runner.run(notifier);
@@ -275,7 +252,7 @@ public class RobolectricTestRunnerTest {
     RobolectricTestRunner runner =
         new SingleSdkRobolectricTestRunner(
             TestThatFails.class,
-            RobolectricTestRunner.defaultInjector()
+            SingleSdkRobolectricTestRunner.defaultInjector()
                 .bind(PerfStatsReporter[].class, new PerfStatsReporter[] {reporter})
                 .build());
 
@@ -536,5 +513,24 @@ public class RobolectricTestRunnerTest {
       }
       events.add("failure: " + message);
     }
+  }
+
+  @Test
+  public void shouldReportExceptionsInBeforeClass() throws Exception {
+    RobolectricTestRunner runner =
+        new SingleSdkRobolectricTestRunner(TestWithBeforeClassThatThrowsRuntimeException.class);
+    runner.run(notifier);
+    assertThat(events.get(1)).startsWith("failure: fail");
+  }
+
+  @Ignore
+  public static class TestWithBeforeClassThatThrowsRuntimeException {
+    @BeforeClass
+    public static void beforeClass() {
+      throw new RuntimeException("fail");
+    }
+
+    @Test
+    public void test() {}
   }
 }

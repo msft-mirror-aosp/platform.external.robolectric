@@ -2,7 +2,6 @@ package org.robolectric.shadows;
 
 import static android.content.Intent.ACTION_SCREEN_OFF;
 import static android.content.Intent.ACTION_SCREEN_ON;
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.LOLLIPOP_MR1;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.N;
@@ -12,25 +11,26 @@ import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.R;
 import static android.os.Build.VERSION_CODES.S;
 import static android.os.Build.VERSION_CODES.TIRAMISU;
+import static android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.toCollection;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
-import android.Manifest.permission;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
-import android.os.Build.VERSION_CODES;
 import android.os.PowerManager;
+import android.os.PowerManager.LowPowerStandbyPortDescription;
+import android.os.PowerManager.LowPowerStandbyPortsLock;
 import android.os.PowerManager.WakeLock;
 import android.os.SystemClock;
 import android.os.WorkSource;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -67,8 +67,8 @@ public class ShadowPowerManager {
   @PowerManager.LocationPowerSaveMode
   private int locationMode = PowerManager.LOCATION_MODE_ALL_DISABLED_WHEN_SCREEN_OFF;
 
-  private List<String> rebootReasons = new ArrayList<String>();
-  private Map<String, Boolean> ignoringBatteryOptimizations = new HashMap<>();
+  private final List<String> rebootReasons = new ArrayList<>();
+  private final Map<String, Boolean> ignoringBatteryOptimizations = new HashMap<>();
 
   private int thermalStatus = 0;
   // Intentionally use Object instead of PowerManager.OnThermalStatusChangedListener to avoid
@@ -82,6 +82,11 @@ public class ShadowPowerManager {
   private volatile boolean adaptivePowerSaveEnabled = false;
 
   private static PowerManager.WakeLock latestWakeLock;
+
+  private boolean lowPowerStandbyEnabled = false;
+  private boolean lowPowerStandbySupported = false;
+  private boolean exemptFromLowPowerStandby = false;
+  private final Set<String> allowedFeatures = new HashSet<String>();
 
   @Implementation
   protected PowerManager.WakeLock newWakeLock(int flags, String tag) {
@@ -97,14 +102,14 @@ public class ShadowPowerManager {
   }
 
   /**
-   * @deprecated Use {@link #setIsInteractive(boolean)} instead.
+   * @deprecated Use {@link #turnScreenOn(boolean)} instead.
    */
   @Deprecated
   public void setIsScreenOn(boolean screenOn) {
     setIsInteractive(screenOn);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected boolean isInteractive() {
     return isInteractive;
   }
@@ -125,7 +130,7 @@ public class ShadowPowerManager {
     }
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected boolean isPowerSaveMode() {
     return isPowerSaveMode;
   }
@@ -136,7 +141,7 @@ public class ShadowPowerManager {
 
   private Map<Integer, Boolean> supportedWakeLockLevels = new HashMap<>();
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected boolean isWakeLockLevelSupported(int level) {
     return supportedWakeLockLevels.containsKey(level) ? supportedWakeLockLevels.get(level) : false;
   }
@@ -333,7 +338,7 @@ public class ShadowPowerManager {
   }
 
   @Implementation
-  protected void reboot(String reason) {
+  protected void reboot(@Nullable String reason) {
     if (RuntimeEnvironment.getApiLevel() >= R
         && "userspace".equals(reason)
         && !isRebootingUserspaceSupported()) {
@@ -348,9 +353,11 @@ public class ShadowPowerManager {
     return rebootReasons.size();
   }
 
-  /** Returns the list of reasons for each reboot, in chronological order. */
-  public ImmutableList<String> getRebootReasons() {
-    return ImmutableList.copyOf(rebootReasons);
+  /**
+   * Returns the list of reasons for each reboot, in chronological order. May contain {@code null}.
+   */
+  public List<String> getRebootReasons() {
+    return new ArrayList<>(rebootReasons);
   }
 
   /** Sets the value returned by {@link #isAmbientDisplayAvailable()}. */
@@ -368,8 +375,6 @@ public class ShadowPowerManager {
    * #setAmbientDisplayAvailable(boolean)}.
    */
   @Implementation(minSdk = R)
-  @SystemApi
-  @RequiresPermission(permission.READ_DREAM_STATE)
   protected boolean isAmbientDisplayAvailable() {
     return isAmbientDisplayAvailable;
   }
@@ -383,8 +388,6 @@ public class ShadowPowerManager {
    *     ambient display for the given token.
    */
   @Implementation(minSdk = R)
-  @SystemApi
-  @RequiresPermission(permission.WRITE_DREAM_STATE)
   protected void suppressAmbientDisplay(String token, boolean suppress) {
     String suppressionToken = Binder.getCallingUid() + "_" + token;
     if (suppress) {
@@ -399,8 +402,6 @@ public class ShadowPowerManager {
    * token.
    */
   @Implementation(minSdk = R)
-  @SystemApi
-  @RequiresPermission(permission.READ_DREAM_STATE)
   protected boolean isAmbientDisplaySuppressed() {
     return !ambientDisplaySuppressionTokens.isEmpty();
   }
@@ -410,7 +411,6 @@ public class ShadowPowerManager {
    * false} by default.
    */
   @Implementation(minSdk = R)
-  @SystemApi
   protected boolean isRebootingUserspaceSupported() {
     return isRebootingUserspaceSupported;
   }
@@ -557,10 +557,99 @@ public class ShadowPowerManager {
   }
 
   private Context getContext() {
-    if (RuntimeEnvironment.getApiLevel() < VERSION_CODES.JELLY_BEAN_MR1) {
-      return RuntimeEnvironment.getApplication();
-    } else {
-      return reflector(ReflectorPowerManager.class, realPowerManager).getContext();
+    return reflector(ReflectorPowerManager.class, realPowerManager).getContext();
+  }
+
+  @Implementation(minSdk = TIRAMISU)
+  protected boolean isLowPowerStandbySupported() {
+    return lowPowerStandbySupported;
+  }
+
+  @TargetApi(TIRAMISU)
+  public void setLowPowerStandbySupported(boolean lowPowerStandbySupported) {
+    this.lowPowerStandbySupported = lowPowerStandbySupported;
+  }
+
+  @Implementation(minSdk = TIRAMISU)
+  protected boolean isLowPowerStandbyEnabled() {
+    return lowPowerStandbySupported && lowPowerStandbyEnabled;
+  }
+
+  @Implementation(minSdk = TIRAMISU)
+  protected void setLowPowerStandbyEnabled(boolean lowPowerStandbyEnabled) {
+    this.lowPowerStandbyEnabled = lowPowerStandbyEnabled;
+  }
+
+  @Implementation(minSdk = UPSIDE_DOWN_CAKE)
+  protected boolean isAllowedInLowPowerStandby(String feature) {
+    if (!lowPowerStandbySupported) {
+      return true;
+    }
+    return allowedFeatures.contains(feature);
+  }
+
+  @TargetApi(UPSIDE_DOWN_CAKE)
+  public void addAllowedInLowPowerStandby(String feature) {
+    allowedFeatures.add(feature);
+  }
+
+  @Implementation(minSdk = UPSIDE_DOWN_CAKE)
+  protected boolean isExemptFromLowPowerStandby() {
+    if (!lowPowerStandbySupported) {
+      return true;
+    }
+    return exemptFromLowPowerStandby;
+  }
+
+  @TargetApi(UPSIDE_DOWN_CAKE)
+  public void setExemptFromLowPowerStandby(boolean exemptFromLowPowerStandby) {
+    this.exemptFromLowPowerStandby = exemptFromLowPowerStandby;
+  }
+
+  @Implementation(minSdk = UPSIDE_DOWN_CAKE)
+  protected Object /* LowPowerStandbyPortsLock */ newLowPowerStandbyPortsLock(
+      List<LowPowerStandbyPortDescription> ports) {
+    PowerManager.LowPowerStandbyPortsLock lock =
+        Shadow.newInstanceOf(PowerManager.LowPowerStandbyPortsLock.class);
+    ((ShadowLowPowerStandbyPortsLock) Shadow.extract(lock)).setPorts(ports);
+    return (Object) lock;
+  }
+
+  /** Shadow of {@link LowPowerStandbyPortsLock} to allow testing state. */
+  @Implements(
+      value = PowerManager.LowPowerStandbyPortsLock.class,
+      minSdk = UPSIDE_DOWN_CAKE,
+      isInAndroidSdk = false)
+  public static class ShadowLowPowerStandbyPortsLock {
+    private List<LowPowerStandbyPortDescription> ports;
+    private boolean isAcquired = false;
+    private int acquireCount = 0;
+
+    @Implementation(minSdk = UPSIDE_DOWN_CAKE)
+    protected void acquire() {
+      isAcquired = true;
+      acquireCount++;
+    }
+
+    @Implementation(minSdk = UPSIDE_DOWN_CAKE)
+    protected void release() {
+      isAcquired = false;
+    }
+
+    public boolean isAcquired() {
+      return isAcquired;
+    }
+
+    public int getAcquireCount() {
+      return acquireCount;
+    }
+
+    public void setPorts(List<LowPowerStandbyPortDescription> ports) {
+      this.ports = ports;
+    }
+
+    public List<LowPowerStandbyPortDescription> getPorts() {
+      return ports;
     }
   }
 

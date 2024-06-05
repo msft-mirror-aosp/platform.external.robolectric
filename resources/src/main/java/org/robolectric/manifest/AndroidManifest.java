@@ -13,7 +13,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.xml.parsers.DocumentBuilder;
@@ -68,8 +67,6 @@ public class AndroidManifest implements UsesSdk {
   private final List<String> usedPermissions = new ArrayList<>();
   private final Map<String, String> applicationAttributes = new HashMap<>();
   private MetaData applicationMetaData;
-
-  private Boolean supportsBinaryResourcesMode;
 
   /**
    * Creates a Robolectric configuration using specified locations.
@@ -179,8 +176,7 @@ public class AndroidManifest implements UsesSdk {
         Document manifestDocument = db.parse(inputStream);
         inputStream.close();
 
-        Logger.debug("Manifest doc:\n" + Files.readAllLines(androidManifestFile).stream().collect(
-                Collectors.joining("\n")));
+        Logger.debug("Manifest doc location:\n%s", androidManifestFile.toString());
 
         if (!packageNameIsOverridden()) {
           packageName = getTagAttributeText(manifestDocument, "manifest", "package");
@@ -221,8 +217,7 @@ public class AndroidManifest implements UsesSdk {
         String targetSdkText =
             getTagAttributeText(manifestDocument, "uses-sdk", "android:targetSdkVersion");
         if (targetSdkText != null) {
-          // Support Android O Preview. This can be removed once Android O is officially launched.
-          targetSdkVersion = targetSdkText.equals("O") ? 26 : Integer.parseInt(targetSdkText);
+          targetSdkVersion = Integer.parseInt(targetSdkText);
         }
 
         maxSdkVersion =
@@ -243,6 +238,9 @@ public class AndroidManifest implements UsesSdk {
         System.out.println("Falling back to the Android OS resources only.");
         System.out.println(
             "To remove this warning, annotate your test class with @Config(manifest=Config.NONE).");
+        System.out.println(
+            "If you're using Android Gradle Plugin, add "
+                + "testOptions.unitTests.includeAndroidResources = true to your build.gradle");
       }
 
       if (packageName == null || packageName.equals("")) {
@@ -250,10 +248,6 @@ public class AndroidManifest implements UsesSdk {
       }
 
       rClassName = packageName + ".R";
-
-      if (androidManifestFile != null) {
-        System.err.println("No such manifest file: " + androidManifestFile);
-      }
     }
 
     manifestIsParsed = true;
@@ -620,12 +614,12 @@ public class AndroidManifest implements UsesSdk {
    * <p>Note that if {@link #targetSdkVersion} isn't set, this value changes the behavior of some
    * Android code (notably {@link android.content.SharedPreferences}) to emulate old bugs.
    *
-   * @return the minimum SDK version, or Jelly Bean (16) by default
+   * @return the minimum SDK version, or Lollipop (21) by default
    */
   @Override
   public int getMinSdkVersion() {
     parseAndroidManifest();
-    return minSdkVersion == null ? 16 : minSdkVersion;
+    return minSdkVersion == null ? 21 : minSdkVersion;
   }
 
   /**
@@ -635,7 +629,7 @@ public class AndroidManifest implements UsesSdk {
    * <p>Note that this value changes the behavior of some Android code (notably {@link
    * android.content.SharedPreferences}) to emulate old bugs.
    *
-   * @return the minimum SDK version, or Jelly Bean (16) by default
+   * @return the target SDK version, or Lollipop (21) by default
    */
   @Override
   public int getTargetSdkVersion() {
@@ -856,9 +850,6 @@ public class AndroidManifest implements UsesSdk {
   /** @deprecated Do not use. */
   @Deprecated
   synchronized public boolean supportsBinaryResourcesMode() {
-    if (supportsBinaryResourcesMode == null) {
-      supportsBinaryResourcesMode = apkFile != null && Files.exists(apkFile);
-    }
-    return supportsBinaryResourcesMode;
+    return true;
   }
 }

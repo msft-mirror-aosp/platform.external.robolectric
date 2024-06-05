@@ -18,7 +18,7 @@ java_library_host {
         "Robolectric_shadowapi_upstream",
         "robolectric-host-android-support-multidex_upstream",
         "robolectric-javax.annotation-api-1.2",
-        "robolectric-host-android_all_upstream",
+        "robolectric-host-android_all",
     ],
     plugins: ["Robolectric_processor_upstream"],
     javacflags: ["-Aorg.robolectric.annotation.processing.shadowPackage=org.robolectric.shadows.multidex"],

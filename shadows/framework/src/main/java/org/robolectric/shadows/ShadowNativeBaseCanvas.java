@@ -21,18 +21,20 @@ import org.robolectric.nativeruntime.BaseCanvasNatives;
 import org.robolectric.shadows.ShadowNativeBaseCanvas.Picker;
 import org.robolectric.util.reflector.Accessor;
 import org.robolectric.util.reflector.ForType;
+import org.robolectric.versioning.AndroidVersions.U;
 
 /** Shadow for {@link BaseCanvas} that is backed by native code */
 @Implements(
     value = BaseCanvas.class,
     minSdk = O,
     shadowPicker = Picker.class,
-    isInAndroidSdk = false)
+    isInAndroidSdk = false,
+    callNativeMethodsByDefault = true)
 public class ShadowNativeBaseCanvas extends ShadowCanvas {
 
   @RealObject BaseCanvas realBaseCanvas;
 
-  @Implementation(minSdk = Q)
+  @Implementation(minSdk = Q, maxSdk = U.SDK_INT)
   protected static void nDrawBitmap(
       long nativeCanvas,
       long bitmapHandle,
@@ -53,7 +55,7 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
         bitmapDensity);
   }
 
-  @Implementation(minSdk = Q)
+  @Implementation(minSdk = Q, maxSdk = U.SDK_INT)
   protected static void nDrawBitmap(
       long nativeCanvas,
       long bitmapHandle,
@@ -84,7 +86,7 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
         bitmapDensity);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawBitmap(
       long nativeCanvas,
       int[] colors,
@@ -152,64 +154,64 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
         bitmapDensity);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawColor(long nativeCanvas, int color, int mode) {
     BaseCanvasNatives.nDrawColor(nativeCanvas, color, mode);
   }
 
-  @Implementation(minSdk = Q)
+  @Implementation(minSdk = Q, maxSdk = U.SDK_INT)
   protected static void nDrawColor(
       long nativeCanvas, long nativeColorSpace, @ColorLong long color, int mode) {
     BaseCanvasNatives.nDrawColor(nativeCanvas, nativeColorSpace, color, mode);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawPaint(long nativeCanvas, long nativePaint) {
     BaseCanvasNatives.nDrawPaint(nativeCanvas, nativePaint);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawPoint(long canvasHandle, float x, float y, long paintHandle) {
     BaseCanvasNatives.nDrawPoint(canvasHandle, x, y, paintHandle);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawPoints(
       long canvasHandle, float[] pts, int offset, int count, long paintHandle) {
     BaseCanvasNatives.nDrawPoints(canvasHandle, pts, offset, count, paintHandle);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawLine(
       long nativeCanvas, float startX, float startY, float stopX, float stopY, long nativePaint) {
     BaseCanvasNatives.nDrawLine(nativeCanvas, startX, startY, stopX, stopY, nativePaint);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawLines(
       long canvasHandle, float[] pts, int offset, int count, long paintHandle) {
     BaseCanvasNatives.nDrawLines(canvasHandle, pts, offset, count, paintHandle);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawRect(
       long nativeCanvas, float left, float top, float right, float bottom, long nativePaint) {
     BaseCanvasNatives.nDrawRect(nativeCanvas, left, top, right, bottom, nativePaint);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawOval(
       long nativeCanvas, float left, float top, float right, float bottom, long nativePaint) {
     BaseCanvasNatives.nDrawOval(nativeCanvas, left, top, right, bottom, nativePaint);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawCircle(
       long nativeCanvas, float cx, float cy, float radius, long nativePaint) {
     BaseCanvasNatives.nDrawCircle(nativeCanvas, cx, cy, radius, nativePaint);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawArc(
       long nativeCanvas,
       float left,
@@ -224,7 +226,7 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
         nativeCanvas, left, top, right, bottom, startAngle, sweep, useCenter, nativePaint);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawRoundRect(
       long nativeCanvas,
       float left,
@@ -237,7 +239,7 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
     BaseCanvasNatives.nDrawRoundRect(nativeCanvas, left, top, right, bottom, rx, ry, nativePaint);
   }
 
-  @Implementation(minSdk = Q)
+  @Implementation(minSdk = Q, maxSdk = U.SDK_INT)
   protected static void nDrawDoubleRoundRect(
       long nativeCanvas,
       float outerLeft,
@@ -270,7 +272,7 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
         nativePaint);
   }
 
-  @Implementation(minSdk = Q)
+  @Implementation(minSdk = Q, maxSdk = U.SDK_INT)
   protected static void nDrawDoubleRoundRect(
       long nativeCanvas,
       float outerLeft,
@@ -299,17 +301,17 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
         nativePaint);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawPath(long nativeCanvas, long nativePath, long nativePaint) {
     BaseCanvasNatives.nDrawPath(nativeCanvas, nativePath, nativePaint);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawRegion(long nativeCanvas, long nativeRegion, long nativePaint) {
     BaseCanvasNatives.nDrawRegion(nativeCanvas, nativeRegion, nativePaint);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawNinePatch(
       long nativeCanvas,
       long nativeBitmap,
@@ -334,7 +336,7 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
         bitmapDensity);
   }
 
-  @Implementation(minSdk = Q)
+  @Implementation(minSdk = Q, maxSdk = U.SDK_INT)
   protected static void nDrawBitmapMatrix(
       long nativeCanvas, long bitmapHandle, long nativeMatrix, long nativePaint) {
     BaseCanvasNatives.nDrawBitmapMatrix(nativeCanvas, bitmapHandle, nativeMatrix, nativePaint);
@@ -347,7 +349,7 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
         nativeCanvas, bitmap.getNativeInstance(), nativeMatrix, nativePaint);
   }
 
-  @Implementation(minSdk = Q)
+  @Implementation(minSdk = Q, maxSdk = U.SDK_INT)
   protected static void nDrawBitmapMesh(
       long nativeCanvas,
       long bitmapHandle,
@@ -393,7 +395,7 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
         nativePaint);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawVertices(
       long nativeCanvas,
       int mode,
@@ -424,7 +426,7 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
         nativePaint);
   }
 
-  @Implementation(minSdk = S)
+  @Implementation(minSdk = S, maxSdk = U.SDK_INT)
   protected static void nDrawGlyphs(
       long nativeCanvas,
       int[] glyphIds,
@@ -445,7 +447,7 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
         nativePaint);
   }
 
-  @Implementation(minSdk = P)
+  @Implementation(minSdk = P, maxSdk = U.SDK_INT)
   protected static void nDrawText(
       long nativeCanvas,
       char[] text,
@@ -460,7 +462,7 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
     BaseCanvasNatives.nDrawText(nativeCanvas, text, index, count, x, y, flags, nativePaint);
   }
 
-  @Implementation(minSdk = P)
+  @Implementation(minSdk = P, maxSdk = U.SDK_INT)
   protected static void nDrawText(
       long nativeCanvas,
       String text,
@@ -509,7 +511,7 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
         nativeCanvas, text, start, end, x, y, flags, nativePaint, nativeTypeface);
   }
 
-  @Implementation(minSdk = P)
+  @Implementation(minSdk = P, maxSdk = U.SDK_INT)
   protected static void nDrawTextRun(
       long nativeCanvas,
       String text,
@@ -531,7 +533,7 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
    * The signature of this method is the same from SDK levels O and above, but the last native
    * pointer changed from a Typeface pointer to a MeasuredParagraph pointer in P.
    */
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = U.SDK_INT)
   protected static void nDrawTextRun(
       long nativeCanvas,
       char[] text,
@@ -604,7 +606,7 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
         nativeTypeface);
   }
 
-  @Implementation(minSdk = P)
+  @Implementation(minSdk = P, maxSdk = U.SDK_INT)
   protected static void nDrawTextOnPath(
       long nativeCanvas,
       char[] text,
@@ -621,7 +623,7 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
         nativeCanvas, text, index, count, nativePath, hOffset, vOffset, bidiFlags, nativePaint);
   }
 
-  @Implementation(minSdk = P)
+  @Implementation(minSdk = P, maxSdk = U.SDK_INT)
   protected static void nDrawTextOnPath(
       long nativeCanvas,
       String text,
@@ -685,7 +687,7 @@ public class ShadowNativeBaseCanvas extends ShadowCanvas {
     BaseCanvasNatives.nPunchHole(renderer, left, top, right, bottom, rx, ry);
   }
 
-  @Implementation(minSdk = 10000)
+  @Implementation(minSdk = U.SDK_INT, maxSdk = U.SDK_INT)
   protected static void nPunchHole(
       long renderer,
       float left,

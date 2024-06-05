@@ -1,6 +1,7 @@
 package org.robolectric.shadows;
 
 import static android.hardware.Sensor.TYPE_ACCELEROMETER;
+import static android.hardware.Sensor.TYPE_ALL;
 import static android.hardware.Sensor.TYPE_GYROSCOPE;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
@@ -226,12 +227,39 @@ public class ShadowSensorManagerTest {
   }
 
   @Test
-  public void shouldReturnASensorList() {
-    assertThat(sensorManager.getSensorList(0)).isNotNull();
+  public void shouldReturnEmptySensorListIfNoneCreated() {
+    assertThat(sensorManager.getSensorList(0)).isEmpty();
   }
 
   @Test
-  @Config(minSdk = Build.VERSION_CODES.KITKAT)
+  public void shouldReturnAllRelevantSensorsForGivenType() {
+    ShadowSensorManager shadowSensorManager = shadowOf(sensorManager);
+    Sensor gyroscopeSensor1 = ShadowSensor.newInstance(TYPE_GYROSCOPE);
+    Sensor gyroscopeSensor2 = ShadowSensor.newInstance(TYPE_GYROSCOPE);
+    Sensor irrelevantAccelSensor1 = ShadowSensor.newInstance(TYPE_ACCELEROMETER);
+
+    shadowSensorManager.addSensor(gyroscopeSensor1);
+    shadowSensorManager.addSensor(gyroscopeSensor2);
+    shadowSensorManager.addSensor(irrelevantAccelSensor1);
+    List<Sensor> allGyroSensors = sensorManager.getSensorList(TYPE_GYROSCOPE);
+
+    assertThat(allGyroSensors).containsExactly(gyroscopeSensor1, gyroscopeSensor2);
+  }
+
+  @Test
+  public void shouldReturnAllSensorsInAList() {
+    List<Sensor> multipleShadowSensors = new ArrayList<>();
+    multipleShadowSensors.add(ShadowSensor.newInstance(TYPE_ACCELEROMETER));
+    multipleShadowSensors.add(ShadowSensor.newInstance(TYPE_GYROSCOPE));
+    shadow.addSensor(multipleShadowSensors.get(0));
+    shadow.addSensor(multipleShadowSensors.get(1));
+
+    List<Sensor> allRetrievedSensors = sensorManager.getSensorList(TYPE_ALL);
+
+    assertThat(allRetrievedSensors).containsExactlyElementsIn(multipleShadowSensors);
+  }
+
+  @Test
   public void flush_shouldCallOnFlushCompleted() {
     Sensor accelSensor = ShadowSensor.newInstance(TYPE_ACCELEROMETER);
     Sensor gyroSensor = ShadowSensor.newInstance(TYPE_GYROSCOPE);

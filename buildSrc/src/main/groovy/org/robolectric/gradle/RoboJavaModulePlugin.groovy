@@ -11,11 +11,11 @@ class RoboJavaModulePlugin implements Plugin<Project> {
 
         def skipErrorprone = System.getenv('SKIP_ERRORPRONE') == "true"
         if (!skipErrorprone) {
-          apply plugin: "net.ltgt.errorprone"
-          project.dependencies {
-            errorprone(libs.error.prone.core)
-            errorproneJavac(libs.error.prone.javac)
-          }
+            apply plugin: "net.ltgt.errorprone"
+            project.dependencies {
+                errorprone(libs.error.prone.core)
+                errorproneJavac(libs.error.prone.javac)
+            }
         }
 
         apply plugin: AarDepsPlugin
@@ -23,7 +23,7 @@ class RoboJavaModulePlugin implements Plugin<Project> {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
 
-        tasks.withType(JavaCompile) { task ->
+        tasks.withType(JavaCompile).configureEach { task ->
             sourceCompatibility = JavaVersion.VERSION_1_8
             targetCompatibility = JavaVersion.VERSION_1_8
 
@@ -61,16 +61,29 @@ class RoboJavaModulePlugin implements Plugin<Project> {
             }
 
             minHeapSize = "1024m"
-            maxHeapSize = "8192m"
+            maxHeapSize = "12288m"
 
             if (System.env['GRADLE_MAX_PARALLEL_FORKS'] != null) {
                 maxParallelForks = Integer.parseInt(System.env['GRADLE_MAX_PARALLEL_FORKS'])
             }
 
             def forwardedSystemProperties = System.properties
-                    .findAll { k,v -> k.startsWith("robolectric.") }
-                    .collect { k,v -> "-D$k=$v" }
+                    .findAll { k, v -> k.startsWith("robolectric.") }
+                    .collect { k, v -> "-D$k=$v" }
             jvmArgs = forwardedSystemProperties
+            jvmArgs += [
+                    '--add-opens=java.base/java.lang=ALL-UNNAMED',
+                    '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
+                    '--add-opens=java.base/java.io=ALL-UNNAMED',
+                    '--add-opens=java.base/java.net=ALL-UNNAMED',
+                    '--add-opens=java.base/java.security=ALL-UNNAMED',
+                    '--add-opens=java.base/java.text=ALL-UNNAMED',
+                    '--add-opens=java.base/java.util=ALL-UNNAMED',
+                    '--add-opens=java.desktop/java.awt.font=ALL-UNNAMED',
+                    '--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
+                    '--add-opens=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
+                    '--add-opens=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
+            ]
 
             doFirst {
                 if (!forwardedSystemProperties.isEmpty()) {

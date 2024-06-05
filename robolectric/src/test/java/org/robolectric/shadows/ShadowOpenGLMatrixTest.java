@@ -1,14 +1,11 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
 import static com.google.common.truth.Truth.assertThat;
 
 import android.opengl.Matrix;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.annotation.Config;
 
 @RunWith(AndroidJUnit4.class)
 public class ShadowOpenGLMatrixTest {
@@ -357,26 +354,7 @@ public class ShadowOpenGLMatrixTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN, maxSdk = JELLY_BEAN)
-  public void testFrustumM() {
-    // this is actually a bug
-    // https://android.googlesource.com/platform/frameworks/base/+/0a088f5d4681fd2da6f610de157bf905df787bf7
-    // expected[8] should be 1.5
-    // see testFrustumJB_MR1 below
-    float[] expected = new float[]{
-            0.005f, 0, 0, 0,
-            0, 0.02f, 0, 0,
-            3f, 5, -1.020202f, -1,
-            0, 0, -2.020202f, 0,
-    };
-    float[] output = new float[16];
-    Matrix.frustumM(output, 0, 100, 500, 200, 300, 1, 100);
-    assertThat(output).usingExactEquality().containsAtLeast(expected);
-  }
-
-  @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
-  public void testFrustumJB_MR1() {
+  public void testFrustum() {
     float[] expected = new float[]{
             0.005f, 0, 0, 0,
             0, 0.02f, 0, 0,

@@ -712,11 +712,12 @@ public class ResTable {
 //      reinterpret_cast<const uint8_t*>(bestType) + bestOffset);
     final ResTable_entry entry = new ResTable_entry(bestType.myBuf(),
         bestType.myOffset() + bestOffset);
-    if (dtohs(entry.size) < ResTable_entry.SIZEOF) {
+    int entrySize = entry.isCompact() ? ResTable_entry.SIZEOF : dtohs(entry.size);
+    if (entrySize < ResTable_entry.SIZEOF) {
       ALOGW("ResTable_entry size 0x%x is too small", dtohs(entry.size));
       return BAD_TYPE;
     }
-    
+
     if (outEntry != null) {
       outEntry.entry = entry;
       outEntry.config = bestConfig;
@@ -724,7 +725,7 @@ public class ResTable {
       outEntry.specFlags = specFlags;
       outEntry._package_ = bestPackage;
       outEntry.typeStr = new StringPoolRef(bestPackage.typeStrings, actualTypeIndex - bestPackage.typeIdOffset);
-      outEntry.keyStr = new StringPoolRef(bestPackage.keyStrings, dtohl(entry.key.index));
+      outEntry.keyStr = new StringPoolRef(bestPackage.keyStrings, dtohl(entry.getKeyIndex()));
     }
     return NO_ERROR;
   }
@@ -960,10 +961,12 @@ public class ResTable {
             dtohs(type.header.headerSize),
             typeSize));
       }
-      if (dtohs(type.header.headerSize)+(4/*sizeof(int)*/*newEntryCount) > typeSize) {
-        ALOGW("ResTable_type entry index to %s extends beyond chunk end 0x%x.",
-            (dtohs(type.header.headerSize) + (4/*sizeof(int)*/*newEntryCount)),
-            typeSize);
+        // Check if the table uses compact encoding.
+        int bytesPerEntry = isTruthy(type.flags & ResTable_type.FLAG_OFFSET16) ? 2 : 4;
+        if (dtohs(type.header.headerSize) + (bytesPerEntry * newEntryCount) > typeSize) {
+          ALOGW(
+              "ResTable_type entry index to %s extends beyond chunk end 0x%x.",
+              (dtohs(type.header.headerSize) + (bytesPerEntry * newEntryCount)), typeSize);
         return (mError=BAD_TYPE);
       }
 
@@ -1268,13 +1271,30 @@ public class ResTable {
   }
 
   int findEntry(PackageGroup group, int typeIndex, String name, Ref<Integer> outTypeSpecFlags) {
+    // const TypeList& typeList = group->types[typeIndex];
     List<Type> typeList = getOrDefault(group.types, typeIndex, Collections.emptyList());
+    // const size_t typeCount = typeList.size();
+    // for (size_t i = 0; i < typeCount; i++) {
     for (Type type : typeList) {
+      // const Type* t = typeList[i];
+      //  const base::expected<size_t, NullOrIOError> ei =
+      //    t->package->keyStrings.indexOfString(name, nameLen);
       int ei = type._package_.keyStrings.indexOfString(name);
+      // if (!ei.has_value()) {
       if (ei < 0) {
         continue;
       }
+      // const size_t configCount = t->configs.size();
+      // for (size_t j = 0; j < configCount; j++) {
       for (ResTable_type resTableType : type.configs) {
+        // const TypeVariant tv(t->configs[j]);
+        // for (TypeVariant::iterator iter = tv.beginEntries();
+        //     iter != tv.endEntries();
+        // iter++) {
+        //         const ResTable_entry* entry = *iter;
+        //   if (entry == NULL) {
+        //     continue;
+        //   }
         int entryIndex = resTableType.findEntryByResName(ei);
         if (entryIndex >= 0) {
           int resId = Res_MAKEID(group.id - 1, typeIndex, entryIndex);

@@ -11,8 +11,10 @@ package {
     default_applicable_licenses: ["external_robolectric_license"],
 }
 
-java_library_host {
+java_library {
     name: "Robolectric_shadows_framework_upstream",
+    host_supported: true,
+    device_supported: false,
     srcs: [
         "src/main/java/**/*.java",
         "src/main/java/**/*.kt",
@@ -21,6 +23,7 @@ java_library_host {
     javacflags: [
         "-Aorg.robolectric.annotation.processing.shadowPackage=org.robolectric",
         "-Aorg.robolectric.annotation.processing.sdkCheckMode=ERROR",
+        "-Aorg.robolectric.annotation.processing.validateCompileSdk=true",
         // Uncomment the below to debug annotation processors not firing.
         //"-verbose",
         //"-XprintRounds",
@@ -35,19 +38,14 @@ java_library_host {
         "Robolectric_pluginapi_upstream",
         "Robolectric_sandbox_upstream",
         "Robolectric_shadowapi_upstream",
+        "Robolectric_shadows_versioning_upstream",
         "Robolectric_utils_upstream",
         "Robolectric_utils_reflector_upstream",
         "auto_value_annotations",
-        //jetpack
-        //"androidx.annotation_annotation-nodeps",
         "jsr305",
         "icu4j",
-
         "robolectric-accessibility-test-framework-2.1",
         "robolectric-javax.annotation-api-1.2",
-        //"hamcrest-library",
-        //"hamcrest",
-        //"stub-annotations",
         "robolectric-sqlite4java-0.282",
         "asm-commons-9.2",
         "guava",
@@ -55,9 +53,10 @@ java_library_host {
         "asm-9.2",
         //standard tools
         "error_prone_annotations",
-        //"grpc-java-netty-shaded",
         // aar files that make up android and jetpack
-        "robolectric-host-android_all_upstream",
+        "robolectric-host-android_all",
+        "robolectric-host-androidx-test-core_upstream",
+        "robolectric-host-androidx-test-monitor_upstream",
     ],
     plugins: [
         "auto_value_plugin_1.9",

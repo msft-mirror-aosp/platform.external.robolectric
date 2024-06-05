@@ -1,7 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -62,7 +60,6 @@ import org.robolectric.R;
 import org.robolectric.Robolectric;
 import org.robolectric.android.DeviceConfig;
 import org.robolectric.android.controller.ActivityController;
-import org.robolectric.annotation.Config;
 import org.robolectric.util.TestRunnable;
 
 @RunWith(AndroidJUnit4.class)
@@ -426,8 +423,14 @@ public class ShadowViewTest {
 
   @Test
   public void scrollTo_shouldStoreTheScrolledCoordinates() throws Exception {
-    view.scrollTo(1, 2);
-    assertThat(shadowOf(view).scrollToCoordinates).isEqualTo(new Point(1, 2));
+    // This test depends on broken scrolling behavior.
+    System.setProperty("robolectric.useRealScrolling", "false");
+    try {
+      view.scrollTo(1, 2);
+      assertThat(shadowOf(view).scrollToCoordinates).isEqualTo(new Point(1, 2));
+    } finally {
+      System.clearProperty("robolectric.useRealScrolling");
+    }
   }
 
   @Test
@@ -440,12 +443,18 @@ public class ShadowViewTest {
 
   @Test
   public void scrollBy_shouldStoreTheScrolledCoordinates() throws Exception {
-    view.scrollTo(4, 5);
-    view.scrollBy(10, 20);
-    assertThat(shadowOf(view).scrollToCoordinates).isEqualTo(new Point(14, 25));
+    // This test depends on broken scrolling behavior.
+    System.setProperty("robolectric.useRealScrolling", "false");
+    try {
+      view.scrollTo(4, 5);
+      view.scrollBy(10, 20);
+      assertThat(shadowOf(view).scrollToCoordinates).isEqualTo(new Point(14, 25));
 
-    assertThat(view.getScrollX()).isEqualTo(14);
-    assertThat(view.getScrollY()).isEqualTo(25);
+      assertThat(view.getScrollX()).isEqualTo(14);
+      assertThat(view.getScrollY()).isEqualTo(25);
+    } finally {
+      System.clearProperty("robolectric.useRealScrolling");
+    }
   }
 
   @Test
@@ -667,7 +676,6 @@ public class ShadowViewTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void cameraDistance() {
     view.setCameraDistance(100f);
     assertThat(view.getCameraDistance()).isEqualTo(100f);
@@ -700,7 +708,6 @@ public class ShadowViewTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void elevation() {
     view.setElevation(10f);
     assertThat(view.getElevation()).isEqualTo(10f);
@@ -719,14 +726,12 @@ public class ShadowViewTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void translationZ() {
     view.setTranslationZ(10f);
     assertThat(view.getTranslationZ()).isEqualTo(10f);
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void clipToOutline() {
     view.setClipToOutline(true);
     assertThat(view.getClipToOutline()).isTrue();
@@ -866,7 +871,7 @@ public class ShadowViewTest {
     assertFalse(shadowOf(temporaryChild).isAttachedToWindow());
   }
 
-  @Test @Config(minSdk = JELLY_BEAN_MR2)
+  @Test
   public void getWindowId_shouldReturnValidObjectWhenAttached() throws Exception {
     MyView parent = new MyView("parent", transcript);
     MyView child = new MyView("child", transcript);

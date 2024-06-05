@@ -1,11 +1,10 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
-import static android.os.Build.VERSION_CODES.KITKAT;
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.LOLLIPOP_MR1;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.Q;
+import static android.os.Build.VERSION_CODES.R;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -38,6 +37,30 @@ public class ShadowEnvironmentTest {
   }
 
   @Test
+  @Config(minSdk = R)
+  public void getStorageDirectory_storageDirectoryUnset_shouldReturnDefaultDirectory() {
+    assertThat(Environment.getStorageDirectory().getAbsolutePath()).isEqualTo("/storage");
+  }
+
+  @Test
+  @Config(minSdk = R)
+  public void setStorageDirectory_shouldReturnDirectory() {
+    // state prior to override
+    File defaultDir = Environment.getStorageDirectory();
+    // override
+    Path expectedPath = FileSystems.getDefault().getPath("/tmp", "foo");
+    ShadowEnvironment.setStorageDirectory(expectedPath);
+    File override = Environment.getStorageDirectory();
+    assertThat(override.getAbsolutePath()).isEqualTo(expectedPath.toAbsolutePath().toString());
+
+    // restore default value by supplying {@code null}
+    ShadowEnvironment.setStorageDirectory(null);
+
+    // verify default
+    assertThat(defaultDir).isEqualTo(Environment.getStorageDirectory());
+  }
+
+  @Test
   public void getExternalStorageDirectory_shouldReturnDirectory() {
     assertThat(Environment.getExternalStorageDirectory().exists()).isTrue();
   }
@@ -67,6 +90,45 @@ public class ShadowEnvironmentTest {
   }
 
   @Test
+  public void setExternalStoragePublicDirectory_shouldReturnDirectory() {
+    // state prior to override
+    File defaultDir = Environment.getExternalStoragePublicDirectory(/* type= */ null);
+    // override
+    Path overrideRootPath = FileSystems.getDefault().getPath("/tmp", "foo");
+    ShadowEnvironment.setExternalStoragePublicDirectory(overrideRootPath);
+    File overridePathResult = Environment.getExternalStoragePublicDirectory(/* type= */ null);
+    assertThat(overridePathResult.getAbsolutePath())
+        .isEqualTo(overrideRootPath.toAbsolutePath().toString());
+
+    // restore default value by supplying {@code null}
+    ShadowEnvironment.setExternalStoragePublicDirectory(null);
+
+    // verify default
+    assertThat(defaultDir)
+        .isEqualTo(Environment.getExternalStoragePublicDirectory(/* type= */ null));
+  }
+
+  @Test
+  public void setExternalStoragePublicDirectory_withType_shouldReturnDirectory() {
+    // state prior to override
+    File defaultDir = Environment.getExternalStoragePublicDirectory(/* type= */ "something");
+    // override
+    Path overrideRootPath = FileSystems.getDefault().getPath("/tmp", "foo");
+    ShadowEnvironment.setExternalStoragePublicDirectory(overrideRootPath);
+    File overridePathResult =
+        Environment.getExternalStoragePublicDirectory(/* type= */ "something");
+    assertThat(overridePathResult.getAbsolutePath())
+        .isEqualTo(overrideRootPath.resolve("something").toAbsolutePath().toString());
+
+    // restore default value by supplying {@code null}
+    ShadowEnvironment.setExternalStoragePublicDirectory(null);
+
+    // verify default
+    assertThat(defaultDir)
+        .isEqualTo(Environment.getExternalStoragePublicDirectory(/* type= */ "something"));
+  }
+
+  @Test
   public void getExternalStoragePublicDirectory_shouldReturnSameDirectory() {
     File path1 = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES);
     File path2 = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES);
@@ -89,7 +151,6 @@ public class ShadowEnvironmentTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isExternalStorageRemovable_shouldReturnSavedValue() {
     final File file = new File("/mnt/media/file");
     assertThat(Environment.isExternalStorageRemovable(file)).isFalse();
@@ -98,7 +159,6 @@ public class ShadowEnvironmentTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isExternalStorageEmulated_shouldReturnSavedValue() {
     final File file = new File("/mnt/media/file");
     assertThat(Environment.isExternalStorageEmulated(file)).isFalse();
@@ -116,7 +176,6 @@ public class ShadowEnvironmentTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void storageIsLazy() {
     assertNull(ShadowEnvironment.EXTERNAL_CACHE_DIR);
     assertNull(ShadowEnvironment.EXTERNAL_FILES_DIR);
@@ -129,7 +188,6 @@ public class ShadowEnvironmentTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void reset_shouldClearRemovableFiles() {
     final File file = new File("foo");
     ShadowEnvironment.setExternalStorageRemovable(file, true);
@@ -140,7 +198,6 @@ public class ShadowEnvironmentTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void reset_shouldClearEmulatedFiles() {
     final File file = new File("foo");
     ShadowEnvironment.setExternalStorageEmulated(file, true);
@@ -151,7 +208,6 @@ public class ShadowEnvironmentTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void reset_shouldResetExternalStorageState() {
     ShadowEnvironment.setExternalStorageState(Environment.MEDIA_UNKNOWN);
     ShadowEnvironment.reset();
@@ -178,7 +234,6 @@ public class ShadowEnvironmentTest {
   // TODO: failing test
   @Ignore
   @Test
-  @Config(minSdk = KITKAT)
   public void getExternalFilesDirs() throws Exception {
     ShadowEnvironment.addExternalDir("external_dir_1");
     ShadowEnvironment.addExternalDir("external_dir_2");
@@ -198,14 +253,7 @@ public class ShadowEnvironmentTest {
   }
 
   @Test
-  @Config(sdk = JELLY_BEAN_MR1)
-  public void getExternalStorageStateJB() {
-    ShadowEnvironment.setExternalStorageState("blah");
-    assertThat(ShadowEnvironment.getExternalStorageState()).isEqualTo("blah");
-  }
-
-  @Test
-  @Config(minSdk = KITKAT, maxSdk = LOLLIPOP)
+  @Config(maxSdk = LOLLIPOP)
   public void getExternalStorageStatePreLollipopMR1() {
     File storageDir1 = ShadowEnvironment.addExternalDir("dir1");
     File storageDir2 = ShadowEnvironment.addExternalDir("dir2");

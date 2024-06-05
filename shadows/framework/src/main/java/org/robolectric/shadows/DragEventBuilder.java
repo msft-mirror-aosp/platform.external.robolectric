@@ -2,12 +2,13 @@ package org.robolectric.shadows;
 
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.R;
+import static android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
 
+import android.annotation.Nullable;
 import android.content.ClipData;
 import android.content.ClipDescription;
 import android.view.DragEvent;
 import android.view.SurfaceControl;
-import androidx.annotation.Nullable;
 import com.android.internal.view.IDragAndDropPermissions;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.util.ReflectionHelpers;
@@ -89,6 +90,21 @@ public class DragEventBuilder {
           ClassParameter.from(ClipData.class, clipData),
           ClassParameter.from(IDragAndDropPermissions.class, null),
           ClassParameter.from(boolean.class, result));
+    } else if (api <= UPSIDE_DOWN_CAKE) {
+      return ReflectionHelpers.callStaticMethod(
+          DragEvent.class,
+          "obtain",
+          ClassParameter.from(int.class, action),
+          ClassParameter.from(float.class, x),
+          ClassParameter.from(float.class, y),
+          ClassParameter.from(float.class, 0),
+          ClassParameter.from(float.class, 0),
+          ClassParameter.from(Object.class, localState),
+          ClassParameter.from(ClipDescription.class, clipDescription),
+          ClassParameter.from(ClipData.class, clipData),
+          ClassParameter.from(SurfaceControl.class, null),
+          ClassParameter.from(IDragAndDropPermissions.class, null),
+          ClassParameter.from(boolean.class, result));
     } else {
       return ReflectionHelpers.callStaticMethod(
           DragEvent.class,
@@ -98,6 +114,7 @@ public class DragEventBuilder {
           ClassParameter.from(float.class, y),
           ClassParameter.from(float.class, 0),
           ClassParameter.from(float.class, 0),
+          ClassParameter.from(int.class, 0),
           ClassParameter.from(Object.class, localState),
           ClassParameter.from(ClipDescription.class, clipDescription),
           ClassParameter.from(ClipData.class, clipData),

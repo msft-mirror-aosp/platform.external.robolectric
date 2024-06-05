@@ -3,6 +3,7 @@ package org.robolectric.shadows;
 import static android.app.AlarmManager.RTC_WAKEUP;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
+import android.annotation.Nullable;
 import android.app.AlarmManager;
 import android.app.AlarmManager.AlarmClockInfo;
 import android.app.AlarmManager.OnAlarmListener;
@@ -14,9 +15,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.os.WorkSource;
-import androidx.annotation.GuardedBy;
-import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
+import com.android.internal.annotations.GuardedBy;
 import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.List;
@@ -117,7 +116,7 @@ public class ShadowAlarmManager {
     setImpl(type, triggerAtMs, WINDOW_HEURISTIC, intervalMs, operation, null, null, false);
   }
 
-  @Implementation(minSdk = VERSION_CODES.KITKAT)
+  @Implementation
   protected void setWindow(
       int type, long windowStartMs, long windowLengthMs, PendingIntent operation) {
     setImpl(type, windowStartMs, windowLengthMs, 0L, operation, null, null, false);
@@ -179,7 +178,7 @@ public class ShadowAlarmManager {
     setImpl(type, windowStartMs, windowLengthMs, 0L, tag, listener, executor, null, true);
   }
 
-  @Implementation(minSdk = VERSION_CODES.KITKAT)
+  @Implementation
   protected void setExact(int type, long triggerAtMs, PendingIntent operation) {
     setImpl(type, triggerAtMs, WINDOW_EXACT, 0L, operation, null, null, false);
   }
@@ -203,13 +202,12 @@ public class ShadowAlarmManager {
         false);
   }
 
-  @RequiresApi(VERSION_CODES.LOLLIPOP)
-  @Implementation(minSdk = VERSION_CODES.LOLLIPOP)
+  @Implementation
   protected void setAlarmClock(AlarmClockInfo info, PendingIntent operation) {
     setImpl(RTC_WAKEUP, info.getTriggerTime(), WINDOW_EXACT, 0L, operation, null, info, true);
   }
 
-  @Implementation(minSdk = VERSION_CODES.KITKAT)
+  @Implementation
   protected void set(
       int type,
       long triggerAtMs,
@@ -355,8 +353,7 @@ public class ShadowAlarmManager {
     return canScheduleExactAlarms;
   }
 
-  @RequiresApi(VERSION_CODES.LOLLIPOP)
-  @Implementation(minSdk = VERSION_CODES.LOLLIPOP)
+  @Implementation
   @Nullable
   protected AlarmClockInfo getNextAlarmClock() {
     synchronized (scheduledAlarms) {
@@ -533,9 +530,7 @@ public class ShadowAlarmManager {
           WINDOW_HEURISTIC,
           operation,
           null,
-          VERSION.SDK_INT >= VERSION_CODES.LOLLIPOP && showIntent != null
-              ? new AlarmClockInfo(triggerAtMs, showIntent)
-              : null,
+          showIntent != null ? new AlarmClockInfo(triggerAtMs, showIntent) : null,
           allowWhileIdle);
     }
 
@@ -561,7 +556,7 @@ public class ShadowAlarmManager {
       this.allowWhileIdle = allowWhileIdle;
 
       this.handler = null;
-      if (VERSION.SDK_INT >= VERSION_CODES.LOLLIPOP && alarmClockInfo != null) {
+      if (alarmClockInfo != null) {
         this.showIntent = ((AlarmClockInfo) alarmClockInfo).getShowIntent();
       } else {
         this.showIntent = null;
@@ -596,7 +591,7 @@ public class ShadowAlarmManager {
       } else {
         this.handler = null;
       }
-      if (VERSION.SDK_INT >= VERSION_CODES.LOLLIPOP && alarmClockInfo != null) {
+      if (alarmClockInfo != null) {
         this.showIntent = ((AlarmClockInfo) alarmClockInfo).getShowIntent();
       } else {
         this.showIntent = null;
@@ -646,7 +641,6 @@ public class ShadowAlarmManager {
       return workSource;
     }
 
-    @RequiresApi(VERSION_CODES.LOLLIPOP)
     @Nullable
     public AlarmClockInfo getAlarmClockInfo() {
       return (AlarmClockInfo) alarmClockInfo;

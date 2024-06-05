@@ -1,11 +1,9 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
 import static android.os.Build.VERSION_CODES.KITKAT;
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.Q;
+import static android.os.Build.VERSION_CODES.TIRAMISU;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 import static org.robolectric.Shadows.shadowOf;
@@ -87,18 +85,26 @@ public class ShadowContextImplTest {
         .isFalse();
   }
 
-  @Config(minSdk = KITKAT)
   @Test
-  public void getExternalFilesDirs() {
+  public void getExternalFilesDirs_withType_returnFolderWithGivenTypeName() {
     File[] dirs = context.getExternalFilesDirs("something");
     assertThat(dirs).asList().hasSize(1);
     assertThat(dirs[0].isDirectory()).isTrue();
     assertThat(dirs[0].canWrite()).isTrue();
     assertThat(dirs[0].getName()).isEqualTo("something");
+    assertThat(dirs[0].getParentFile().getName()).isEqualTo(context.getPackageName());
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
+  public void getExternalFilesDirs_withNullType_returnFolderWithPackageName() {
+    File[] dirs = context.getExternalFilesDirs(null);
+    assertThat(dirs).asList().hasSize(1);
+    assertThat(dirs[0].isDirectory()).isTrue();
+    assertThat(dirs[0].canWrite()).isTrue();
+    assertThat(dirs[0].getName()).isEqualTo(context.getPackageName());
+  }
+
+  @Test
   public void getSystemService_shouldReturnBluetoothAdapter() {
     assertThat(context.getSystemService(Context.BLUETOOTH_SERVICE))
         .isInstanceOf(BluetoothManager.class);
@@ -181,7 +187,6 @@ public class ShadowContextImplTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void bindServiceAsUser() {
     Intent serviceIntent = new Intent().setPackage("dummy.package");
     ServiceConnection serviceConnection = buildServiceConnection();
@@ -196,7 +201,6 @@ public class ShadowContextImplTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void bindServiceAsUser_shouldThrowOnImplicitIntent() {
     Intent serviceIntent = new Intent();
     ServiceConnection serviceConnection = buildServiceConnection();
@@ -322,7 +326,6 @@ public class ShadowContextImplTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void sendBroadcastAsUser_sendBroadcast() {
     UserHandle userHandle = Process.myUserHandle();
     String action = "foo-action";
@@ -335,7 +338,18 @@ public class ShadowContextImplTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
+  @Config(minSdk = TIRAMISU)
+  public void sendBroadcastWithBundle_sendBroadcast() {
+    String action = "foo-action";
+    Bundle options = new Bundle();
+    Intent intent = new Intent(action);
+    context.sendBroadcast(intent, null, options);
+
+    assertThat(shadowOf(context).getBroadcastIntents().get(0).getAction()).isEqualTo(action);
+    assertThat(shadowOf(context).getBroadcastOptions(intent)).isEqualTo(options);
+  }
+
+  @Test
   public void sendOrderedBroadcastAsUser_sendsBroadcast() {
     UserHandle userHandle = Process.myUserHandle();
     String action = "foo-action";
@@ -366,7 +380,6 @@ public class ShadowContextImplTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void startActivityAsUser() {
     Intent intent = new Intent();
     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
@@ -379,13 +392,11 @@ public class ShadowContextImplTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
   public void getUserId_returns0() {
     assertThat(context.getUserId()).isEqualTo(0);
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
   public void getUserId_userIdHasBeenSet_returnsCorrectUserId() {
     int userId = 10;
     shadowContext.setUserId(userId);

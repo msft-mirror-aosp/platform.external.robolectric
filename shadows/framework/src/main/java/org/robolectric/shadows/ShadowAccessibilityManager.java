@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.KITKAT;
 import static android.os.Build.VERSION_CODES.O;
 import static android.os.Build.VERSION_CODES.O_MR1;
 import static org.robolectric.RuntimeEnvironment.getApiLevel;
@@ -75,32 +74,18 @@ public class ShadowAccessibilityManager {
   }
 
   private static AccessibilityManager createInstance(Context context) {
-    if (getApiLevel() >= KITKAT) {
-      AccessibilityManager accessibilityManager =
-          Shadow.newInstance(
-              AccessibilityManager.class,
-              new Class[] {Context.class, IAccessibilityManager.class, int.class},
-              new Object[] {
-                context, ReflectionHelpers.createNullProxy(IAccessibilityManager.class), 0
-              });
-      ReflectionHelpers.setField(
-          accessibilityManager,
-          "mHandler",
-          new MyHandler(context.getMainLooper(), accessibilityManager));
-      return accessibilityManager;
-    } else {
-      AccessibilityManager accessibilityManager =
-          Shadow.newInstance(AccessibilityManager.class, new Class[0], new Object[0]);
-      ReflectionHelpers.setField(
-          accessibilityManager,
-          "mHandler",
-          new MyHandler(context.getMainLooper(), accessibilityManager));
-      ReflectionHelpers.setField(
-          accessibilityManager,
-          "mService",
-          ReflectionHelpers.createNullProxy(IAccessibilityManager.class));
-      return accessibilityManager;
-    }
+    AccessibilityManager accessibilityManager =
+        Shadow.newInstance(
+            AccessibilityManager.class,
+            new Class[] {Context.class, IAccessibilityManager.class, int.class},
+            new Object[] {
+              context, ReflectionHelpers.createNullProxy(IAccessibilityManager.class), 0
+            });
+    ReflectionHelpers.setField(
+        accessibilityManager,
+        "mHandler",
+        new MyHandler(context.getMainLooper(), accessibilityManager));
+    return accessibilityManager;
   }
 
   @Implementation
@@ -126,6 +111,16 @@ public class ShadowAccessibilityManager {
   @Implementation
   protected List<ServiceInfo> getAccessibilityServiceList() {
     return Collections.unmodifiableList(accessibilityServiceList);
+  }
+
+  public void setInteractiveUiTimeout(int interactiveUiTimeoutMillis) {
+    ReflectionHelpers.setField(
+        realAccessibilityManager, "mInteractiveUiTimeout", interactiveUiTimeoutMillis);
+  }
+
+  public void setNonInteractiveUiTimeout(int nonInteractiveUiTimeoutMillis) {
+    ReflectionHelpers.setField(
+        realAccessibilityManager, "mNonInteractiveUiTimeout", nonInteractiveUiTimeoutMillis);
   }
 
   public void setAccessibilityServiceList(List<ServiceInfo> accessibilityServiceList) {
@@ -205,7 +200,7 @@ public class ShadowAccessibilityManager {
               reflector(AccessibilityManagerReflector.class, realAccessibilityManager)
                   .getTouchExplorationStateChangeListeners()
                   .keySet());
-    } else if (getApiLevel() >= KITKAT) {
+    } else {
       listeners =
           new ArrayList<>(
               reflector(AccessibilityManagerReflectorN.class, realAccessibilityManager)

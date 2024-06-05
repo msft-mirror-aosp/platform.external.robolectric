@@ -12,11 +12,13 @@ package {
     default_applicable_licenses: ["external_robolectric_license"],
 }
 
-java_library_host {
+java_library {
     name: "libRobolectric_processor_upstream",
+    host_supported: true,
+    device_supported: false,
     srcs: ["src/main/java/**/*.java"],
     java_resource_dirs: ["src/main/resources"],
-    java_resources: ["sdks.txt"],
+    //java_resources: ["sdks.txt"],
     use_tools_jar: true,
     plugins: [
         "auto_service_plugin",
@@ -24,14 +26,15 @@ java_library_host {
     static_libs: [
         "Robolectric_annotations_upstream",
         "Robolectric_shadowapi_upstream",
-        "auto_service_annotations",
-        "asm-commons-9.2",
-        "guava",
-        "asm-tree-9.2",
-        "gson-prebuilt-jar-2.9.1",
+        "Robolectric_shadows_versioning_upstream",
         "asm-9.2",
-        "jsr305",
+        "asm-commons-9.2",
+        "asm-tree-9.2",
+        "auto_service_annotations",
         "auto-common-1.1.2",
+        "gson",
+        "guava",
+        "jsr305",
     ],
 
     openjdk9: {
@@ -68,8 +71,8 @@ java_test_host {
         "guava",
         "objenesis",
         "junit",
-        "truth-prebuilt",
-        "gson-prebuilt-jar-2.9.1",
+        "truth",
+        "gson",
         "jsr305",
     ],
 

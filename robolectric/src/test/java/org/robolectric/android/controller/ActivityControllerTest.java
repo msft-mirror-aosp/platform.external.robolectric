@@ -15,7 +15,6 @@ import android.app.WindowConfiguration;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.res.Configuration;
-import android.os.Build;
 import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import android.os.Handler;
@@ -185,7 +184,6 @@ public class ActivityControllerTest {
   }
 
   @Test
-  @Config(minSdk = VERSION_CODES.JELLY_BEAN_MR1)
   public void destroy_cleansUpWindowManagerState() {
     WindowManager windowManager = controller.get().getWindowManager();
     ShadowWindowManagerImpl shadowWindowManager =
@@ -254,8 +252,7 @@ public class ActivityControllerTest {
   }
 
   @Test
-  @Config(sdk = Build.VERSION_CODES.KITKAT)
-  public void attach_shouldWorkWithAPI19() {
+  public void attach_shouldWork() {
     MyActivity activity = Robolectric.buildActivity(MyActivity.class).create().get();
     assertThat(activity).isNotNull();
   }

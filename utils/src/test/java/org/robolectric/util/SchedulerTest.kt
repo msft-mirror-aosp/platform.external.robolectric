@@ -1,5 +1,6 @@
 package org.robolectric.util
 
+import com.google.common.base.Stopwatch
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.Iterables
 import com.google.common.truth.Truth.assertThat
@@ -384,11 +385,11 @@ class SchedulerTest {
     val runnablesThatWereRun: MutableList<Int> = ArrayList()
     scheduler.post {
       runnablesThatWereRun.add(1)
-      throw RuntimeException("foo")
+      throw IllegalThreadStateException("foo")
     }
     try {
       scheduler.unPause()
-    } catch (ignored: RuntimeException) {}
+    } catch (ignored: IllegalThreadStateException) {}
     scheduler.post { runnablesThatWereRun.add(2) }
     assertThat(runnablesThatWereRun).containsExactly(1, 2)
   }
@@ -405,8 +406,9 @@ class SchedulerTest {
   }
 
   /** Tests for quadratic or exponential behavior in the scheduler, and stable sorting */
-  @Test(timeout = 1000)
+  @Test
   fun schedulerWithManyRunnables() {
+    val watch = Stopwatch.createStarted()
     val random = Random(0)
     val orderCheck: MutableMap<Int, MutableList<Int>> = TreeMap()
     val actualOrder: MutableList<Int> = ArrayList()
@@ -423,6 +425,8 @@ class SchedulerTest {
     assertThat(actualOrder).isEmpty()
     scheduler.advanceToLastPostedRunnable()
     assertThat(actualOrder).isEqualTo(ImmutableList.copyOf(Iterables.concat(orderCheck.values)))
+    watch.stop()
+    assertThat(watch.elapsed().toMillis()).isLessThan(2000L);
   }
 
   @Test(timeout = 1000)

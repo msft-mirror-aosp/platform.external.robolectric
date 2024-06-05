@@ -6,10 +6,12 @@ import static android.os.Build.VERSION_CODES.Q;
 import android.annotation.Nullable;
 import android.os.PersistableBundle;
 import android.telephony.CarrierConfigManager;
+import com.google.common.base.Preconditions;
 import java.util.HashMap;
 import org.robolectric.annotation.HiddenApi;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
+import org.robolectric.versioning.AndroidVersions.U;
 
 @Implements(value = CarrierConfigManager.class, minSdk = M)
 public class ShadowCarrierConfigManager {
@@ -33,6 +35,19 @@ public class ShadowCarrierConfigManager {
       return bundles.get(subId);
     }
     return new PersistableBundle();
+  }
+
+  /**
+   * @see #getConfigForSubId(int). Currently the 'keys' parameter is ignored.
+   */
+  @Implementation(minSdk = U.SDK_INT)
+  protected PersistableBundle getConfigForSubId(int subId, String... keys) {
+    // TODO: consider implementing the logic in telephony service
+    // CarrierConfigLoader#getConfigSubsetForSubIdWithFeature
+    Preconditions.checkNotNull(keys);
+    Preconditions.checkArgument(
+        keys.length == 0, "filtering by keys is not currently supported in Robolectric");
+    return getConfigForSubId(subId);
   }
 
   public void setReadPhoneStatePermission(boolean readPhoneStatePermission) {

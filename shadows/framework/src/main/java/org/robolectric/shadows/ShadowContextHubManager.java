@@ -2,6 +2,7 @@ package org.robolectric.shadows;
 
 import static org.robolectric.util.reflector.Reflector.reflector;
 
+import android.annotation.Nullable;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.hardware.location.ContextHubClient;
@@ -10,9 +11,9 @@ import android.hardware.location.ContextHubManager;
 import android.hardware.location.ContextHubTransaction;
 import android.hardware.location.NanoAppInstanceInfo;
 import android.hardware.location.NanoAppState;
+import android.os.Build;
 import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
-import androidx.annotation.Nullable;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
@@ -25,7 +26,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.robolectric.annotation.HiddenApi;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
+import org.robolectric.annotation.Resetter;
 import org.robolectric.shadow.api.Shadow;
+import org.robolectric.shadows.ShadowContextHubClient.ContextHubClientReflector;
 import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.ReflectionHelpers.ClassParameter;
 import org.robolectric.util.reflector.Accessor;
@@ -91,7 +94,13 @@ public class ShadowContextHubManager {
   protected Object /* ContextHubClient */ createClient(
       Object /* ContextHubInfo */ contextHubInfo,
       Object /* ContextHubClientCallback */ contextHubClientCallback) {
-    return ReflectionHelpers.newInstance(ContextHubClient.class);
+
+    if (Build.VERSION.SDK_INT >= VERSION_CODES.Q) {
+      return reflector(ContextHubClientReflector.class)
+          .newContextHubClient((ContextHubInfo) contextHubInfo, false);
+    } else {
+      return reflector(ContextHubClientReflector.class).newContextHubClient();
+    }
   }
 
   @Implementation(minSdk = VERSION_CODES.P)
@@ -100,7 +109,12 @@ public class ShadowContextHubManager {
       Object /* ContextHubInfo */ contextHubInfo,
       Object /* ContextHubClientCallback */ contextHubClientCallback,
       Object /* Executor */ executor) {
-    return ReflectionHelpers.newInstance(ContextHubClient.class);
+    if (Build.VERSION.SDK_INT >= VERSION_CODES.Q) {
+      return reflector(ContextHubClientReflector.class)
+          .newContextHubClient((ContextHubInfo) contextHubInfo, false);
+    } else {
+      return reflector(ContextHubClientReflector.class).newContextHubClient();
+    }
   }
 
   @Implementation(minSdk = VERSION_CODES.S)
@@ -110,7 +124,9 @@ public class ShadowContextHubManager {
       Object /* ContextHubInfo */ contextHubInfo,
       Object /* Executor */ executor,
       Object /* ContextHubClientCallback */ contextHubClientCallback) {
-    ContextHubClient client = ReflectionHelpers.newInstance(ContextHubClient.class);
+    ContextHubClient client =
+        reflector(ContextHubClientReflector.class)
+            .newContextHubClient((ContextHubInfo) contextHubInfo, false);
     if (context != null && ((Context) context).getAttributionTag() != null) {
       attributionTagToClientMap.put(((Context) context).getAttributionTag(), client);
     }
@@ -138,6 +154,11 @@ public class ShadowContextHubManager {
   @Nullable
   public List<ContextHubClient> getContextHubClientWithPendingIntentList() {
     return ImmutableList.copyOf(contextHubClientWithPendingIntentList);
+  }
+
+  @Resetter
+  public static void clearContextHubClientWithPendingIntentList() {
+    contextHubClientWithPendingIntentList.clear();
   }
 
   @Implementation(minSdk = VERSION_CODES.P)

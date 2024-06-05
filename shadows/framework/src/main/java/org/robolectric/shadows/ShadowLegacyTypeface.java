@@ -1,6 +1,6 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.KITKAT;
+
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.N_MR1;
 import static android.os.Build.VERSION_CODES.O;
@@ -37,6 +37,8 @@ import org.robolectric.res.Fs;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.ReflectionHelpers.ClassParameter;
+import org.robolectric.versioning.AndroidVersions.T;
+import org.robolectric.versioning.AndroidVersions.U;
 
 /** Shadow for {@link Typeface}. */
 @Implements(value = Typeface.class, looseSignatures = true, isInAndroidSdk = false)
@@ -46,15 +48,14 @@ public class ShadowLegacyTypeface extends ShadowTypeface {
   private static final AtomicLong nextFontId = new AtomicLong(1);
   private FontDesc description;
 
-  @HiddenApi
-  @Implementation(maxSdk = KITKAT)
-  protected void __constructor__(int fontId) {
-    description = findById((long) fontId);
+  /** Starting in U, this constructor calls {@link #__constructor__(long, String )} below. */
+  @Implementation(maxSdk = T.SDK_INT)
+  protected void __constructor__(long fontId) {
+    description = findById(fontId);
   }
 
-  @HiddenApi
-  @Implementation(minSdk = LOLLIPOP)
-  protected void __constructor__(long fontId) {
+  @Implementation(minSdk = U.SDK_INT)
+  protected void __constructor__(long fontId, String familyName) {
     description = findById(fontId);
   }
 
@@ -162,13 +163,13 @@ public class ShadowLegacyTypeface extends ShadowTypeface {
   }
 
   @HiddenApi
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected static Typeface createFromFamilies(Object /*FontFamily[]*/ families) {
     return null;
   }
 
   @HiddenApi
-  @Implementation(minSdk = LOLLIPOP, maxSdk = N_MR1)
+  @Implementation(maxSdk = N_MR1)
   protected static Typeface createFromFamiliesWithDefault(Object /*FontFamily[]*/ families) {
     return null;
   }
@@ -198,7 +199,7 @@ public class ShadowLegacyTypeface extends ShadowTypeface {
   }
 
   /** Avoid spurious error message about /system/etc/fonts.xml */
-  @Implementation(minSdk = LOLLIPOP, maxSdk = O_MR1)
+  @Implementation(maxSdk = O_MR1)
   protected static void init() {}
 
   @HiddenApi

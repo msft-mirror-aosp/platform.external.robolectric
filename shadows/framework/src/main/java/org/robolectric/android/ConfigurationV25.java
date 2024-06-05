@@ -60,18 +60,8 @@ public class ConfigurationV25 {
     return sb.toString();
   }
 
-
-  /**
-   * Returns a string representation of the configuration that can be parsed
-   * by build tools (like AAPT).
-   *
-   * @hide
-   */
-  public static String resourceQualifierString(Configuration config, DisplayMetrics displayMetrics) {
-    return resourceQualifierString(config, displayMetrics, true);
-  }
-
-  public static String resourceQualifierString(Configuration config, DisplayMetrics displayMetrics, boolean includeSdk) {
+  public static String resourceQualifierString(
+      Configuration config, DisplayMetrics displayMetrics) {
     ArrayList<String> parts = new ArrayList<String>();
 
     if (config.mcc != 0) {
@@ -221,12 +211,7 @@ public class ConfigurationV25 {
         break;
     }
 
-    int densityDpi;
-    if (RuntimeEnvironment.getApiLevel() > VERSION_CODES.JELLY_BEAN) {
-      densityDpi = config.densityDpi;
-    } else {
-      densityDpi = displayMetrics.densityDpi;
-    }
+    int densityDpi = config.densityDpi;
 
     switch (densityDpi) {
       case DENSITY_DPI_UNDEFINED:
@@ -328,10 +313,6 @@ public class ConfigurationV25 {
         break;
       default:
         break;
-    }
-
-    if (includeSdk) {
-      parts.add("v" + Build.VERSION.RESOURCES_SDK_INT);
     }
 
     return TextUtils.join("-", parts);

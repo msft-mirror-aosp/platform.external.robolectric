@@ -121,7 +121,6 @@ public class AndroidTestEnvironmentTest {
   @ConscryptMode(ON)
   public void testWhenConscryptModeOn_ConscryptInstalled()
       throws CertificateException, NoSuchAlgorithmException {
-
     bootstrapWrapper.callSetUpApplicationState();
     CertificateFactory factory = CertificateFactory.getInstance("X.509");
     assertThat(factory.getProvider().getName()).isEqualTo("Conscrypt");
@@ -142,7 +141,6 @@ public class AndroidTestEnvironmentTest {
   @ConscryptMode(OFF)
   public void testWhenConscryptModeOff_ConscryptNotInstalled()
       throws CertificateException, NoSuchAlgorithmException {
-
     bootstrapWrapper.callSetUpApplicationState();
     CertificateFactory factory = CertificateFactory.getInstance("X.509");
     assertThat(factory.getProvider().getName()).isNotEqualTo("Conscrypt");
@@ -154,24 +152,13 @@ public class AndroidTestEnvironmentTest {
   @Test
   @ConscryptMode(OFF)
   public void testWhenConscryptModeOff_BouncyCastleInstalled() throws GeneralSecurityException {
-
     bootstrapWrapper.callSetUpApplicationState();
-    MessageDigest digest = MessageDigest.getInstance("SHA256");
+    MessageDigest digest = MessageDigest.getInstance("SHA256", BouncyCastleProvider.PROVIDER_NAME);
     assertThat(digest.getProvider().getName()).isEqualTo(BouncyCastleProvider.PROVIDER_NAME);
 
-    Cipher aesCipher = Cipher.getInstance("AES/CBC/PKCS7Padding");
+    Cipher aesCipher =
+        Cipher.getInstance("AES/CBC/PKCS7Padding", BouncyCastleProvider.PROVIDER_NAME);
     assertThat(aesCipher.getProvider().getName()).isEqualTo(BouncyCastleProvider.PROVIDER_NAME);
-  }
-
-  @Test
-  public void setUpApplicationState_setsVersionQualifierFromSdk() {
-    String givenQualifiers = "";
-    ConfigurationImpl config = new ConfigurationImpl();
-    config.put(Config.class, new Config.Builder().setQualifiers(givenQualifiers).build());
-    config.put(LooperMode.Mode.class, LEGACY);
-    bootstrapWrapper.changeConfig(config);
-    bootstrapWrapper.callSetUpApplicationState();
-    assertThat(RuntimeEnvironment.getQualifiers()).contains("v" + Build.VERSION.RESOURCES_SDK_INT);
   }
 
   @Test
@@ -188,9 +175,11 @@ public class AndroidTestEnvironmentTest {
         ? "nowidecg-lowdr-"
         : "";
     assertThat(RuntimeEnvironment.getQualifiers())
-        .contains("large-notlong-notround-" + optsForO + "land-notnight-mdpi-finger-keyssoft"
-            + "-nokeys-navhidden-nonav-v"
-            + Build.VERSION.RESOURCES_SDK_INT);
+        .contains(
+            "large-notlong-notround-"
+                + optsForO
+                + "land-notnight-mdpi-finger-keyssoft"
+                + "-nokeys-navhidden-nonav");
   }
 
   @Test

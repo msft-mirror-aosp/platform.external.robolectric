@@ -1,12 +1,9 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
-import static android.os.Build.VERSION_CODES.KITKAT_WATCH;
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.N_MR1;
+import static android.os.Build.VERSION_CODES.O;
 import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.R;
 import static android.os.Build.VERSION_CODES.S;
@@ -32,8 +29,10 @@ import android.os.PersistableBundle;
 import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.os.UserManager.EnforcingUser;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Before;
 import org.junit.Test;
@@ -63,7 +62,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void shouldGetUserProfiles() {
     assertThat(userManager.getUserProfiles()).contains(Process.myUserHandle());
 
@@ -75,7 +73,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getUserProfiles_calledFromProfile_shouldReturnList() {
     ShadowProcess.setUid(2 * 100000);
     assertThat(userManager.getUserProfiles()).contains(new UserHandle(2));
@@ -86,13 +83,11 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getUserProfiles_noProfiles_shouldReturnListOfSelf() {
     assertThat(userManager.getUserProfiles()).containsExactly(new UserHandle(0));
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
   public void testGetApplicationRestrictions() {
     String packageName = context.getPackageName();
     assertThat(userManager.getApplicationRestrictions(packageName).size()).isEqualTo(0);
@@ -118,7 +113,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void hasUserRestriction() {
     assertThat(userManager.hasUserRestriction(UserManager.ENSURE_VERIFY_APPS)).isFalse();
 
@@ -129,7 +123,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
   public void setUserRestriction_forGivenUserHandle_setsTheRestriction() {
     assertThat(userManager.hasUserRestriction(UserManager.ENSURE_VERIFY_APPS)).isFalse();
 
@@ -140,7 +133,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
   public void setUserRestriction_forCurrentUser_setsTheRestriction() {
     assertThat(userManager.hasUserRestriction(UserManager.ENSURE_VERIFY_APPS)).isFalse();
 
@@ -150,7 +142,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
   public void getUserRestrictions() {
     assertThat(userManager.getUserRestrictions().size()).isEqualTo(0);
 
@@ -172,7 +163,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
   public void clearUserRestrictions() {
     assertThat(userManager.getUserRestrictions().size()).isEqualTo(0);
     shadowOf(userManager)
@@ -184,7 +174,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void isManagedProfile() {
     assertThat(userManager.isManagedProfile()).isFalse();
     shadowOf(userManager).setManagedProfile(true);
@@ -261,7 +250,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void enforcePermissionChecks() {
     shadowOf(userManager).enforcePermissionChecks(true);
 
@@ -279,7 +267,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void shouldGetSerialNumberForUser() {
     long serialNumberInvalid = -1L;
 
@@ -296,7 +283,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void getUserForNonExistSerialNumber() {
     long nonExistSerialNumber = 121;
     assertThat(userManager.getUserForSerialNumber(nonExistSerialNumber)).isNull();
@@ -304,7 +290,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void shouldGetSerialNumberForProfile() {
     long serialNumberInvalid = -1L;
 
@@ -314,7 +299,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void shouldGetUserHandleFromSerialNumberForProfile() {
     long serialNumberInvalid = -1L;
 
@@ -325,7 +309,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void getSerialNumberForUser_returnsSetSerialNumberForUser() {
     UserHandle userHandle = newUserHandle(0);
     shadowOf(userManager).setSerialNumberForUser(userHandle, 123L);
@@ -333,7 +316,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void getUserHandle() {
     UserHandle expectedUserHandle = shadowOf(userManager).addUser(10, "secondary_user", 0);
 
@@ -393,7 +375,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR2)
   public void isLinkedUser() {
     assertThat(userManager.isLinkedUser()).isFalse();
 
@@ -463,7 +444,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = KITKAT_WATCH)
   public void isGuestUser() {
     assertThat(userManager.isGuestUser()).isFalse();
 
@@ -475,7 +455,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void isUserRunning() {
     UserHandle userHandle = newUserHandle(0);
 
@@ -501,7 +480,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void isUserRunningOrStopping() {
     UserHandle userHandle = newUserHandle(0);
 
@@ -579,7 +557,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void addSecondaryUser() {
     assertThat(userManager.getUserCount()).isEqualTo(1);
     UserHandle userHandle = shadowOf(userManager).addUser(10, "secondary_user", 0);
@@ -588,7 +565,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void removeSecondaryUser() {
     shadowOf(userManager).addUser(10, "secondary_user", 0);
     assertThat(shadowOf(userManager).removeUser(10)).isTrue();
@@ -632,7 +608,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void switchToSecondaryUser() {
     shadowOf(userManager).addUser(10, "secondary_user", 0);
     shadowOf(userManager).switchUser(10);
@@ -674,7 +649,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void getUsers() {
     assertThat(userManager.getUsers()).hasSize(1);
     shadowOf(userManager).addUser(10, "secondary_user", 0);
@@ -684,7 +658,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void getUserInfo() {
     shadowOf(userManager).addUser(10, "secondary_user", 0);
     assertThat(userManager.getUserInfo(10)).isNotNull();
@@ -692,7 +665,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void getUserInfoOfProfile() {
     shadowOf(userManager).addProfile(10, 11, "profile_user", 0);
     shadowOf(userManager).addProfile(10, 12, "profile_user_2", 0);
@@ -717,7 +689,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void getProfiles_addedProfile_containsProfile() {
     shadowOf(userManager).addUser(TEST_USER_HANDLE, "", 0);
     shadowOf(userManager)
@@ -894,7 +865,6 @@ public class ShadowUserManagerTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
   public void getMaxSupportedUsers() {
     assertThat(UserManager.getMaxSupportedUsers()).isEqualTo(1);
     shadowOf(userManager).setMaxSupportedUsers(5);
@@ -1124,6 +1094,51 @@ public class ShadowUserManagerTest {
 
     shadowOf(userManager).removeSomeUserHasAccount(SEED_ACCOUNT_NAME, SEED_ACCOUNT_TYPE);
     assertThat(userManager.someUserHasAccount(SEED_ACCOUNT_NAME, SEED_ACCOUNT_TYPE)).isFalse();
+  }
+
+  @Test
+  @Config(minSdk = S)
+  public void isUserForeground_defaultValue_returnsTrue() {
+    assertThat(userManager.isUserForeground()).isTrue();
+  }
+
+  @Test
+  @Config(minSdk = S)
+  public void isUserForeground_overridden_returnsNewValue() {
+    shadowOf(userManager).setUserForeground(false);
+
+    assertThat(userManager.isUserForeground()).isFalse();
+  }
+
+  @Test
+  @Config(minSdk = S)
+  public void isUserForeground_valueToggled_returnsLatestValue() {
+    shadowOf(userManager).setUserForeground(false);
+    shadowOf(userManager).setUserForeground(true);
+
+    assertThat(userManager.isUserForeground()).isTrue();
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void getEnforcingUsers() {
+    UserHandle userHandle = Process.myUserHandle();
+
+    assertThat(userManager.hasUserRestriction(UserManager.ENSURE_VERIFY_APPS)).isFalse();
+    assertThat(userManager.getUserRestrictionSources(UserManager.ENSURE_VERIFY_APPS, userHandle))
+        .isEmpty();
+
+    shadowOf(userManager).setUserRestriction(userHandle, UserManager.ENSURE_VERIFY_APPS, true);
+    assertThat(userManager.hasUserRestriction(UserManager.ENSURE_VERIFY_APPS)).isTrue();
+
+    List<EnforcingUser> sources =
+        userManager.getUserRestrictionSources(UserManager.ENSURE_VERIFY_APPS, userHandle);
+    assertThat(sources.get(0).getUserRestrictionSource())
+        .isEqualTo(UserManager.RESTRICTION_SOURCE_SYSTEM);
+
+    shadowOf(userManager).setUserRestriction(userHandle, UserManager.ENSURE_VERIFY_APPS, false);
+    assertThat(userManager.getUserRestrictionSources(UserManager.ENSURE_VERIFY_APPS, userHandle))
+        .isEmpty();
   }
 
   // Create user handle from parcel since UserHandle.of() was only added in later APIs.

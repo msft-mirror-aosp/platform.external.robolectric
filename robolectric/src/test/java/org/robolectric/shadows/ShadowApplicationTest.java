@@ -1,8 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
-import static android.os.Build.VERSION_CODES.KITKAT;
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.LOLLIPOP_MR1;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.O;
@@ -128,30 +125,19 @@ public class ShadowApplicationTest {
   }
 
   @Test
-  @Config(minSdk = JELLY_BEAN_MR1)
-  public void shouldProvideServicesIntroducedInJellyBeanMr1() throws Exception {
+  public void shouldProvideServicesAvailableInAllSdKs() throws Exception {
     assertThat(context.getSystemService(Context.DISPLAY_SERVICE))
         .isInstanceOf(android.hardware.display.DisplayManager.class);
     assertThat(context.getSystemService(Context.USER_SERVICE)).isInstanceOf(UserManager.class);
-  }
-
-  @Test
-  @Config(minSdk = KITKAT)
-  public void shouldProvideServicesIntroducedInKitKat() throws Exception {
-    assertThat(context.getSystemService(Context.PRINT_SERVICE)).isInstanceOf(PrintManager.class);
-    assertThat(context.getSystemService(Context.CAPTIONING_SERVICE))
-        .isInstanceOf(CaptioningManager.class);
-  }
-
-  @Test
-  @Config(minSdk = LOLLIPOP)
-  public void shouldProvideServicesIntroducedInLollipop() throws Exception {
     assertThat(context.getSystemService(Context.MEDIA_SESSION_SERVICE))
         .isInstanceOf(MediaSessionManager.class);
     assertThat(context.getSystemService(Context.BATTERY_SERVICE))
         .isInstanceOf(BatteryManager.class);
     assertThat(context.getSystemService(Context.RESTRICTIONS_SERVICE))
         .isInstanceOf(RestrictionsManager.class);
+    assertThat(context.getSystemService(Context.PRINT_SERVICE)).isInstanceOf(PrintManager.class);
+    assertThat(context.getSystemService(Context.CAPTIONING_SERVICE))
+        .isInstanceOf(CaptioningManager.class);
   }
 
   @Test
@@ -187,7 +173,6 @@ public class ShadowApplicationTest {
   }
 
   @Test
-  @Config(minSdk = KITKAT)
   public void shouldCorrectlyInstantiatedAccessibilityService() throws Exception {
     AccessibilityManager accessibilityManager =
         (AccessibilityManager) context.getSystemService(Context.ACCESSIBILITY_SERVICE);

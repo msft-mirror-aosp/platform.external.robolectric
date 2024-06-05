@@ -1,27 +1,38 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN;
-import static android.os.Build.VERSION_CODES.KITKAT;
+import static android.os.Parcelable.PARCELABLE_WRITE_RETURN_VALUE;
 import static org.robolectric.shadow.api.Shadow.invokeConstructor;
 import static org.robolectric.util.ReflectionHelpers.ClassParameter.from;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
 import android.annotation.SuppressLint;
 import android.os.Handler;
+import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
+import android.os.Parcelable;
+import android.system.Os;
+import com.google.common.io.ByteStreams;
 import java.io.File;
 import java.io.FileDescriptor;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.RealObject;
+import org.robolectric.annotation.Resetter;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.util.ReflectionHelpers;
-import org.robolectric.util.ReflectionHelpers.ClassParameter;
 import org.robolectric.util.reflector.Direct;
 import org.robolectric.util.reflector.ForType;
 
@@ -32,13 +43,31 @@ public class ShadowParcelFileDescriptor {
   // level
   private static final String PIPE_TMP_DIR = "ShadowParcelFileDescriptor";
   private static final String PIPE_FILE_NAME = "pipe";
+  private static final Map<Integer, RandomAccessFile> filesInTransitById =
+      Collections.synchronizedMap(new HashMap<>());
+  private static final AtomicInteger NEXT_FILE_ID = new AtomicInteger();
+
   private RandomAccessFile file;
+  private int fileIdPledgedOnClose; // != 0 if 'file' was written to a Parcel.
+  private int lazyFileId; // != 0 if we were created from a Parcel but don't own a 'file' yet.
   private boolean closed;
   private Handler handler;
   private ParcelFileDescriptor.OnCloseListener onCloseListener;
 
   @RealObject private ParcelFileDescriptor realParcelFd;
   @RealObject private ParcelFileDescriptor realObject;
+
+  @Implementation
+  protected static void __staticInitializer__() {
+    Shadow.directInitialize(ParcelFileDescriptor.class);
+    ReflectionHelpers.setStaticField(
+        ParcelFileDescriptor.class, "CREATOR", ShadowParcelFileDescriptor.CREATOR);
+  }
+
+  @Resetter
+  public static void reset() {
+    filesInTransitById.clear();
+  }
 
   @Implementation
   protected void __constructor__(ParcelFileDescriptor wrapped) {
@@ -50,18 +79,46 @@ public class ShadowParcelFileDescriptor {
     }
   }
 
+  static final Parcelable.Creator<ParcelFileDescriptor> CREATOR =
+      new Parcelable.Creator<ParcelFileDescriptor>() {
+        @Override
+        public ParcelFileDescriptor createFromParcel(Parcel source) {
+          int fileId = source.readInt();
+          ParcelFileDescriptor result = newParcelFileDescriptor();
+          ShadowParcelFileDescriptor shadowResult = Shadow.extract(result);
+          shadowResult.lazyFileId = fileId;
+          return result;
+        }
+
+        @Override
+        public ParcelFileDescriptor[] newArray(int size) {
+          return new ParcelFileDescriptor[size];
+        }
+      };
+
+  @Implementation
+  protected void writeToParcel(Parcel out, int flags) {
+    if (fileIdPledgedOnClose == 0) {
+      fileIdPledgedOnClose = (lazyFileId != 0) ? lazyFileId : NEXT_FILE_ID.incrementAndGet();
+    }
+    out.writeInt(fileIdPledgedOnClose);
+
+    if ((flags & PARCELABLE_WRITE_RETURN_VALUE) != 0) {
+      try {
+        close();
+      } catch (IOException e) {
+        // Close "quietly", just like Android does.
+      }
+    }
+  }
+
+  private static ParcelFileDescriptor newParcelFileDescriptor() {
+    return new ParcelFileDescriptor(new FileDescriptor());
+  }
+
   @Implementation
   protected static ParcelFileDescriptor open(File file, int mode) throws FileNotFoundException {
-    ParcelFileDescriptor pfd = null;
-    if (RuntimeEnvironment.getApiLevel() > JELLY_BEAN) {
-      pfd = new ParcelFileDescriptor(new FileDescriptor());
-    } else {
-      // In Jelly Bean, the ParcelFileDescriptor(FileDescriptor) constructor was non-public.
-      pfd =
-          ReflectionHelpers.callConstructor(
-              ParcelFileDescriptor.class,
-              ClassParameter.from(FileDescriptor.class, new FileDescriptor()));
-    }
+    ParcelFileDescriptor pfd = newParcelFileDescriptor();
     ShadowParcelFileDescriptor shadowParcelFileDescriptor = Shadow.extract(pfd);
     shadowParcelFileDescriptor.file = new RandomAccessFile(file, getFileMode(mode));
     if ((mode & ParcelFileDescriptor.MODE_TRUNCATE) != 0) {
@@ -85,7 +142,7 @@ public class ShadowParcelFileDescriptor {
     return pfd;
   }
 
-  @Implementation(minSdk = KITKAT)
+  @Implementation
   protected static ParcelFileDescriptor open(
       File file, int mode, Handler handler, ParcelFileDescriptor.OnCloseListener listener)
       throws IOException {
@@ -131,15 +188,30 @@ public class ShadowParcelFileDescriptor {
     return new ParcelFileDescriptor[] {readSide, writeSide};
   }
 
-  @Implementation(minSdk = KITKAT)
+  @Implementation
   protected static ParcelFileDescriptor[] createReliablePipe() throws IOException {
     return createPipe();
+  }
+
+  private RandomAccessFile getFile() {
+    if (file == null && lazyFileId != 0) {
+      file = filesInTransitById.remove(lazyFileId);
+      lazyFileId = 0;
+      if (file == null) {
+        throw new FileDescriptorFromParcelUnavailableException();
+      }
+    }
+    return file;
   }
 
   @Implementation
   protected FileDescriptor getFileDescriptor() {
     try {
-      return file.getFD();
+      RandomAccessFile file = getFile();
+      if (file != null) {
+        return file.getFD();
+      }
+      return reflector(ParcelFileDescriptorReflector.class, realParcelFd).getFileDescriptor();
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -148,7 +220,7 @@ public class ShadowParcelFileDescriptor {
   @Implementation
   protected long getStatSize() {
     try {
-      return file.length();
+      return getFile().length();
     } catch (IOException e) {
       // This might occur when the file object has been closed.
       return -1;
@@ -162,7 +234,7 @@ public class ShadowParcelFileDescriptor {
     }
 
     try {
-      return ReflectionHelpers.getField(file.getFD(), "fd");
+      return ReflectionHelpers.getField(getFile().getFD(), "fd");
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -175,11 +247,69 @@ public class ShadowParcelFileDescriptor {
       return;
     }
 
-    file.close();
+    if (file != null) {
+      if (fileIdPledgedOnClose != 0) {
+        // Don't actually close 'file'! Instead stash it where our Parcel reader(s) can find it.
+        filesInTransitById.put(fileIdPledgedOnClose, file);
+        fileIdPledgedOnClose = 0;
+
+        // Replace this.file with a dummy instance to be close()d below. This leaves instances that
+        // have been written to Parcels and never-parceled ones in exactly the same state.
+        File tempFile = Files.createTempFile(null, null).toFile();
+        file = new RandomAccessFile(tempFile, "rw");
+        tempFile.delete();
+      }
+      file.close();
+    }
+
     reflector(ParcelFileDescriptorReflector.class, realParcelFd).close();
     closed = true;
     if (handler != null && onCloseListener != null) {
       handler.post(() -> onCloseListener.onClose(null));
+    }
+  }
+
+  @Implementation
+  protected ParcelFileDescriptor dup() throws IOException {
+    return new ParcelFileDescriptor(realParcelFd);
+  }
+
+  /**
+   * Support shadowing of the static method {@link ParcelFileDescriptor#dup}.
+   *
+   * <p>The real implementation calls {@link Os#fcntlInt} in order to duplicate the FileDescriptor
+   * in native code. This cannot be simulated on the JVM without the use of native code.
+   */
+  @Implementation
+  protected static ParcelFileDescriptor dup(FileDescriptor fileDescriptor) throws IOException {
+    File dupFile =
+        new File(
+            RuntimeEnvironment.getTempDirectory().createIfNotExists(PIPE_TMP_DIR).toFile(),
+            "dupfd-" + UUID.randomUUID());
+
+    // Duplicate the file represented by the file descriptor. Note that neither file streams should
+    // be closed because doing so will invalidate the corresponding file descriptor.
+    FileInputStream fileInputStream = new FileInputStream(fileDescriptor);
+    FileOutputStream fileOutputStream = new FileOutputStream(dupFile);
+    FileChannel sourceChannel = fileInputStream.getChannel();
+
+    long originalPosition = sourceChannel.position();
+
+    sourceChannel.position(0);
+    ByteStreams.copy(fileInputStream, fileOutputStream);
+    sourceChannel.position(originalPosition);
+    RandomAccessFile randomAccessFile = new RandomAccessFile(dupFile, "rw");
+    return new ParcelFileDescriptor(randomAccessFile.getFD());
+  }
+
+  static class FileDescriptorFromParcelUnavailableException extends RuntimeException {
+    FileDescriptorFromParcelUnavailableException() {
+      super(
+          "ParcelFileDescriptors created from a Parcel refer to the same content as the"
+              + " ParcelFileDescriptor that originally wrote it. Robolectric has the unfortunate"
+              + " limitation that only one of these instances can be functional at a time. Try"
+              + " closing the original ParcelFileDescriptor before using any duplicates created via"
+              + " the Parcelable API.");
     }
   }
 
@@ -188,5 +318,8 @@ public class ShadowParcelFileDescriptor {
 
     @Direct
     void close();
+
+    @Direct
+    FileDescriptor getFileDescriptor();
   }
 }

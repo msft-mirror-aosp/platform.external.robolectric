@@ -2,14 +2,13 @@ package org.robolectric.shadows;
 
 import static android.app.UiAutomation.ROTATION_FREEZE_0;
 import static android.app.UiAutomation.ROTATION_FREEZE_180;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
 import static android.os.Build.VERSION_CODES.TIRAMISU;
 import static android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
 import static android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE;
 import static android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
 import static android.view.WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.Sets.newConcurrentHashSet;
 import static java.util.Comparator.comparingInt;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
@@ -24,9 +23,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Point;
-import android.os.Build;
 import android.os.IBinder;
-import android.os.Looper;
 import android.provider.Settings;
 import android.view.Display;
 import android.view.InputEvent;
@@ -36,16 +33,16 @@ import android.view.View;
 import android.view.ViewRootImpl;
 import android.view.WindowManager;
 import android.view.WindowManagerGlobal;
-import android.view.WindowManagerImpl;
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitor;
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
 import androidx.test.runner.lifecycle.Stage;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Implementation;
@@ -53,7 +50,7 @@ import org.robolectric.annotation.Implements;
 import org.robolectric.util.ReflectionHelpers;
 
 /** Shadow for {@link UiAutomation}. */
-@Implements(value = UiAutomation.class, minSdk = JELLY_BEAN_MR2)
+@Implements(value = UiAutomation.class)
 public class ShadowUiAutomation {
 
   private static final Predicate<Root> IS_FOCUSABLE = hasLayoutFlag(FLAG_NOT_FOCUSABLE).negate();
@@ -67,18 +64,11 @@ public class ShadowUiAutomation {
    * Sets the animation scale, see {@link UiAutomation#setAnimationScale(float)}. Provides backwards
    * compatible access to SDKs < T.
    */
-  @SuppressWarnings("deprecation")
   public static void setAnimationScaleCompat(float scale) {
     ContentResolver cr = RuntimeEnvironment.getApplication().getContentResolver();
-    if (RuntimeEnvironment.getApiLevel() >= JELLY_BEAN_MR1) {
-      Settings.Global.putFloat(cr, Settings.Global.ANIMATOR_DURATION_SCALE, scale);
-      Settings.Global.putFloat(cr, Settings.Global.TRANSITION_ANIMATION_SCALE, scale);
-      Settings.Global.putFloat(cr, Settings.Global.WINDOW_ANIMATION_SCALE, scale);
-    } else {
-      Settings.System.putFloat(cr, Settings.System.ANIMATOR_DURATION_SCALE, scale);
-      Settings.System.putFloat(cr, Settings.System.TRANSITION_ANIMATION_SCALE, scale);
-      Settings.System.putFloat(cr, Settings.System.WINDOW_ANIMATION_SCALE, scale);
-    }
+    Settings.Global.putFloat(cr, Settings.Global.ANIMATOR_DURATION_SCALE, scale);
+    Settings.Global.putFloat(cr, Settings.Global.TRANSITION_ANIMATION_SCALE, scale);
+    Settings.Global.putFloat(cr, Settings.Global.WINDOW_ANIMATION_SCALE, scale);
   }
 
   @Implementation(minSdk = TIRAMISU)
@@ -88,51 +78,72 @@ public class ShadowUiAutomation {
 
   @Implementation
   protected boolean setRotation(int rotation) {
-    if (rotation == UiAutomation.ROTATION_FREEZE_CURRENT
-        || rotation == UiAutomation.ROTATION_UNFREEZE) {
-      return true;
-    }
-    Display display = ShadowDisplay.getDefaultDisplay();
-    int currentRotation = display.getRotation();
-    boolean isRotated =
-        (rotation == ROTATION_FREEZE_0 || rotation == ROTATION_FREEZE_180)
-            != (currentRotation == ROTATION_FREEZE_0 || currentRotation == ROTATION_FREEZE_180);
-    shadowOf(display).setRotation(rotation);
-    if (isRotated) {
-      int currentOrientation = Resources.getSystem().getConfiguration().orientation;
-      String rotationQualifier =
-          "+" + (currentOrientation == Configuration.ORIENTATION_PORTRAIT ? "land" : "port");
-      ShadowDisplayManager.changeDisplay(display.getDisplayId(), rotationQualifier);
-      RuntimeEnvironment.setQualifiers(rotationQualifier);
-    }
-    return true;
+    AtomicBoolean result = new AtomicBoolean(false);
+    ShadowInstrumentation.runOnMainSyncNoIdle(
+        () -> {
+          if (rotation == UiAutomation.ROTATION_FREEZE_CURRENT
+              || rotation == UiAutomation.ROTATION_UNFREEZE) {
+            result.set(true);
+            return;
+          }
+          Display display = ShadowDisplay.getDefaultDisplay();
+          int currentRotation = display.getRotation();
+          boolean isRotated =
+              (rotation == ROTATION_FREEZE_0 || rotation == ROTATION_FREEZE_180)
+                  != (currentRotation == ROTATION_FREEZE_0
+                      || currentRotation == ROTATION_FREEZE_180);
+          shadowOf(display).setRotation(rotation);
+          if (isRotated) {
+            int currentOrientation = Resources.getSystem().getConfiguration().orientation;
+            String rotationQualifier =
+                "+" + (currentOrientation == Configuration.ORIENTATION_PORTRAIT ? "land" : "port");
+            ShadowDisplayManager.changeDisplay(display.getDisplayId(), rotationQualifier);
+            RuntimeEnvironment.setQualifiers(rotationQualifier);
+          }
+          result.set(true);
+        });
+    return result.get();
   }
 
   @Implementation
   protected void throwIfNotConnectedLocked() {}
 
   @Implementation
-  protected Bitmap takeScreenshot() {
+  protected Bitmap takeScreenshot() throws Exception {
     if (!ShadowView.useRealGraphics()) {
       return null;
     }
-    Point displaySize = new Point();
-    ShadowDisplay.getDefaultDisplay().getRealSize(displaySize);
-    Bitmap screenshot = Bitmap.createBitmap(displaySize.x, displaySize.y, Bitmap.Config.ARGB_8888);
-    Canvas screenshotCanvas = new Canvas(screenshot);
-    Paint paint = new Paint();
-    for (Root root : getViewRoots().reverse()) {
-      View rootView = root.getRootView();
-      if (rootView.getWidth() <= 0 || rootView.getHeight() <= 0) {
-        continue;
-      }
-      Bitmap window =
-          Bitmap.createBitmap(rootView.getWidth(), rootView.getHeight(), Bitmap.Config.ARGB_8888);
-      Canvas windowCanvas = new Canvas(window);
-      rootView.draw(windowCanvas);
-      screenshotCanvas.drawBitmap(window, root.params.x, root.params.y, paint);
-    }
-    return screenshot;
+
+    FutureTask<Bitmap> screenshotTask =
+        new FutureTask<>(
+            () -> {
+              Point displaySize = new Point();
+              ShadowDisplay.getDefaultDisplay().getRealSize(displaySize);
+              Bitmap screenshot =
+                  Bitmap.createBitmap(displaySize.x, displaySize.y, Bitmap.Config.ARGB_8888);
+              Canvas screenshotCanvas = new Canvas(screenshot);
+              Paint paint = new Paint();
+              for (Root root : getViewRoots().reverse()) {
+                View rootView = root.getRootView();
+                if (rootView.getWidth() <= 0 || rootView.getHeight() <= 0) {
+                  continue;
+                }
+                Bitmap window =
+                    Bitmap.createBitmap(
+                        rootView.getWidth(), rootView.getHeight(), Bitmap.Config.ARGB_8888);
+                if (HardwareRenderingScreenshot.canTakeScreenshot(rootView)) {
+                  HardwareRenderingScreenshot.takeScreenshot(rootView, window);
+                } else {
+                  Canvas windowCanvas = new Canvas(window);
+                  rootView.draw(windowCanvas);
+                }
+                screenshotCanvas.drawBitmap(window, root.params.x, root.params.y, paint);
+              }
+              return screenshot;
+            });
+
+    ShadowInstrumentation.runOnMainSyncNoIdle(screenshotTask);
+    return screenshotTask.get();
   }
 
   /**
@@ -141,14 +152,18 @@ public class ShadowUiAutomation {
    * UiAutomation} API, this method is provided for backwards compatibility with SDK < 18.
    */
   public static boolean injectInputEvent(InputEvent event) {
-    checkState(Looper.myLooper() == Looper.getMainLooper(), "Expecting to be on main thread!");
-    if (event instanceof MotionEvent) {
-      return injectMotionEvent((MotionEvent) event);
-    } else if (event instanceof KeyEvent) {
-      return injectKeyEvent((KeyEvent) event);
-    } else {
-      throw new IllegalArgumentException("Unrecognized event type: " + event);
-    }
+    AtomicBoolean result = new AtomicBoolean(false);
+    ShadowInstrumentation.runOnMainSyncNoIdle(
+        () -> {
+          if (event instanceof MotionEvent) {
+            result.set(injectMotionEvent((MotionEvent) event));
+          } else if (event instanceof KeyEvent) {
+            result.set(injectKeyEvent((KeyEvent) event));
+          } else {
+            throw new IllegalArgumentException("Unrecognized event type: " + event);
+          }
+        });
+    return result.get();
   }
 
   @Implementation
@@ -243,20 +258,19 @@ public class ShadowUiAutomation {
   }
 
   private static Object getViewRootsContainer() {
-    if (RuntimeEnvironment.getApiLevel() <= Build.VERSION_CODES.JELLY_BEAN) {
-      return ReflectionHelpers.callStaticMethod(WindowManagerImpl.class, "getDefault");
-    } else {
-      return WindowManagerGlobal.getInstance();
-    }
+    return WindowManagerGlobal.getInstance();
   }
 
   private static Set<IBinder> getStartedActivityTokens() {
-    ActivityLifecycleMonitor monitor = ActivityLifecycleMonitorRegistry.getInstance();
-    return ImmutableSet.<Activity>builder()
-        .addAll(monitor.getActivitiesInStage(Stage.STARTED))
-        .addAll(monitor.getActivitiesInStage(Stage.RESUMED))
-        .build()
-        .stream()
+    Set<Activity> startedActivities = newConcurrentHashSet();
+    ShadowInstrumentation.runOnMainSyncNoIdle(
+        () -> {
+          ActivityLifecycleMonitor monitor = ActivityLifecycleMonitorRegistry.getInstance();
+          startedActivities.addAll(monitor.getActivitiesInStage(Stage.STARTED));
+          startedActivities.addAll(monitor.getActivitiesInStage(Stage.RESUMED));
+        });
+
+    return startedActivities.stream()
         .map(activity -> activity.getWindow().getDecorView().getApplicationWindowToken())
         .collect(toSet());
   }

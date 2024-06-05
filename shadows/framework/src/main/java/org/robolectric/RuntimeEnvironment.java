@@ -1,8 +1,5 @@
 package org.robolectric;
 
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
-import static android.os.Build.VERSION_CODES.KITKAT;
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static org.robolectric.annotation.LooperMode.Mode.LEGACY;
 import static org.robolectric.shadows.ShadowLooper.assertLooperMode;
 
@@ -12,7 +9,6 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
-import android.os.Build;
 import android.util.DisplayMetrics;
 import android.view.Display;
 import com.google.common.base.Supplier;
@@ -21,6 +17,7 @@ import org.robolectric.android.Bootstrap;
 import org.robolectric.android.ConfigurationV25;
 import org.robolectric.res.ResourceTable;
 import org.robolectric.shadows.ShadowDisplayManager;
+import org.robolectric.shadows.ShadowInstrumentation;
 import org.robolectric.shadows.ShadowView;
 import org.robolectric.util.Scheduler;
 import org.robolectric.util.TempDirectory;
@@ -39,10 +36,10 @@ public class RuntimeEnvironment {
    *     incompatible with {@link org.robolectric.annotation.experimental.LazyApplication} and
    *     Robolectric makes no guarantees if a test *modifies* this field during execution.
    */
-  @Deprecated public static Application application;
+  @Deprecated public static volatile Application application;
 
   private static volatile Thread mainThread;
-  private static Object activityThread;
+  private static volatile Object activityThread;
   private static int apiLevel;
   private static Scheduler masterScheduler;
   private static ResourceTable systemResourceTable;
@@ -52,7 +49,6 @@ public class RuntimeEnvironment {
   private static Path androidFrameworkJar;
   public static Path compileTimeSystemResourcesFile;
 
-  private static boolean useLegacyResources;
   private static Supplier<Application> applicationSupplier;
   private static final Object supplierLock = new Object();
 
@@ -76,7 +72,7 @@ public class RuntimeEnvironment {
     if (application == null) {
       synchronized (supplierLock) {
         if (applicationSupplier != null) {
-          application = applicationSupplier.get();
+          ShadowInstrumentation.runOnMainSyncNoIdle(() -> application = applicationSupplier.get());
         }
       }
     }
@@ -197,9 +193,7 @@ public class RuntimeEnvironment {
    * @param newQualifiers the qualifiers to apply
    */
   public static void setQualifiers(String newQualifiers) {
-    if (getApiLevel() >= JELLY_BEAN_MR1) {
-      ShadowDisplayManager.changeDisplay(Display.DEFAULT_DISPLAY, newQualifiers);
-    }
+    ShadowDisplayManager.changeDisplay(Display.DEFAULT_DISPLAY, newQualifiers);
 
     Configuration configuration;
     DisplayMetrics displayMetrics = new DisplayMetrics();
@@ -238,8 +232,7 @@ public class RuntimeEnvironment {
       Configuration configuration, DisplayMetrics displayMetrics) {
     // Update the resources last so that listeners will have a consistent environment.
     // TODO(paulsowden): Can we call ResourcesManager.getInstance().applyConfigurationToResources()?
-    if (Build.VERSION.SDK_INT >= KITKAT
-        && ResourcesManager.getInstance().getConfiguration() != null) {
+    if (ResourcesManager.getInstance().getConfiguration() != null) {
       ResourcesManager.getInstance().getConfiguration().updateFrom(configuration);
     }
     Resources.getSystem().updateConfiguration(configuration, displayMetrics);
@@ -254,16 +247,6 @@ public class RuntimeEnvironment {
 
   public static int getApiLevel() {
     return apiLevel;
-  }
-
-  public static Number castNativePtr(long ptr) {
-    // Weird, using a ternary here doesn't work, there's some auto promotion of boxed types
-    // happening.
-    if (getApiLevel() >= LOLLIPOP) {
-      return ptr;
-    } else {
-      return (int) ptr;
-    }
   }
 
   /**
@@ -331,25 +314,5 @@ public class RuntimeEnvironment {
 
   public static Path getAndroidFrameworkJarPath() {
     return RuntimeEnvironment.androidFrameworkJar;
-  }
-
-  /**
-   * Internal only.
-   *
-   * @deprecated Do not use.
-   */
-  @Deprecated
-  public static boolean useLegacyResources() {
-    return useLegacyResources;
-  }
-
-  /**
-   * Internal only.
-   *
-   * @deprecated Do not use.
-   */
-  @Deprecated
-  public static void setUseLegacyResources(boolean useLegacyResources) {
-    RuntimeEnvironment.useLegacyResources = useLegacyResources;
   }
 }

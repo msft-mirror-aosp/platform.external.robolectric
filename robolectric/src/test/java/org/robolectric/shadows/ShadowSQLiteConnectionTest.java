@@ -1,15 +1,16 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static com.google.common.truth.TruthJUnit.assume;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 import static org.robolectric.annotation.SQLiteMode.Mode.LEGACY;
 import static org.robolectric.shadows.ShadowLegacySQLiteConnection.convertSQLWithLocalizedUnicodeCollator;
 
 import android.content.ContentValues;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteConstraintException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteDatatypeMismatchException;
 import android.database.sqlite.SQLiteStatement;
@@ -25,13 +26,11 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.annotation.Config;
 import org.robolectric.annotation.SQLiteMode;
 import org.robolectric.shadows.util.SQLiteLibraryLoader;
 import org.robolectric.util.ReflectionHelpers;
 
 @RunWith(AndroidJUnit4.class)
-@Config(minSdk = LOLLIPOP)
 @SQLiteMode(LEGACY) // This test relies on legacy SQLite behavior in Robolectric.
 public class ShadowSQLiteConnectionTest {
   private SQLiteDatabase database;
@@ -189,6 +188,23 @@ public class ShadowSQLiteConnectionTest {
   }
 
   @Test
+  public void uniqueConstraintViolation_errorMessage() {
+    database.execSQL(
+        "CREATE TABLE my_table(\n"
+            + "  _id INTEGER PRIMARY KEY AUTOINCREMENT, \n"
+            + "  unique_column TEXT UNIQUE\n"
+            + ");\n");
+    ContentValues values = new ContentValues();
+    values.put("unique_column", "test");
+    database.insertOrThrow("my_table", null, values);
+    SQLiteConstraintException exception =
+        assertThrows(
+            SQLiteConstraintException.class,
+            () -> database.insertOrThrow("my_table", null, values));
+    assertThat(exception).hasMessageThat().endsWith("(code 2067 SQLITE_CONSTRAINT_UNIQUE)");
+  }
+
+  @Test
   public void test_setUseInMemoryDatabase() {
     assume().that(SQLiteLibraryLoader.isOsSupported()).isTrue();
     assertThat(conn.isMemoryDatabase()).isFalse();
@@ -222,8 +238,7 @@ public class ShadowSQLiteConnectionTest {
   private SQLiteConnection getSQLiteConnection() {
     ptr =
         ShadowLegacySQLiteConnection.nativeOpen(
-                databasePath.getPath(), 0, "test connection", false, false)
-            .longValue();
+            databasePath.getPath(), 0, "test connection", false, false);
     connections =
         ReflectionHelpers.getStaticField(ShadowLegacySQLiteConnection.class, "CONNECTIONS");
     return connections.getConnection(ptr);

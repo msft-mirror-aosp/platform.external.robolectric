@@ -7,7 +7,6 @@ import android.telephony.CellIdentityLte;
 import android.telephony.CellInfo;
 import android.telephony.CellInfoLte;
 import android.telephony.CellSignalStrengthLte;
-import androidx.annotation.RequiresApi;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.reflector.Accessor;
@@ -16,7 +15,6 @@ import org.robolectric.util.reflector.ForType;
 import org.robolectric.util.reflector.WithType;
 
 /** Builder for {@link android.telephony.CellInfoLte}. */
-@RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
 public class CellInfoLteBuilder {
 
   private boolean isRegistered = false;
@@ -76,11 +74,7 @@ public class CellInfoLteBuilder {
       cellInfoLteReflector.setCellSignalStrength(cellSignalStrength);
       CellInfoReflector cellInfoReflector = reflector(CellInfoReflector.class, cellInfo);
       cellInfoReflector.setTimeStamp(timeStamp);
-      if (apiLevel <= Build.VERSION_CODES.KITKAT) {
-        cellInfoReflector.setRegisterd(isRegistered);
-      } else {
-        cellInfoReflector.setRegistered(isRegistered);
-      }
+      cellInfoReflector.setRegistered(isRegistered);
       if (apiLevel > Build.VERSION_CODES.O_MR1) {
         cellInfoReflector.setCellConnectionStatus(cellConnectionStatus);
       }
@@ -126,10 +120,6 @@ public class CellInfoLteBuilder {
 
   @ForType(CellInfo.class)
   private interface CellInfoReflector {
-
-    // https://android.googlesource.com/platform/frameworks/base/+/refs/heads/kitkat-release/telephony/java/android/telephony/CellInfo.java#79
-    @Accessor("mRegistered")
-    void setRegisterd(boolean registered); // NOTYPO
 
     @Accessor("mRegistered")
     void setRegistered(boolean registered);

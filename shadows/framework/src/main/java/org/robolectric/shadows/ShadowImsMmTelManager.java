@@ -4,6 +4,8 @@ import static org.robolectric.util.reflector.Reflector.reflector;
 
 import android.Manifest;
 import android.annotation.CallbackExecutor;
+import android.annotation.NonNull;
+import android.annotation.RequiresApi;
 import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
 import android.os.Build.VERSION_CODES;
@@ -17,13 +19,15 @@ import android.telephony.ims.RegistrationManager;
 import android.telephony.ims.feature.MmTelFeature.MmTelCapabilities;
 import android.telephony.ims.stub.ImsRegistrationImplBase;
 import android.util.ArrayMap;
-import androidx.annotation.NonNull;
-import androidx.annotation.RequiresApi;
 import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
+import org.robolectric.annotation.HiddenApi;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
+import org.robolectric.annotation.RealObject;
 import org.robolectric.annotation.Resetter;
+import org.robolectric.util.reflector.Accessor;
 import org.robolectric.util.reflector.Direct;
 import org.robolectric.util.reflector.ForType;
 import org.robolectric.util.reflector.Static;
@@ -37,12 +41,13 @@ import org.robolectric.util.reflector.Static;
 @Implements(
     value = ImsMmTelManager.class,
     minSdk = VERSION_CODES.Q,
-    looseSignatures = true,
     isInAndroidSdk = false)
 @SystemApi
 public class ShadowImsMmTelManager {
 
-  protected static final Map<Integer, ImsMmTelManager> existingInstances = new ArrayMap<>();
+  private static final Map<Integer, ImsMmTelManager> existingInstances = new ArrayMap<>();
+  private static final Map<Integer, Integer> subIdToRegistrationTransportTypeMap = new ArrayMap<>();
+  private static final Map<Integer, Integer> subIdToRegistrationStateMap = new ArrayMap<>();
 
   private final Map<ImsMmTelManager.RegistrationCallback, Executor>
       registrationCallbackExecutorMap = new ArrayMap<>();
@@ -53,12 +58,9 @@ public class ShadowImsMmTelManager {
   private MmTelCapabilities mmTelCapabilitiesAvailable =
       new MmTelCapabilities(); // start with empty
   private int imsRegistrationTech = ImsRegistrationImplBase.REGISTRATION_TECH_NONE;
-  private int subId;
-
-  @Implementation(maxSdk = VERSION_CODES.R)
-  protected void __constructor__(int subId) {
-    this.subId = subId;
-  }
+  private Consumer<Integer> stateCallback;
+  private Consumer<Integer> transportTypeCallback;
+  @RealObject private ImsMmTelManager realImsMmTelManager;
 
   /**
    * Sets whether IMS is available on the device. Setting this to false will cause {@link
@@ -204,6 +206,47 @@ public class ShadowImsMmTelManager {
     }
   }
 
+  public static void setRegistrationState(int subId, int registrationState) {
+    subIdToRegistrationStateMap.put(subId, registrationState);
+  }
+
+  public Consumer<Integer> getRegistrationStateCallback() {
+    return stateCallback;
+  }
+
+  @HiddenApi
+  @Implementation(minSdk = VERSION_CODES.R)
+  public void getRegistrationState(Executor executor, Consumer<Integer> stateCallback) {
+    this.stateCallback = stateCallback;
+    int subId = getSubscriptionId();
+    if (subIdToRegistrationStateMap.containsKey(getSubscriptionId())) {
+      stateCallback.accept(subIdToRegistrationStateMap.get(subId));
+    }
+  }
+
+  public static void setRegistrationTransportType(int subId, int registrationTransportType) {
+    subIdToRegistrationTransportTypeMap.put(subId, registrationTransportType);
+  }
+
+  public Consumer<Integer> getRegistrationTransportTypeCallback() {
+    return transportTypeCallback;
+  }
+
+  @RequiresPermission(
+      anyOf = {
+        Manifest.permission.READ_PRIVILEGED_PHONE_STATE,
+        Manifest.permission.READ_PRECISE_PHONE_STATE
+      })
+  @Implementation(minSdk = VERSION_CODES.R)
+  public void getRegistrationTransportType(
+      Executor executor, Consumer<Integer> transportTypeCallback) {
+    this.transportTypeCallback = transportTypeCallback;
+    int subId = getSubscriptionId();
+    if (subIdToRegistrationTransportTypeMap.containsKey(getSubscriptionId())) {
+      transportTypeCallback.accept(subIdToRegistrationTransportTypeMap.get(subId));
+    }
+  }
+
   @RequiresPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE)
   @Implementation
   protected void registerMmTelCapabilityCallback(
@@ -248,7 +291,7 @@ public class ShadowImsMmTelManager {
 
   /** Get subscription id */
   public int getSubscriptionId() {
-    return subId;
+    return reflector(ImsMmTelManagerReflector.class, realImsMmTelManager).getSubId();
   }
 
   /** Returns only one instance per subscription id. */
@@ -268,12 +311,17 @@ public class ShadowImsMmTelManager {
   }
 
   @Resetter
-  public static void clearExistingInstances() {
+  public static void clearExistingInstancesAndStates() {
     existingInstances.clear();
+    subIdToRegistrationTransportTypeMap.clear();
+    subIdToRegistrationStateMap.clear();
   }
 
   @ForType(ImsMmTelManager.class)
   interface ImsMmTelManagerReflector {
+
+    @Accessor("mSubId")
+    int getSubId();
 
     @Static
     @Direct

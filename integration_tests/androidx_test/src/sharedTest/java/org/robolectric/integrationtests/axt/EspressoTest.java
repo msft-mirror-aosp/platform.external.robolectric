@@ -1,6 +1,5 @@
 package org.robolectric.integrationtests.axt;
 
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.action.ViewActions.closeSoftKeyboard;
@@ -13,7 +12,10 @@ import static androidx.test.espresso.matcher.ViewMatchers.isCompletelyDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
+import android.os.Handler;
+import android.os.Looper;
 import android.view.KeyEvent;
 import android.widget.Button;
 import android.widget.EditText;
@@ -23,13 +25,13 @@ import androidx.test.core.app.ActivityScenario;
 import androidx.test.espresso.Espresso;
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
-import androidx.test.filters.SdkSuppress;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.annotation.Config;
+import org.robolectric.annotation.LooperMode;
+import org.robolectric.annotation.LooperMode.Mode;
 import org.robolectric.integration.axt.R;
 
 /** Simple tests to verify espresso APIs can be used on both Robolectric and device. */
@@ -179,8 +181,6 @@ public final class EspressoTest {
             });
   }
 
-  @Config(minSdk = LOLLIPOP)
-  @SdkSuppress(minSdkVersion = LOLLIPOP)
   @Test
   public void textViewWithLetterSpacing() {
     onView(withId(R.id.text_view_letter_spacing))
@@ -222,5 +222,17 @@ public final class EspressoTest {
       onView(withId(R.id.button)).perform(click());
       activityScenario.onActivity(action -> assertThat(action.buttonClicked).isTrue());
     }
+  }
+
+  @Test
+  @LooperMode(Mode.INSTRUMENTATION_TEST) // only instrumentation test mode has the correct behavior
+  public void onView_mainThread() {
+    new Handler(Looper.getMainLooper())
+        .post(
+            () ->
+                assertThrows(
+                    IllegalStateException.class,
+                    () -> onView(withId(R.id.edit_text)).perform(typeText("Some text."))));
+    Espresso.onIdle();
   }
 }

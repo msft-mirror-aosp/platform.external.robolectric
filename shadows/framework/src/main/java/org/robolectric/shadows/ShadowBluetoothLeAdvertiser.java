@@ -3,23 +3,41 @@ package org.robolectric.shadows;
 import static android.os.Build.VERSION_CODES.O;
 import static android.os.Build.VERSION_CODES.R;
 import static android.os.Build.VERSION_CODES.S;
+import static android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
+import static org.robolectric.util.reflector.Reflector.reflector;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGattServer;
 import android.bluetooth.BluetoothUuid;
+import android.bluetooth.IBluetoothGatt;
 import android.bluetooth.IBluetoothManager;
 import android.bluetooth.le.AdvertiseCallback;
 import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertiseSettings;
+import android.bluetooth.le.AdvertisingSet;
+import android.bluetooth.le.AdvertisingSetCallback;
+import android.bluetooth.le.AdvertisingSetParameters;
 import android.bluetooth.le.BluetoothLeAdvertiser;
+import android.bluetooth.le.PeriodicAdvertisingParameters;
+import android.content.AttributionSource;
+import android.os.Handler;
 import android.os.ParcelUuid;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.ReflectorObject;
 import org.robolectric.util.PerfStatsCollector;
+import org.robolectric.util.ReflectionHelpers;
+import org.robolectric.util.reflector.Constructor;
 import org.robolectric.util.reflector.Direct;
 import org.robolectric.util.reflector.ForType;
+import org.robolectric.versioning.AndroidVersions.V;
 
 /** Shadow implementation of {@link BluetoothLeAdvertiser}. */
 @Implements(value = BluetoothLeAdvertiser.class, minSdk = O)
@@ -34,6 +52,8 @@ public class ShadowBluetoothLeAdvertiser {
 
   private BluetoothAdapter bluetoothAdapter;
   private final Set<AdvertiseCallback> advertisements = new HashSet<>();
+  private final Map<AdvertisingSetCallback, AdvertisingSet> advertisingSetMap = new HashMap<>();
+  private final AtomicInteger advertiserId = new AtomicInteger(0);
   @ReflectorObject protected BluetoothLeAdvertiserReflector bluetoothLeAdvertiserReflector;
 
   @Implementation(maxSdk = R)
@@ -118,9 +138,162 @@ public class ShadowBluetoothLeAdvertiser {
     this.advertisements.remove(callback);
   }
 
+  /**
+   * Start Bluetooth LE Advertising Set. This method returns immediately, the operation status is
+   * delivered through {@code callback}.
+   *
+   * @param parameters Advertising set parameters.
+   * @param advertiseData Advertisement data to be broadcasted.
+   * @param scanResponse Scan response associated with the advertisement data.
+   * @param periodicParameters Periodic advertisng parameters.
+   * @param periodicData Periodic advertising data.
+   * @param duration Advertising duration, in 10ms unit.
+   * @param maxExtendedAdvertisingEvents Maximum number of extended advertising events the
+   *     controller shall attempt to send prior to terminating the extended advertising, even if the
+   *     duration has not expired.
+   * @param gattServer GattServer the GATT server that will "own" connections derived from this
+   *     advertising.
+   * @param callback Callback for advertising set.
+   * @param handler Thread upon which the callbacks will be invoked.
+   * @throws IllegalArgumentException When {@code callback} is not present.
+   */
+  @Implementation(minSdk = UPSIDE_DOWN_CAKE)
+  protected void startAdvertisingSet(
+      AdvertisingSetParameters parameters,
+      AdvertiseData advertiseData,
+      AdvertiseData scanResponse,
+      PeriodicAdvertisingParameters periodicParameters,
+      AdvertiseData periodicData,
+      int duration,
+      int maxExtendedAdvertisingEvents,
+      BluetoothGattServer gattServer,
+      AdvertisingSetCallback callback,
+      Handler handler) {
+    if (callback == null) {
+      throw new IllegalArgumentException("callback cannot be null");
+    }
+
+    boolean isConnectable = parameters.isConnectable();
+    boolean isDiscoverable = parameters.isDiscoverable();
+    boolean hasFlags = isConnectable && isDiscoverable;
+    if (parameters.isLegacy()) {
+      if (getTotalBytes(advertiseData, hasFlags) > MAX_LEGACY_ADVERTISING_DATA_BYTES) {
+        throw new IllegalArgumentException("Legacy advertising data too big");
+      }
+
+      if (getTotalBytes(scanResponse, false) > MAX_LEGACY_ADVERTISING_DATA_BYTES) {
+        throw new IllegalArgumentException("Legacy scan response data too big");
+      }
+    } else {
+      boolean supportCodedPhy = bluetoothAdapter.isLeCodedPhySupported();
+      boolean support2MPhy = bluetoothAdapter.isLe2MPhySupported();
+      int pphy = parameters.getPrimaryPhy();
+      int sphy = parameters.getSecondaryPhy();
+      if (pphy == BluetoothDevice.PHY_LE_CODED && !supportCodedPhy) {
+        throw new IllegalArgumentException("Unsupported primary PHY selected");
+      }
+
+      if ((sphy == BluetoothDevice.PHY_LE_CODED && !supportCodedPhy)
+          || (sphy == BluetoothDevice.PHY_LE_2M && !support2MPhy)) {
+        throw new IllegalArgumentException("Unsupported secondary PHY selected");
+      }
+
+      int maxData = bluetoothAdapter.getLeMaximumAdvertisingDataLength();
+      if (getTotalBytes(advertiseData, hasFlags) > maxData) {
+        throw new IllegalArgumentException("Advertising data too big");
+      }
+
+      if (getTotalBytes(scanResponse, false) > maxData) {
+        throw new IllegalArgumentException("Scan response data too big");
+      }
+
+      if (getTotalBytes(periodicData, false) > maxData) {
+        throw new IllegalArgumentException("Periodic advertising data too big");
+      }
+    }
+
+    if (maxExtendedAdvertisingEvents < 0 || maxExtendedAdvertisingEvents > 255) {
+      throw new IllegalArgumentException(
+          "maxExtendedAdvertisingEvents out of range: " + maxExtendedAdvertisingEvents);
+    }
+
+    if (maxExtendedAdvertisingEvents != 0 && !bluetoothAdapter.isLePeriodicAdvertisingSupported()) {
+      throw new IllegalArgumentException(
+          "Can't use maxExtendedAdvertisingEvents with controller that don't support "
+              + "LE Extended Advertising");
+    }
+
+    if (duration < 0 || duration > 65535) {
+      throw new IllegalArgumentException("duration out of range: " + duration);
+    }
+
+    if (advertisingSetMap.containsKey(callback)) {
+      callback.onAdvertisingSetStarted(
+          /* advertisingSet= */ null,
+          parameters.getTxPowerLevel(),
+          AdvertisingSetCallback.ADVERTISE_FAILED_ALREADY_STARTED);
+      return;
+    }
+
+    AdvertisingSet advertisingSet;
+    if (RuntimeEnvironment.getApiLevel() >= V.SDK_INT) {
+      IBluetoothGatt gatt =
+          ReflectionHelpers.callInstanceMethod(bluetoothAdapter, "getBluetoothGatt");
+
+      advertisingSet =
+          reflector(AdvertisingSetReflector.class)
+              .__constructor__(
+                  gatt == null ? ReflectionHelpers.createNullProxy(IBluetoothGatt.class) : gatt,
+                  advertiserId.getAndAdd(1),
+                  bluetoothAdapter,
+                  bluetoothAdapter.getAttributionSource());
+    } else {
+      advertisingSet =
+          reflector(AdvertisingSetReflector.class)
+              .__constructor__(
+                  advertiserId.getAndAdd(1),
+                  ReflectionHelpers.createNullProxy(IBluetoothManager.class),
+                  (AttributionSource)
+                      ReflectionHelpers.callInstanceMethod(
+                          bluetoothAdapter, "getAttributionSource"));
+    }
+
+    callback.onAdvertisingSetStarted(
+        advertisingSet, parameters.getTxPowerLevel(), AdvertisingSetCallback.ADVERTISE_SUCCESS);
+
+    advertisingSetMap.put(callback, advertisingSet);
+  }
+
+  /**
+   * Used to dispose of a {@link AdvertisingSet} object, obtained with {@link
+   * BluetoothLeAdvertiser#startAdvertisingSet}.
+   *
+   * @param callback Callback for advertising set.
+   * @throws IllegalArgumentException When {@code callback} is not present.
+   */
+  @Implementation(minSdk = UPSIDE_DOWN_CAKE)
+  protected void stopAdvertisingSet(AdvertisingSetCallback callback) {
+    if (callback == null) {
+      throw new IllegalArgumentException("callback cannot be null");
+    }
+
+    if (!advertisingSetMap.containsKey(callback)) {
+      throw new IllegalArgumentException("callback not found");
+    }
+
+    callback.onAdvertisingSetStopped(advertisingSetMap.get(callback));
+
+    advertisingSetMap.remove(callback);
+  }
+
   /** Returns the count of current ongoing Bluetooth LE advertising requests. */
   public int getAdvertisementRequestCount() {
     return this.advertisements.size();
+  }
+
+  /** Returns the count of current ongoing Bluetooth LE advertising set requests. */
+  public int getAdvertisingSetRequestCount() {
+    return this.advertisingSetMap.size();
   }
 
   private int getTotalBytes(AdvertiseData data, boolean isConnectable) {
@@ -185,5 +358,19 @@ public class ShadowBluetoothLeAdvertiser {
 
     @Direct
     void __constructor__(BluetoothAdapter bluetoothAdapter);
+  }
+
+  @ForType(AdvertisingSet.class)
+  interface AdvertisingSetReflector {
+    @Constructor
+    AdvertisingSet __constructor__(
+        IBluetoothGatt bluetoothGatt,
+        int advertiserId,
+        BluetoothAdapter bluetoothAdapter,
+        AttributionSource attributionSource);
+
+    @Constructor
+    AdvertisingSet __constructor__(
+        int advertiserId, IBluetoothManager bluetoothManager, AttributionSource attributionSource);
   }
 }

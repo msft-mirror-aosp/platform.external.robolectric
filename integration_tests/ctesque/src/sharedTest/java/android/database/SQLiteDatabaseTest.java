@@ -1,6 +1,6 @@
 package android.database;
 
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
+import static android.os.Build.VERSION_CODES.M;
 import static com.google.common.truth.Truth.assertThat;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertThrows;
@@ -26,7 +26,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.annotation.Config;
 import org.robolectric.annotation.internal.DoNotInstrument;
 
 /** Compatibility test for {@link android.database.sqlite.SQLiteDatabase} */
@@ -167,7 +166,8 @@ public class SQLiteDatabaseTest {
       super(name);
     }
 
-    /** Make the finalize method public */
+    /** Make the finalize method public for testing purposes. */
+    @SuppressWarnings("Finalize")
     @Override
     public void finalize() throws Throwable {
       super.finalize();
@@ -205,8 +205,6 @@ public class SQLiteDatabaseTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
-  @SdkSuppress(minSdkVersion = LOLLIPOP)
   public void collate_unicode() {
     String[] names = new String[] {"aaa", "abc", "ABC", "bbb"};
     for (String name : names) {
@@ -227,8 +225,6 @@ public class SQLiteDatabaseTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
-  @SdkSuppress(minSdkVersion = LOLLIPOP)
   public void regex_selection() {
     ContentValues values = new ContentValues();
     values.put("first_column", "test");
@@ -238,5 +234,67 @@ public class SQLiteDatabaseTest {
       "test",
     };
     assertThat(database.delete("table_name", select, selectArgs)).isEqualTo(1);
+  }
+
+  @Test
+  @SdkSuppress(minSdkVersion = M) // This test fails on emulators for SDKs 21 and 22
+  public void fts4() {
+    database.execSQL(
+        "CREATE VIRTUAL TABLE documents USING fts4 ("
+            + "id INTEGER PRIMARY KEY, "
+            + "title TEXT, "
+            + "content TEXT"
+            + ")");
+    ContentValues values = new ContentValues();
+    values.put("title", "Title1");
+    values.put("content", "Hello World");
+    database.insert("documents", null, values);
+
+    String[] columns = {"id"};
+    Cursor results =
+        database.query(
+            "documents",
+            columns,
+            "documents MATCH 'content:*Wor* OR title:*Wor*'",
+            null,
+            null,
+            null,
+            null);
+    assertThat(results.getCount()).isEqualTo(1);
+    results.close();
+
+    // Android does not support parenthesis in MATCH clauses
+    // See https://github.com/robolectric/robolectric/issues/8495
+    results =
+        database.query(
+            "documents",
+            columns,
+            "documents MATCH '(content:*Wor* OR title:*Wor*)'",
+            null,
+            null,
+            null,
+            null);
+    assertThat(results.getCount()).isEqualTo(0);
+    results.close();
+  }
+
+  @Test
+  public void uniqueConstraintViolation_errorMessage() {
+    database.execSQL(
+        "CREATE TABLE my_table(\n"
+            + "  _id INTEGER PRIMARY KEY AUTOINCREMENT, \n"
+            + "  unique_column TEXT UNIQUE\n"
+            + ");\n");
+    ContentValues values = new ContentValues();
+    values.put("unique_column", "test");
+    database.insertOrThrow("my_table", null, values);
+    SQLiteConstraintException exception =
+        assertThrows(
+            SQLiteConstraintException.class,
+            () -> database.insertOrThrow("my_table", null, values));
+    assertThat(exception)
+        .hasMessageThat()
+        .startsWith("UNIQUE constraint failed: my_table.unique_column");
+    assertThat(exception).hasMessageThat().contains("code 2067");
   }
 }

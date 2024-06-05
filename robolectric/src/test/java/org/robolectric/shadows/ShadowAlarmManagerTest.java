@@ -154,7 +154,6 @@ public class ShadowAlarmManagerTest {
     verify(onFire, times(2)).run();
   }
 
-  @Config(minSdk = VERSION_CODES.KITKAT)
   @Test
   public void setWindow_pendingIntent() {
     Runnable onFire = mock(Runnable.class);
@@ -222,7 +221,6 @@ public class ShadowAlarmManagerTest {
     verify(onFire).onAlarm();
   }
 
-  @Config(minSdk = VERSION_CODES.KITKAT)
   @Test
   public void setExact_pendingIntent() {
     Runnable onFire = mock(Runnable.class);
@@ -259,7 +257,6 @@ public class ShadowAlarmManagerTest {
     verify(onFire).onAlarm();
   }
 
-  @Config(minSdk = VERSION_CODES.LOLLIPOP)
   @Test
   public void setAlarmClock_pendingIntent() {
     AlarmClockInfo alarmClockInfo =
@@ -282,7 +279,6 @@ public class ShadowAlarmManagerTest {
     }
   }
 
-  @Config(minSdk = VERSION_CODES.KITKAT)
   @Test
   public void set_pendingIntent_workSource() {
     Runnable onFire = mock(Runnable.class);
@@ -537,7 +533,6 @@ public class ShadowAlarmManagerTest {
   }
 
   @Test
-  @Config(minSdk = VERSION_CODES.LOLLIPOP)
   public void getNextAlarmClockInfo() {
     AlarmClockInfo alarmClockInfo1 =
         new AlarmClockInfo(

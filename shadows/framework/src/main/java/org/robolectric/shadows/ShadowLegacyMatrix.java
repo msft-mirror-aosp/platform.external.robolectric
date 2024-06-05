@@ -1,7 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.KITKAT;
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 
 import android.graphics.Matrix;
 import android.graphics.Matrix.ScaleToFit;
@@ -75,7 +73,7 @@ public class ShadowLegacyMatrix extends ShadowMatrix {
     return simpleMatrix.equals(SimpleMatrix.IDENTITY);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected boolean isAffine() {
     return simpleMatrix.isAffine();
   }
@@ -378,7 +376,7 @@ public class ShadowLegacyMatrix extends ShadowMatrix {
     }
   }
 
-  @Implementation(minSdk = KITKAT)
+  @Implementation
   @Override
   public int hashCode() {
       return Objects.hashCode(simpleMatrix);
@@ -426,7 +424,7 @@ public class ShadowLegacyMatrix extends ShadowMatrix {
     }
 
     private SimpleMatrix(float[] values) {
-      if (values.length != 9) {
+      if (values.length < 9) {
         throw new ArrayIndexOutOfBoundsException();
       }
       mValues = Arrays.copyOf(values, 9);

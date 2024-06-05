@@ -11,63 +11,81 @@ on:
     paths-ignore:
       - '**.md'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
 jobs:
-  run_checkForApiChanges:
-    runs-on: ubuntu-20.04
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'zulu'
-          java-version: 11
-
-      - uses: gradle/gradle-build-action@v2
-
-      - name: Run checkForApiChanges
-        run: ./gradlew checkForApiChanges
-
   run_aggregateDocs:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up JDK
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: 14
+          distribution: 'adopt'
+          java-version: 17
 
-      - uses: gradle/gradle-build-action@v2
+      - uses: gradle/actions/setup-gradle@v3
 
       - name: Run aggregateDocs
         run: ./gradlew clean aggregateDocs
 
-  run_instrumentAll:
-    runs-on: ubuntu-20.04
+  run_javadocJar:
+    runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          submodules: recursive
+      - uses: actions/checkout@v4
 
       - name: Set up JDK
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: 11
+          distribution: 'adopt'
+          java-version: 17
 
-      - uses: gradle/gradle-build-action@v2
+      - uses: gradle/actions/setup-gradle@v3
+
+      - name: Run javadocJar
+        run: ./gradlew clean javadocJar
+
+  run_instrumentAll:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'adopt'
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v3
 
       - name: Run :preinstrumented:instrumentAll
         run: ./gradlew :preinstrumented:instrumentAll
 
       - name: Run :preinstrumented:instrumentAll with SDK 33
         run: PREINSTRUMENTED_SDK_VERSIONS=33 ./gradlew :preinstrumented:instrumentAll
+
+  run_publishToMavenLocal:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'adopt'
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v3
+
+      - name: Publish to Maven local
+        run: ./gradlew publishToMavenLocal --no-watch-fs

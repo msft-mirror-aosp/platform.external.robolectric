@@ -15,9 +15,14 @@ import org.robolectric.annotation.Implements;
 import org.robolectric.nativeruntime.BitmapShaderNatives;
 import org.robolectric.nativeruntime.DefaultNativeRuntimeLoader;
 import org.robolectric.shadows.ShadowNativeBitmapShader.Picker;
+import org.robolectric.versioning.AndroidVersions.U;
 
 /** Shadow for {@link BitmapShader} that is backed by native code */
-@Implements(value = BitmapShader.class, minSdk = O, shadowPicker = Picker.class)
+@Implements(
+    value = BitmapShader.class,
+    minSdk = O,
+    shadowPicker = Picker.class,
+    callNativeMethodsByDefault = true)
 public class ShadowNativeBitmapShader {
 
   @Implementation(minSdk = O, maxSdk = P)
@@ -49,7 +54,7 @@ public class ShadowNativeBitmapShader {
         nativeMatrix, bitmapHandle, shaderTileModeX, shaderTileModeY, filter);
   }
 
-  @Implementation(minSdk = TIRAMISU)
+  @Implementation(minSdk = TIRAMISU, maxSdk = U.SDK_INT)
   protected static long nativeCreate(
       long nativeMatrix,
       long bitmapHandle,

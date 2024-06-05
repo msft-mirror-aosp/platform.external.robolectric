@@ -4,7 +4,6 @@ import static android.media.MediaFormat.MIMETYPE_AUDIO_AAC;
 import static android.media.MediaFormat.MIMETYPE_AUDIO_OPUS;
 import static android.media.MediaFormat.MIMETYPE_VIDEO_AVC;
 import static android.media.MediaFormat.MIMETYPE_VIDEO_VP9;
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.Q;
 import static com.google.common.truth.Truth.assertThat;
@@ -23,7 +22,6 @@ import org.robolectric.annotation.Config;
 
 /** Tests for {@link MediaCodecInfoBuilder}. */
 @RunWith(AndroidJUnit4.class)
-@Config(minSdk = LOLLIPOP)
 public class MediaCodecInfoBuilderTest {
 
   private static final String AAC_ENCODER_NAME = "test.encoder.aac";
@@ -166,12 +164,39 @@ public class MediaCodecInfoBuilderTest {
 
   @Test
   @Config(minSdk = Q)
+  public void canCreateVideoEncoderCapabilities_supportedFormatResolutionRangeIsSet() {
+    MediaFormat formatWithResolutionRange = AVC_MEDIA_FORMAT;
+
+    final int kMinDimension = 64;
+    formatWithResolutionRange.setInteger(MediaFormat.KEY_WIDTH, kMinDimension);
+    formatWithResolutionRange.setInteger(MediaFormat.KEY_HEIGHT, kMinDimension);
+    formatWithResolutionRange.setInteger(MediaFormat.KEY_MAX_WIDTH, WIDTH);
+    formatWithResolutionRange.setInteger(MediaFormat.KEY_MAX_HEIGHT, HEIGHT);
+
+    CodecCapabilities codecCapabilities =
+        MediaCodecInfoBuilder.CodecCapabilitiesBuilder.newBuilder()
+            .setMediaFormat(formatWithResolutionRange)
+            .setIsEncoder(true)
+            .setProfileLevels(AVC_PROFILE_LEVELS)
+            .setColorFormats(AVC_COLOR_FORMATS)
+            .build();
+
+    assertThat(codecCapabilities.getVideoCapabilities()).isNotNull();
+    assertThat(codecCapabilities.getVideoCapabilities().getSupportedWidths())
+        .isEqualTo(new Range<>(kMinDimension, WIDTH));
+    assertThat(codecCapabilities.getVideoCapabilities().getSupportedHeights())
+        .isEqualTo(new Range<>(kMinDimension, HEIGHT));
+  }
+
+  @Test
+  @Config(minSdk = Q)
   public void canCreateVideoDecoderCapabilities() {
     CodecCapabilities codecCapabilities =
         MediaCodecInfoBuilder.CodecCapabilitiesBuilder.newBuilder()
             .setMediaFormat(VP9_MEDIA_FORMAT)
             .setProfileLevels(VP9_PROFILE_LEVELS)
             .setColorFormats(VP9_COLOR_FORMATS)
+            .setRequiredFeatures(new String[] {CodecCapabilities.FEATURE_SecurePlayback})
             .build();
 
     assertThat(codecCapabilities.getMimeType()).isEqualTo(MIMETYPE_VIDEO_VP9);
@@ -179,6 +204,8 @@ public class MediaCodecInfoBuilderTest {
     assertThat(codecCapabilities.getVideoCapabilities()).isNotNull();
     assertThat(codecCapabilities.getEncoderCapabilities()).isNull();
     assertThat(codecCapabilities.isFeatureSupported(CodecCapabilities.FEATURE_SecurePlayback))
+        .isTrue();
+    assertThat(codecCapabilities.isFeatureRequired(CodecCapabilities.FEATURE_SecurePlayback))
         .isTrue();
     assertThat(codecCapabilities.isFeatureSupported(CodecCapabilities.FEATURE_MultipleFrames))
         .isTrue();
@@ -336,7 +363,6 @@ public class MediaCodecInfoBuilderTest {
   }
 
   @Test
-  @Config(minSdk = LOLLIPOP)
   public void mediaCodecInfo_preQ() {
     if (RuntimeEnvironment.getApiLevel() <= M) {
       MediaCodecList.getCodecCount();

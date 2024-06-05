@@ -27,8 +27,6 @@ import static android.content.pm.PackageManager.SIGNATURE_NEITHER_SIGNED;
 import static android.content.pm.PackageManager.SIGNATURE_NO_MATCH;
 import static android.content.pm.PackageManager.SIGNATURE_SECOND_NOT_SIGNED;
 import static android.content.pm.PackageManager.VERIFICATION_ALLOW;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
-import static android.os.Build.VERSION_CODES.KITKAT;
 import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.TIRAMISU;
 import static java.util.Arrays.asList;
@@ -70,7 +68,6 @@ import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Binder;
-import android.os.Build;
 import android.os.PersistableBundle;
 import android.os.Process;
 import android.os.RemoteException;
@@ -81,6 +78,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import com.google.errorprone.annotations.InlineMe;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -206,12 +204,10 @@ public class ShadowPackageManager {
    * @return existing or newly created activity info.
    */
   public ActivityInfo addActivityIfNotPresent(ComponentName componentName) {
+    ActivityInfo activityInfo = updateName(componentName, new ActivityInfo());
+    activityInfo.flags |= ActivityInfo.FLAG_HARDWARE_ACCELERATED;
     return addComponent(
-        activityFilters,
-        p -> p.activities,
-        (p, a) -> p.activities = a,
-        updateName(componentName, new ActivityInfo()),
-        false);
+        activityFilters, p -> p.activities, (p, a) -> p.activities = a, activityInfo, false);
   }
 
   /**
@@ -641,11 +637,7 @@ public class ShadowPackageManager {
   public void addResolveInfoForIntent(Intent intent, ResolveInfo info) {
     info.isDefault = true;
     ComponentInfo[] componentInfos =
-        new ComponentInfo[] {
-          info.activityInfo,
-          info.serviceInfo,
-          Build.VERSION.SDK_INT >= KITKAT ? info.providerInfo : null
-        };
+        new ComponentInfo[] {info.activityInfo, info.serviceInfo, info.providerInfo};
     for (ComponentInfo component : componentInfos) {
       if (component != null && component.applicationInfo != null) {
         component.applicationInfo.flags |= ApplicationInfo.FLAG_INSTALLED;
@@ -901,9 +893,12 @@ public class ShadowPackageManager {
     installPackage(packageInfo);
   }
 
-  /** This method is getting renamed to {link {@link #installPackage}. */
+  /**
+   * @deprecated Use {@link #installPackage} instead.
+   */
   @Deprecated
-  public void addPackage(PackageInfo packageInfo) {
+  @InlineMe(replacement = "this.installPackage(packageInfo)")
+  public final void addPackage(PackageInfo packageInfo) {
     installPackage(packageInfo);
   }
 
@@ -1098,7 +1093,7 @@ public class ShadowPackageManager {
     return null;
   }
 
-  @Implementation(minSdk = JELLY_BEAN_MR1)
+  @Implementation
   protected List<ResolveInfo> queryBroadcastReceivers(
       Intent intent, int flags, @UserIdInt int userId) {
     return null;
@@ -1626,9 +1621,6 @@ public class ShadowPackageManager {
 
   protected static <V> SortedMap<ComponentName, V> mapForPackage(
       SortedMap<ComponentName, V> input, @Nullable String packageName) {
-    if (packageName == null) {
-      return input;
-    }
     if (packageName == null) {
       return input;
     }

@@ -10,6 +10,7 @@ import java.lang.reflect.Proxy;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /** Collection of helper methods for calling methods and accessing fields reflectively. */
 @SuppressWarnings(value = {"unchecked", "TypeParameterUnusedInFormals", "NewApi"})
@@ -401,6 +402,22 @@ public class ReflectionHelpers {
   }
 
   /**
+   * Attempt to load a class.
+   *
+   * @param classLoader The class loader.
+   * @param fullyQualifiedClassName The fully qualified class name.
+   * @return The class object, or null if class is not found.
+   */
+  public static Optional<Class<?>> attemptLoadClass(
+      ClassLoader classLoader, String fullyQualifiedClassName) {
+    try {
+      return Optional.of(classLoader.loadClass(fullyQualifiedClassName));
+    } catch (ClassNotFoundException e) {
+      return Optional.empty();
+    }
+  }
+
+  /**
    * Create a new instance of a class
    *
    * @param cl The class object.
@@ -520,25 +537,6 @@ public class ReflectionHelpers {
         values[i] = paramValue;
       }
       return values;
-    }
-  }
-
-  /**
-   * String parameter used with reflective method calls.
-   *
-   * @param <V> The value of the method parameter.
-   */
-  public static class StringParameter<V> {
-    public final String className;
-    public final V value;
-
-    public StringParameter(String className, V value) {
-      this.className = className;
-      this.value = value;
-    }
-
-    public static <V> StringParameter<V> from(String className, V value) {
-      return new StringParameter<>(className, value);
     }
   }
 }

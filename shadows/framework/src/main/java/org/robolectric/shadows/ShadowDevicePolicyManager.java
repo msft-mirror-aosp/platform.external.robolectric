@@ -3,9 +3,6 @@ package org.robolectric.shadows;
 import static android.app.admin.DevicePolicyManager.LOCK_TASK_FEATURE_HOME;
 import static android.app.admin.DevicePolicyManager.LOCK_TASK_FEATURE_NOTIFICATIONS;
 import static android.app.admin.DevicePolicyManager.LOCK_TASK_FEATURE_OVERVIEW;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
-import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.LOLLIPOP_MR1;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.N;
@@ -34,6 +31,7 @@ import android.app.admin.DevicePolicyManager;
 import android.app.admin.DevicePolicyManager.NearbyStreamingPolicy;
 import android.app.admin.DevicePolicyManager.PasswordComplexity;
 import android.app.admin.DevicePolicyManager.UserProvisioningState;
+import android.app.admin.DevicePolicyState;
 import android.app.admin.IDevicePolicyManager;
 import android.app.admin.SystemUpdatePolicy;
 import android.content.ComponentName;
@@ -54,6 +52,7 @@ import android.os.UserHandle;
 import android.text.TextUtils;
 import com.android.internal.util.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -69,8 +68,9 @@ import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.RealObject;
 import org.robolectric.shadow.api.Shadow;
+import org.robolectric.versioning.AndroidVersions.U;
 
-@Implements(DevicePolicyManager.class)
+@Implements(value = DevicePolicyManager.class, looseSignatures = true)
 @SuppressLint("NewApi")
 public class ShadowDevicePolicyManager {
   /**
@@ -126,6 +126,7 @@ public class ShadowDevicePolicyManager {
   private final Set<String> affiliationIds = new HashSet<>();
   private final Map<PackageAndPermission, Boolean> appPermissionGrantedMap = new HashMap<>();
   private final Map<PackageAndPermission, Integer> appPermissionGrantStateMap = new HashMap<>();
+  private final Map<String, Set<String>> delegatedScopePackagesMap = new HashMap<>();
   private final Map<ComponentName, byte[]> passwordResetTokens = new HashMap<>();
   private final Map<ComponentName, Set<Integer>> adminPolicyGrantedMap = new HashMap<>();
   private final Map<ComponentName, CharSequence> shortSupportMessageMap = new HashMap<>();
@@ -152,8 +153,10 @@ public class ShadowDevicePolicyManager {
   private final Map<Integer, Integer> userProvisioningStatesMap = new HashMap<>();
   @Nullable private PersistableBundle lastTransferOwnershipBundle;
 
+  private Object /* DevicePolicyState */ devicePolicyState;
   private @RealObject DevicePolicyManager realObject;
 
+  
   private static class PackageAndPermission {
 
     public PackageAndPermission(String packageName, String permission) {
@@ -209,12 +212,12 @@ public class ShadowDevicePolicyManager {
     storageEncryptionStatus = DevicePolicyManager.ENCRYPTION_STATUS_UNSUPPORTED;
   }
 
-  @Implementation(minSdk = JELLY_BEAN_MR2)
+  @Implementation
   protected boolean isDeviceOwnerApp(String packageName) {
     return deviceOwner != null && deviceOwner.getPackageName().equals(packageName);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected boolean isProfileOwnerApp(String packageName) {
     return profileOwner != null && profileOwner.getPackageName().equals(packageName);
   }
@@ -229,21 +232,25 @@ public class ShadowDevicePolicyManager {
     return deviceAdmins;
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void addUserRestriction(ComponentName admin, String key) {
     enforceActiveAdmin(admin);
     getShadowUserManager().setUserRestriction(Process.myUserHandle(), key, true);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void clearUserRestriction(ComponentName admin, String key) {
     enforceActiveAdmin(admin);
     getShadowUserManager().setUserRestriction(Process.myUserHandle(), key, false);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected boolean setApplicationHidden(ComponentName admin, String packageName, boolean hidden) {
-    enforceActiveAdmin(admin);
+    if (admin != null) {
+      enforceActiveAdmin(admin);
+    } else {
+      enforceCallerDelegated(DevicePolicyManager.DELEGATION_PACKAGE_ACCESS);
+    }
     if (packagesToFailForSetApplicationHidden.contains(packageName)) {
       return false;
     }
@@ -266,9 +273,13 @@ public class ShadowDevicePolicyManager {
     packagesToFailForSetApplicationHidden = packagesToFail;
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected boolean isApplicationHidden(ComponentName admin, String packageName) {
-    enforceActiveAdmin(admin);
+    if (admin != null) {
+      enforceActiveAdmin(admin);
+    } else {
+      enforceCallerDelegated(DevicePolicyManager.DELEGATION_PACKAGE_ACCESS);
+    }
     return applicationPackageManager.getApplicationHiddenSettingAsUser(
         packageName, Process.myUserHandle());
   }
@@ -278,7 +289,7 @@ public class ShadowDevicePolicyManager {
     return wasHiddenPackages.contains(packageName);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void enableSystemApp(ComponentName admin, String packageName) {
     enforceActiveAdmin(admin);
     systemAppsEnabled.add(packageName);
@@ -289,7 +300,7 @@ public class ShadowDevicePolicyManager {
     return systemAppsEnabled.contains(packageName);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void setUninstallBlocked(
       ComponentName admin, String packageName, boolean uninstallBlocked) {
     enforceActiveAdmin(admin);
@@ -300,7 +311,7 @@ public class ShadowDevicePolicyManager {
     }
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected boolean isUninstallBlocked(@Nullable ComponentName admin, String packageName) {
     if (admin == null) {
       // Starting from LOLLIPOP_MR1, the behavior of this API is changed such that passing null as
@@ -337,7 +348,7 @@ public class ShadowDevicePolicyManager {
   /**
    * @see #setDeviceOwner(ComponentName)
    */
-  @Implementation(minSdk = JELLY_BEAN_MR2)
+  @Implementation
   protected String getDeviceOwner() {
     return deviceOwner != null ? deviceOwner.getPackageName() : null;
   }
@@ -353,7 +364,7 @@ public class ShadowDevicePolicyManager {
   /**
    * @see #setProfileOwner(ComponentName)
    */
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected ComponentName getProfileOwner() {
     return profileOwner;
   }
@@ -362,7 +373,7 @@ public class ShadowDevicePolicyManager {
    * Returns the human-readable name of the profile owner for a user if set using {@link
    * #setProfileOwnerName}, otherwise null.
    */
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected String getProfileOwnerNameAsUser(int userId) {
     return profileOwnerNamesMap.get(userId);
   }
@@ -438,7 +449,7 @@ public class ShadowDevicePolicyManager {
     deviceAdmins.remove(admin);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void clearProfileOwner(ComponentName admin) {
     profileOwner = null;
     lastTransferOwnershipBundle = null;
@@ -447,9 +458,13 @@ public class ShadowDevicePolicyManager {
     }
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected Bundle getApplicationRestrictions(ComponentName admin, String packageName) {
-    enforceDeviceOwnerOrProfileOwner(admin);
+    if (admin != null) {
+      enforceDeviceOwnerOrProfileOwner(admin);
+    } else {
+      enforceCallerDelegated(DevicePolicyManager.DELEGATION_APP_RESTRICTIONS);
+    }
     return getApplicationRestrictions(packageName);
   }
 
@@ -460,10 +475,14 @@ public class ShadowDevicePolicyManager {
     return bundle != null ? new Bundle(bundle) : new Bundle();
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void setApplicationRestrictions(
       ComponentName admin, String packageName, Bundle applicationRestrictions) {
-    enforceDeviceOwnerOrProfileOwner(admin);
+    if (admin != null) {
+      enforceDeviceOwnerOrProfileOwner(admin);
+    } else {
+      enforceCallerDelegated(DevicePolicyManager.DELEGATION_APP_RESTRICTIONS);
+    }
     setApplicationRestrictions(packageName, applicationRestrictions);
   }
 
@@ -494,7 +513,43 @@ public class ShadowDevicePolicyManager {
     }
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  private boolean hasPackage(String caller, String packageName) {
+    if (caller == null) {
+      return false;
+    }
+    return caller.contains(packageName);
+  }
+
+  private void enforceCallerDelegated(String targetScope) {
+    if (!delegatedScopePackagesMap.containsKey(targetScope)
+        || delegatedScopePackagesMap.get(targetScope).isEmpty()) {
+      throw new SecurityException(targetScope + " is not delegated to any package.");
+    }
+    String caller = context.getPackageName();
+    for (String packageName : delegatedScopePackagesMap.get(targetScope)) {
+      if (hasPackage(caller, packageName)) {
+        return;
+      }
+    }
+    throw new SecurityException("[" + caller + "] is not delegated with" + targetScope);
+  }
+
+  @Implementation(minSdk = O)
+  protected void setDelegatedScopes(
+      ComponentName admin, String delegatePackage, List<String> scopes) {
+    enforceDeviceOwnerOrProfileOwner(admin);
+    for (String scope : scopes) {
+      if (delegatedScopePackagesMap.containsKey(scope)) {
+        Set<String> allowPackages = delegatedScopePackagesMap.get(scope);
+        allowPackages.add(delegatePackage);
+      } else {
+        ImmutableSet<String> allowPackages = ImmutableSet.of(delegatePackage);
+        delegatedScopePackagesMap.put(scope, allowPackages);
+      }
+    }
+  }
+
+  @Implementation
   protected void setAccountManagementDisabled(
       ComponentName admin, String accountType, boolean disabled) {
     enforceDeviceOwnerOrProfileOwner(admin);
@@ -505,7 +560,7 @@ public class ShadowDevicePolicyManager {
     }
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected String[] getAccountTypesWithManagementDisabled() {
     return accountTypesWithManagementDisabled.toArray(new String[0]);
   }
@@ -536,6 +591,8 @@ public class ShadowDevicePolicyManager {
       ComponentName admin, String[] packageNames, boolean suspended) {
     if (admin != null) {
       enforceDeviceOwnerOrProfileOwner(admin);
+    } else {
+      enforceCallerDelegated(DevicePolicyManager.DELEGATION_PACKAGE_ACCESS);
     }
     if (packageNames == null) {
       throw new NullPointerException("package names cannot be null");
@@ -563,6 +620,8 @@ public class ShadowDevicePolicyManager {
       throws NameNotFoundException {
     if (admin != null) {
       enforceDeviceOwnerOrProfileOwner(admin);
+    } else {
+      enforceCallerDelegated(DevicePolicyManager.DELEGATION_PACKAGE_ACCESS);
     }
     // Throws NameNotFoundException
     context.getPackageManager().getPackageInfo(packageName, 0);
@@ -615,13 +674,13 @@ public class ShadowDevicePolicyManager {
     return isAutoTimeEnabled;
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void setAutoTimeRequired(ComponentName admin, boolean required) {
     enforceDeviceOwnerOrProfileOwner(admin);
     isAutoTimeRequired = required;
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected boolean getAutoTimeRequired() {
     return isAutoTimeRequired;
   }
@@ -661,7 +720,7 @@ public class ShadowDevicePolicyManager {
    * <p>This method does not check already enabled non-system accessibility services, so will always
    * set the restriction and return true.
    */
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected boolean setPermittedAccessibilityServices(
       ComponentName admin, List<String> packageNames) {
     enforceDeviceOwnerOrProfileOwner(admin);
@@ -669,7 +728,7 @@ public class ShadowDevicePolicyManager {
     return true;
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   @Nullable
   protected List<String> getPermittedAccessibilityServices(ComponentName admin) {
     enforceDeviceOwnerOrProfileOwner(admin);
@@ -684,14 +743,14 @@ public class ShadowDevicePolicyManager {
    * <p>This method does not check already enabled non-system input methods, so will always set the
    * restriction and return true.
    */
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected boolean setPermittedInputMethods(ComponentName admin, List<String> packageNames) {
     enforceDeviceOwnerOrProfileOwner(admin);
     permittedInputMethods = packageNames;
     return true;
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   @Nullable
   protected List<String> getPermittedInputMethods(ComponentName admin) {
     enforceDeviceOwnerOrProfileOwner(admin);
@@ -1193,7 +1252,7 @@ public class ShadowDevicePolicyManager {
     return componentsWithActivatedTokens.add(admin);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void addPersistentPreferredActivity(
       ComponentName admin, IntentFilter filter, ComponentName activity) {
     enforceDeviceOwnerOrProfileOwner(admin);
@@ -1203,7 +1262,7 @@ public class ShadowDevicePolicyManager {
         .addPersistentPreferredActivity(filter, activity);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void clearPackagePersistentPreferredActivities(
       ComponentName admin, String packageName) {
     enforceDeviceOwnerOrProfileOwner(admin);
@@ -1212,13 +1271,13 @@ public class ShadowDevicePolicyManager {
         .clearPackagePersistentPreferredActivities(packageName);
   }
 
-  @Implementation(minSdk = JELLY_BEAN_MR1)
+  @Implementation
   protected void setKeyguardDisabledFeatures(ComponentName admin, int which) {
     enforceActiveAdmin(admin);
     keyguardDisabledFeatures = which;
   }
 
-  @Implementation(minSdk = JELLY_BEAN_MR1)
+  @Implementation
   protected int getKeyguardDisabledFeatures(ComponentName admin) {
     return keyguardDisabledFeatures;
   }
@@ -1278,20 +1337,20 @@ public class ShadowDevicePolicyManager {
     lockTaskFeatures = flags;
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected void setLockTaskPackages(@NonNull ComponentName admin, String[] packages) {
     enforceDeviceOwnerOrProfileOwner(admin);
     lockTaskPackages.clear();
     Collections.addAll(lockTaskPackages, packages);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected String[] getLockTaskPackages(@NonNull ComponentName admin) {
     enforceDeviceOwnerOrProfileOwner(admin);
     return lockTaskPackages.toArray(new String[0]);
   }
 
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation
   protected boolean isLockTaskPermitted(@NonNull String pkg) {
     return lockTaskPackages.contains(pkg);
   }
@@ -1523,5 +1582,19 @@ public class ShadowDevicePolicyManager {
   @UserProvisioningState
   public int getUserProvisioningStateForUser(int userId) {
     return userProvisioningStatesMap.getOrDefault(userId, DevicePolicyManager.STATE_USER_UNMANAGED);
+  }
+
+  /** Return a stub value set by {@link #setDevicePolicyState(DevicePolicyState policyState)} */
+  @Implementation(minSdk = U.SDK_INT)
+  protected Object getDevicePolicyState() {
+    return devicePolicyState;
+  }
+
+  /**
+   * Set the {@link DevicePolicyState} which can be constructed from {@link
+   * DevicePolicyStateBuilder}
+   */
+  public void setDevicePolicyState(Object policyState) {
+    devicePolicyState = policyState;
   }
 }
