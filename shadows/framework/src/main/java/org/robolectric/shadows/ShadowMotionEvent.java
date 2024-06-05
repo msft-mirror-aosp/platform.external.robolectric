@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.P;
 import static android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
