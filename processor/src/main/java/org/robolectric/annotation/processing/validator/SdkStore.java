@@ -55,7 +55,10 @@ public class SdkStore {
 
   private final Set<Sdk> sdks = new TreeSet<>();
   private boolean loaded = false;
+
+  /** Should only ever be needed for android platform development */
   private final boolean loadFromClasspath;
+
   private final String overrideSdkLocation;
   private final int overrideSdkInt;
   private final String sdksFile;
@@ -155,10 +158,10 @@ public class SdkStore {
 
   /**
    * Returns a list of sdks to process, either the compilation's classpaths sdk in a list of size
-   * one, or the list of sdks in a sdkFile.
+   * one, or the list of sdks in a sdkFile. This should not be needed unless building in the android
+   * codebase. Otherwise, should prefer using the sdks.txt and the released jars.
    *
-   * @param localSdk validate sdk found in compile time classpath, takes precedence over sdkFile,
-   *     only applies to unreleased versions of Android.
+   * @param localSdk validate sdk found in compile time classpath, takes precedence over sdkFile
    * @param sdkFileName the sdkFile name, may be null, or empty
    * @param overrideSdkLocation if provided overrides the default lookup of the localSdk, iff
    *     localSdk is on.
@@ -175,8 +178,10 @@ public class SdkStore {
         String target = compilationSdkTarget();
         if (target != null) {
           sdk = new Sdk(target);
+          // We don't want to test released versions in Android source tree.
           return sdk == null || sdk.sdkRelease.isReleased()
-              ? ImmutableList.of() : ImmutableList.of(sdk);
+              ? ImmutableList.of()
+              : ImmutableList.of(sdk);
         }
       }
     }
