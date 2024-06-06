@@ -2,8 +2,8 @@ package org.robolectric.versioning;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import java.util.Arrays;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -16,11 +16,11 @@ public final class AndroidVersionsEdgeCaseTest {
 
   private void forceWarningMode(boolean warnMode) {
     try {
-      Field f = AndroidVersions.class.getDeclaredField("WARN_ONLY");
-      f.setAccessible(true);
-      f.set(null, warnMode);
+      Field field = AndroidVersions.class.getDeclaredField("warnOnly");
+      field.setAccessible(true);
+      field.set(null, warnMode);
     } catch (NoSuchFieldException | IllegalAccessException ex) {
-      throw new RuntimeException("Could not update WARN_ONLY field", ex);
+      throw new RuntimeException("Could not update warnOnly field", ex);
     }
   }
 
@@ -101,11 +101,9 @@ public final class AndroidVersionsEdgeCaseTest {
 
   @Test
   public void unknownSdkInt_warningMode() {
-    AndroidRelease latestRelease = null;
     try {
       forceWarningMode(true);
       SdkInformation information = AndroidVersions.gatherStaticSdkInformationFromThisClass();
-      latestRelease = information.latestRelease;
       AndroidRelease found =
           information.computeCurrentSdk(
               35, "zzzz", "Z", Arrays.asList("wwww", "xxxx", "yyyy", "zzzz"));
@@ -115,4 +113,3 @@ public final class AndroidVersionsEdgeCaseTest {
     }
   }
 }
-
