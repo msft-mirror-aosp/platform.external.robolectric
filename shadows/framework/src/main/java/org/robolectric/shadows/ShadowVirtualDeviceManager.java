@@ -4,6 +4,7 @@ import static android.companion.virtual.VirtualDeviceManager.LAUNCH_SUCCESS;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.PendingIntent;
 import android.companion.virtual.IVirtualDevice;
 import android.companion.virtual.IVirtualDeviceManager;
@@ -14,7 +15,9 @@ import android.companion.virtual.sensor.VirtualSensor;
 import android.companion.virtual.sensor.VirtualSensorCallback;
 import android.companion.virtual.sensor.VirtualSensorDirectChannelCallback;
 import android.content.Context;
+import android.hardware.display.DisplayManagerGlobal;
 import android.hardware.display.VirtualDisplay;
+import android.hardware.display.VirtualDisplayConfig;
 import android.hardware.input.VirtualKeyboard;
 import android.hardware.input.VirtualKeyboardConfig;
 import android.hardware.input.VirtualMouse;
@@ -42,14 +45,10 @@ import org.robolectric.util.reflector.Accessor;
 import org.robolectric.util.reflector.Constructor;
 import org.robolectric.util.reflector.ForType;
 import org.robolectric.versioning.AndroidVersions.U;
+import org.robolectric.versioning.AndroidVersions.V;
 
 /** Shadow for VirtualDeviceManager. */
-@Implements(
-    value = VirtualDeviceManager.class,
-    minSdk = U.SDK_INT,
-
-    // TODO: remove when minimum supported compileSdk is >= 34
-    isInAndroidSdk = false)
+@Implements(value = VirtualDeviceManager.class, minSdk = U.SDK_INT, isInAndroidSdk = false)
 public class ShadowVirtualDeviceManager {
 
   private final List<VirtualDeviceManager.VirtualDevice> mVirtualDevices = new ArrayList<>();
@@ -126,7 +125,6 @@ public class ShadowVirtualDeviceManager {
   @Implements(
       value = VirtualDeviceManager.VirtualDevice.class,
       minSdk = U.SDK_INT,
-      // TODO: remove when minimum supported compileSdk is >= 34
       isInAndroidSdk = false)
   public static class ShadowVirtualDevice {
     private static final AtomicInteger nextDeviceId = new AtomicInteger(1);
@@ -134,9 +132,12 @@ public class ShadowVirtualDeviceManager {
     @RealObject VirtualDeviceManager.VirtualDevice realVirtualDevice;
     private VirtualDeviceParams params;
     private int deviceId;
+    private String persistentDeviceId;
     private PendingIntent pendingIntent;
     private Integer pendingIntentResultCode = LAUNCH_SUCCESS;
     private final AtomicBoolean isClosed = new AtomicBoolean(false);
+    private Context context;
+    private int associationId;
 
     @Implementation
     protected void __constructor__(
@@ -153,11 +154,25 @@ public class ShadowVirtualDeviceManager {
           ClassParameter.from(VirtualDeviceParams.class, params));
       this.params = params;
       this.deviceId = nextDeviceId.getAndIncrement();
+      this.context = context;
+      this.associationId = associationId;
+      this.persistentDeviceId = "companion:" + associationId;
     }
 
     @Implementation
     protected int getDeviceId() {
       return deviceId;
+    }
+
+    @Implementation
+    protected Context createContext() {
+      return context.createDeviceContext(deviceId);
+    }
+
+    @Implementation(minSdk = V.SDK_INT)
+    @Nullable
+    protected String getPersistentDeviceId() {
+      return persistentDeviceId;
     }
 
     /** Prevents a NPE when calling .close() on a VirtualDevice in unit tests. */
@@ -270,6 +285,15 @@ public class ShadowVirtualDeviceManager {
         return accessor.newInstanceV(
             config, ReflectionHelpers.createNullProxy(IVirtualDevice.class), token);
       }
+    }
+
+    @Implementation
+    protected VirtualDisplay createVirtualDisplay(
+        @NonNull VirtualDisplayConfig config,
+        @Nullable Executor executor,
+        @Nullable VirtualDisplay.Callback callback) {
+      return DisplayManagerGlobal.getInstance()
+          .createVirtualDisplay(context, null, config, callback, executor);
     }
 
     public void setPendingIntentCallbackResultCode(int resultCode) {
