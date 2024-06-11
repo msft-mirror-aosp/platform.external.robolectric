@@ -14,10 +14,11 @@ popd
 
 echo building patch
 # waiting on clean up the ttf/icu data -- hence nativeruntime resources are ignored.
+# we also need
 diff -Naur . /tmp/robo/robolectric \
   -x '*.bp' \
   -x '*.md' \
-  -x '*.sh' \
+  -x 'harddiff.sh' \
   -x 'METADATA' \
   -x 'MODULE_LICENSE_MIT' \
   -x 'NOTICE' \
@@ -34,9 +35,23 @@ diff -Naur . /tmp/robo/robolectric \
   -x '*.ttc' \
   -x 'fonts.xml' \
   -x '*.dat' \
+  -x 'lint-baseline.xml' \
+  -x 'robo-manifest.xml' \
+  -x 'FontAndroidManifest.xml' \
+  -x 'config.xml' \
+  -x 'public.xml' \
+  -x 'AndroidManifest.xml' \
+  -x 'README' \
+  -x 'robolectric.properties' \
 > /tmp/robo/patch
 
 echo applying patch
 patch -p1 < /tmp/robo/patch
 
 echo patch applied
+
+# How to auto revert an existing CL from upstream on top of the diff
+# One per CL please.
+
+# echo reverting upstream CL due to ...
+# git diff 162eaf30e754fdc3322b2c6b0df6576b4555e650 162eaf30e754fdc3322b2c6b0df6576b4555e650^ | patch -p1
