@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.P;
 import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.R;
 import static android.os.Build.VERSION_CODES.S;
@@ -20,7 +19,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import org.robolectric.annotation.InDevelopment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.RealObject;
@@ -35,12 +33,11 @@ import org.robolectric.versioning.AndroidVersions.U;
 /** Shadow for {@link Font} that is backed by native code */
 @Implements(
     value = Font.class,
-    minSdk = P,
+    minSdk = Q,
     shadowPicker = Picker.class,
     isInAndroidSdk = false,
     callNativeMethodsByDefault = true)
 public class ShadowNativeFont {
-
   @Implementation(minSdk = S, maxSdk = U.SDK_INT)
   protected static long nGetMinikinFontPtr(long font) {
     return FontNatives.nGetMinikinFontPtr(font);
@@ -120,7 +117,7 @@ public class ShadowNativeFont {
   /** Shadow for {@link Font.Builder} that is backed by native code */
   @Implements(
       value = Font.Builder.class,
-      minSdk = P,
+      minSdk = Q,
       shadowPicker = ShadowNativeFontBuilder.Picker.class,
       isInAndroidSdk = false,
       callNativeMethodsByDefault = true)
