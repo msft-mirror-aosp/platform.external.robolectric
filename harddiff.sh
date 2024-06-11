@@ -14,6 +14,7 @@ popd
 
 echo building patch
 # waiting on clean up the ttf/icu data -- hence nativeruntime resources are ignored.
+# we also need
 diff -Naur . /tmp/robo/robolectric \
   -x '*.bp' \
   -x '*.md' \
@@ -40,6 +41,8 @@ diff -Naur . /tmp/robo/robolectric \
   -x 'config.xml' \
   -x 'public.xml' \
   -x 'AndroidManifest.xml' \
+  -x 'README' \
+  -x 'robolectric.properties' \
 > /tmp/robo/patch
 
 echo applying patch
