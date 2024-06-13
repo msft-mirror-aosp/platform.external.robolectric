@@ -37,9 +37,6 @@ diff -Naur . /tmp/robo/robolectric \
   -x '*.dat' \
   -x 'lint-baseline.xml' \
   -x 'robo-manifest.xml' \
-  -x 'FontAndroidManifest.xml' \
-  -x 'config.xml' \
-  -x 'public.xml' \
   -x 'AndroidManifest.xml' \
   -x 'README' \
   -x 'robolectric.properties' \

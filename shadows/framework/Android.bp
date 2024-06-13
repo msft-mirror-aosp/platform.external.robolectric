@@ -47,10 +47,10 @@ java_library {
         "robolectric-accessibility-test-framework-2.1",
         "robolectric-javax.annotation-api-1.2",
         "robolectric-sqlite4java-0.282",
-        "asm-commons-9.2",
+        "asm-commons-9.6",
         "guava",
-        "asm-tree-9.2",
-        "asm-9.2",
+        "asm-tree-9.6",
+        "asm-9.6",
         //standard tools
         "error_prone_annotations",
         // aar files that make up android and jetpack
