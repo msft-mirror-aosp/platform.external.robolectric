@@ -2,7 +2,6 @@ package org.robolectric.android.internal;
 
 import static android.os.Build.VERSION_CODES.P;
 import static android.os.Build.VERSION_CODES.Q;
-import static android.os.Build.VERSION_CODES.O;
 import static org.robolectric.shadow.api.Shadow.newInstanceOf;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
@@ -35,14 +34,12 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import java.lang.reflect.Method;
 import java.nio.file.FileSystem;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Security;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Locale;
-import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.inject.Named;
 import javax.net.ssl.HostnameVerifier;
@@ -58,7 +55,6 @@ import org.robolectric.android.Bootstrap;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.ConscryptMode;
 import org.robolectric.annotation.GraphicsMode;
-import org.robolectric.annotation.GraphicsMode.Mode;
 import org.robolectric.annotation.LooperMode;
 import org.robolectric.annotation.SQLiteMode;
 import org.robolectric.annotation.experimental.LazyApplication.LazyLoad;
@@ -81,12 +77,10 @@ import org.robolectric.res.ResourceTableFactory;
 import org.robolectric.res.RoutingResourceTable;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.shadows.ClassNameResolver;
-import org.robolectric.shadows.LegacyManifestParser;
 import org.robolectric.shadows.ShadowActivityThread;
 import org.robolectric.shadows.ShadowActivityThread._ActivityThread_;
 import org.robolectric.shadows.ShadowActivityThread._AppBindData_;
 import org.robolectric.shadows.ShadowApplication;
-import org.robolectric.shadows.ShadowAssetManager;
 import org.robolectric.shadows.ShadowContextImpl._ContextImpl_;
 import org.robolectric.shadows.ShadowInstrumentation;
 import org.robolectric.shadows.ShadowInstrumentation._Instrumentation_;
@@ -160,7 +154,7 @@ public class AndroidTestEnvironment implements TestEnvironment {
 
     // Starting in Android V and above, the native runtime does not support begin lazy-loaded, it
     // must be loaded upfront.
-    if (shouldLoadNativeRuntime() && RuntimeEnvironment.getApiLevel() >= AndroidVersions.V.SDK_INT) {
+    if (shouldLoadNativeRuntime() && RuntimeEnvironment.getApiLevel() >= V.SDK_INT) {
       DefaultNativeRuntimeLoader.injectAndLoad();
     }
 
@@ -170,8 +164,6 @@ public class AndroidTestEnvironment implements TestEnvironment {
       RuntimeEnvironment.setMainThread(Thread.currentThread());
       ShadowLegacyLooper.internalInitializeBackgroundThreadScheduler();
     }
-
-    exportNativeruntimeProperties();
 
     if (!loggingInitialized) {
       ShadowLog.setupLogging();
@@ -390,10 +382,6 @@ public class AndroidTestEnvironment implements TestEnvironment {
 
       appResources.updateConfiguration(androidConfiguration, Bootstrap.getDisplayMetrics());
 
-      if (ShadowAssetManager.useLegacy()) {
-        populateAssetPaths(appResources.getAssets(), appManifest);
-      }
-
       // Circumvent the 'No Compatibility callbacks set!' log. See #8509
       if (apiLevel >= AndroidVersions.V.SDK_INT) {
         // Adds loggableChanges parameter.
@@ -425,35 +413,17 @@ public class AndroidTestEnvironment implements TestEnvironment {
   private Package loadAppPackage_measured(Config config, AndroidManifest appManifest) {
 
     Package parsedPackage;
-    if (RuntimeEnvironment.useLegacyResources()) {
-      injectResourceStuffForLegacy(appManifest);
 
-      if (appManifest.getAndroidManifestFile() != null
-          && Files.exists(appManifest.getAndroidManifestFile())) {
-        parsedPackage = LegacyManifestParser.createPackage(appManifest);
-      } else {
-        parsedPackage = new Package("org.robolectric.default");
-        parsedPackage.applicationInfo.targetSdkVersion = appManifest.getTargetSdkVersion();
-      }
-      // Support overriding the package name specified in the Manifest.
-      if (!Config.DEFAULT_PACKAGE_NAME.equals(config.packageName())) {
-        parsedPackage.packageName = config.packageName();
-        parsedPackage.applicationInfo.packageName = config.packageName();
-      } else {
-        parsedPackage.packageName = appManifest.getPackageName();
-        parsedPackage.applicationInfo.packageName = appManifest.getPackageName();
-      }
+    RuntimeEnvironment.compileTimeSystemResourcesFile = compileSdk.getJarPath();
+
+    Path packageFile = appManifest.getApkFile();
+    if (packageFile != null) {
+      parsedPackage = ShadowPackageParser.callParsePackage(packageFile);
     } else {
-      RuntimeEnvironment.compileTimeSystemResourcesFile = compileSdk.getJarPath();
-
-      Path packageFile = appManifest.getApkFile();
-      if (packageFile != null) {
-        parsedPackage = ShadowPackageParser.callParsePackage(packageFile);
-      } else {
-        parsedPackage = new Package("org.robolectric.default");
-        parsedPackage.applicationInfo.targetSdkVersion = appManifest.getTargetSdkVersion();
-      }
+      parsedPackage = new Package("org.robolectric.default");
+      parsedPackage.applicationInfo.targetSdkVersion = appManifest.getTargetSdkVersion();
     }
+
     if (parsedPackage != null
         && parsedPackage.applicationInfo != null
         && RuntimeEnvironment.getApiLevel() >= P) {
@@ -701,14 +671,8 @@ public class AndroidTestEnvironment implements TestEnvironment {
     // packageInfo.setVolumeUuid(tempDirectory.createIfNotExists(packageInfo.packageName +
     // "-dataDir").toAbsolutePath().toString());
 
-    if (RuntimeEnvironment.useLegacyResources()) {
-      applicationInfo.sourceDir = createTempDir(applicationInfo.packageName + "-sourceDir");
-      applicationInfo.publicSourceDir =
-          createTempDir(applicationInfo.packageName + "-publicSourceDir");
-    } else {
-      applicationInfo.publicSourceDir = parsedPackage.codePath;
-      applicationInfo.sourceDir = parsedPackage.codePath;
-    }
+    applicationInfo.publicSourceDir = parsedPackage.codePath;
+    applicationInfo.sourceDir = parsedPackage.codePath;
 
     applicationInfo.dataDir = createTempDir(applicationInfo.packageName + "-dataDir");
 
@@ -765,26 +729,5 @@ public class AndroidTestEnvironment implements TestEnvironment {
         application.registerReceiver((BroadcastReceiver) newInstanceOf(receiverClassName), filter);
       }
     }
-  }
-
-  private static String replaceLastDotWith$IfInnerStaticClass(String receiverClassName) {
-    String[] splits = receiverClassName.split("\\.", 0);
-    String staticInnerClassRegex = "[A-Z][a-zA-Z]*";
-    if (splits.length > 1
-        && splits[splits.length - 1].matches(staticInnerClassRegex)
-        && splits[splits.length - 2].matches(staticInnerClassRegex)) {
-      int lastDotIndex = receiverClassName.lastIndexOf(".");
-      StringBuilder buffer = new StringBuilder(receiverClassName);
-      buffer.setCharAt(lastDotIndex, '$');
-      return buffer.toString();
-    }
-    return receiverClassName;
-  }
-
-  private static void exportNativeruntimeProperties() {
-    GraphicsMode.Mode graphicsMode = ConfigurationRegistry.get(GraphicsMode.Mode.class);
-    System.setProperty(
-        "robolectric.nativeruntime.enableGraphics",
-        Boolean.toString(graphicsMode == Mode.NATIVE && RuntimeEnvironment.getApiLevel() >= O));
   }
 }

@@ -84,8 +84,9 @@ public class ShadowArscAssetManager extends ShadowAssetManager.ArscBase {
 
   @Resetter
   public static void reset() {
-    // todo: ShadowPicker doesn't discriminate properly between concrete shadow classes for resetters...
-    if (!useLegacy() && RuntimeEnvironment.getApiLevel() < P) {
+    // todo: ShadowPicker doesn't discriminate properly between concrete shadow classes for
+    // resetters...
+    if (RuntimeEnvironment.getApiLevel() < P) {
       reflector(_AssetManager_.class).setSystem(null);
       // NATIVE_THEME_REGISTRY.clear();
       // nativeXMLParserRegistry.clear(); // todo: shouldn't these be freed explicitly? [yes! xw]
@@ -666,7 +667,7 @@ public class ShadowArscAssetManager extends ShadowAssetManager.ArscBase {
 
   @HiddenApi
   @Implementation(maxSdk = N_MR1)
-  protected static void applyStyle(
+  protected static boolean applyStyle(
       long themeToken,
       int defStyleAttr,
       int defStyleRes,
@@ -680,6 +681,7 @@ public class ShadowArscAssetManager extends ShadowAssetManager.ArscBase {
         : Registries.NATIVE_RES_XML_PARSERS.getNativeObject(xmlParserToken);
     AttributeResolution.ApplyStyle(theme, xmlParser, defStyleAttr, defStyleRes,
         attrs, attrs.length, outValues, outIndices);
+    return true;
   }
 
   @Implementation @HiddenApi

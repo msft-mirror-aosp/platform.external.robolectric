@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-  <!--TODO(b/332407470): We need a more stable method for the configuration.-->
-  <public type="string" name="config_bodyFontFamily" id="0x010401f9" />
-  <public type="string" name="config_headlineFontFamily" id="0x0104026d" />
-</resources>
