@@ -28,7 +28,7 @@ android_app {
     manifest: "robo-manifest.xml",
     aaptflags: [
         "--extra-packages",
-        "org.robolectric.integrationtests.nativegraphics",
+        "org.robolectric.shadows",
     ],
     dont_merge_manifests: true,
     platform_apis: true,
