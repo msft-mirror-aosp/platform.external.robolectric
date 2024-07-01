@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.N_MR1;
@@ -64,6 +63,7 @@ import android.net.IVpnManager;
 import android.net.nsd.INsdManager;
 import android.net.vcn.IVcnManagementService;
 import android.net.wifi.IWifiManager;
+import android.net.wifi.IWifiScanner;
 import android.net.wifi.aware.IWifiAwareManager;
 import android.net.wifi.p2p.IWifiP2pManager;
 import android.net.wifi.rtt.IWifiRttManager;
@@ -110,7 +110,6 @@ import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.Resetter;
-import org.robolectric.shadows.ShadowBluetoothAdapter.BluetoothManagerDelegate;
 import org.robolectric.util.ReflectionHelpers;
 
 /** Shadow for {@link ServiceManager}. */
@@ -214,44 +213,42 @@ public class ShadowServiceManager {
     addBinderService(binderServices, Context.WINDOW_SERVICE, IWindowManager.class);
     addBinderService(binderServices, Context.NFC_SERVICE, INfcAdapter.class, BinderProxyType.DEEP);
     addBinderService(binderServices, Context.USER_SERVICE, IUserManager.class);
-    if (RuntimeEnvironment.getApiLevel() < TIRAMISU) {
-      addBinderService(
-          binderServices, BluetoothAdapter.BLUETOOTH_MANAGER_SERVICE, IBluetoothManager.class);
-    } else {
-      addBinderService(
-          binderServices,
-          BluetoothAdapter.BLUETOOTH_MANAGER_SERVICE,
-          IBluetoothManager.class,
-          BinderProxyType.DELEGATING,
-          new BluetoothManagerDelegate());
-    }
+    addBinderService(
+        binderServices,
+        BluetoothAdapter.BLUETOOTH_MANAGER_SERVICE,
+        IBluetoothManager.class,
+        BinderProxyType.DELEGATING,
+        IBluetoothManagerDelegates.createDelegate());
+
     addBinderService(binderServices, Context.APP_OPS_SERVICE, IAppOpsService.class);
     addBinderService(binderServices, "batteryproperties", IBatteryPropertiesRegistrar.class);
 
-    if (RuntimeEnvironment.getApiLevel() >= LOLLIPOP) {
-      addBinderService(binderServices, Context.RESTRICTIONS_SERVICE, IRestrictionsManager.class);
-      addBinderService(binderServices, Context.TRUST_SERVICE, ITrustManager.class);
-      addBinderService(binderServices, Context.JOB_SCHEDULER_SERVICE, IJobScheduler.class);
-      addBinderService(binderServices, Context.NETWORK_SCORE_SERVICE, INetworkScoreService.class);
-      addBinderService(binderServices, Context.USAGE_STATS_SERVICE, IUsageStatsManager.class);
-      addBinderService(binderServices, Context.MEDIA_ROUTER_SERVICE, IMediaRouterService.class);
-      addBinderService(
-          binderServices,
-          Context.MEDIA_SESSION_SERVICE,
-          ISessionManager.class,
-          BinderProxyType.DEEP);
-      addBinderService(
-          binderServices,
-          Context.VOICE_INTERACTION_MANAGER_SERVICE,
-          IVoiceInteractionManagerService.class,
-          BinderProxyType.DEEP);
-    }
+    addBinderService(binderServices, Context.RESTRICTIONS_SERVICE, IRestrictionsManager.class);
+    addBinderService(binderServices, Context.TRUST_SERVICE, ITrustManager.class);
+    addBinderService(binderServices, Context.JOB_SCHEDULER_SERVICE, IJobScheduler.class);
+    addBinderService(binderServices, Context.NETWORK_SCORE_SERVICE, INetworkScoreService.class);
+    addBinderService(binderServices, Context.USAGE_STATS_SERVICE, IUsageStatsManager.class);
+    addBinderService(binderServices, Context.MEDIA_ROUTER_SERVICE, IMediaRouterService.class);
+    addBinderService(
+        binderServices, Context.MEDIA_SESSION_SERVICE, ISessionManager.class, BinderProxyType.DEEP);
+    addBinderService(
+        binderServices,
+        Context.VOICE_INTERACTION_MANAGER_SERVICE,
+        IVoiceInteractionManagerService.class,
+        BinderProxyType.DEEP);
+
     if (RuntimeEnvironment.getApiLevel() >= M) {
       addBinderService(binderServices, Context.FINGERPRINT_SERVICE, IFingerprintService.class);
     }
     if (RuntimeEnvironment.getApiLevel() >= N) {
       addBinderService(binderServices, Context.CONTEXTHUB_SERVICE, IContextHubService.class);
       addBinderService(binderServices, Context.SOUND_TRIGGER_SERVICE, ISoundTriggerService.class);
+      addBinderService(
+          binderServices,
+          Context.WIFI_SCANNING_SERVICE,
+          IWifiScanner.class,
+          BinderProxyType.DELEGATING,
+          new WifiScannerDelegate());
     }
     if (RuntimeEnvironment.getApiLevel() >= N_MR1) {
       addBinderService(binderServices, Context.SHORTCUT_SERVICE, IShortcutService.class);
@@ -316,6 +313,7 @@ public class ShadowServiceManager {
       addBinderService(
           binderServices, Context.WEARABLE_SENSING_SERVICE, IWearableSensingManager.class);
     }
+
     return binderServices;
   }
 
