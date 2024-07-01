@@ -24,7 +24,7 @@ java_library_host {
         "guava",
         "jsr330",
         "jsr305",
-        "asm-9.2",
+        "asm-9.6",
         "auto_service_annotations",
     ],
 }
@@ -49,7 +49,7 @@ java_test_host {
         "junit",
         "error_prone_core",
         "truth",
-        "asm-9.2",
+        "asm-9.6",
         "mockito",
     ],
     test_suites: ["general-tests"],

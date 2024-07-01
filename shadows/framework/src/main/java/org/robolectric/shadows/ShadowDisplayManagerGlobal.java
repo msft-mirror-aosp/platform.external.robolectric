@@ -31,6 +31,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import javax.annotation.Nullable;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.android.Bootstrap;
+import org.robolectric.annotation.ClassName;
 import org.robolectric.annotation.HiddenApi;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
@@ -50,7 +51,7 @@ public class ShadowDisplayManagerGlobal {
   private final List<BrightnessChangeEvent> brightnessChangeEvents = new ArrayList<>();
   private Object defaultBrightnessConfiguration;
 
-  private MyDisplayManager mDm;
+  private DisplayManagerProxyDelegate mDm;
 
   @Resetter
   public static void reset() {
@@ -68,12 +69,13 @@ public class ShadowDisplayManagerGlobal {
   @Implementation
   public static synchronized DisplayManagerGlobal getInstance() {
     if (instance == null) {
-      MyDisplayManager myIDisplayManager = new MyDisplayManager();
+      DisplayManagerProxyDelegate displayManagerProxyDelegate = new DisplayManagerProxyDelegate();
       IDisplayManager proxy =
-          ReflectionHelpers.createDelegatingProxy(IDisplayManager.class, myIDisplayManager);
+          ReflectionHelpers.createDelegatingProxy(
+              IDisplayManager.class, displayManagerProxyDelegate);
       instance = newDisplayManagerGlobal(proxy);
       ShadowDisplayManagerGlobal shadow = Shadow.extract(instance);
-      shadow.mDm = myIDisplayManager;
+      shadow.mDm = displayManagerProxyDelegate;
       Bootstrap.setUpDisplay();
     }
     return instance;
@@ -145,7 +147,14 @@ public class ShadowDisplayManagerGlobal {
     mDm.removeDisplay(displayId);
   }
 
-  private static class MyDisplayManager {
+  /**
+   * A delegating proxy for the IDisplayManager system service.
+   *
+   * <p>The method signatures here must exactly match the IDisplayManager interface.
+   *
+   * @see ReflectionHelpers#createDelegatingProxy(Class, Object)
+   */
+  private static class DisplayManagerProxyDelegate {
     private final TreeMap<Integer, DisplayInfo> displayInfos = new TreeMap<>();
     private int nextDisplayId = 0;
     private final List<IDisplayManagerCallback> callbacks = new ArrayList<>();
@@ -185,12 +194,16 @@ public class ShadowDisplayManagerGlobal {
       registerCallback(iDisplayManagerCallback);
     }
 
-    // @Override
+    // for android U
+    // Use Object here instead of VirtualDisplayConfig to avoid breaking projects that still
+    // compile against SDKs < U
     public int createVirtualDisplay(
-        VirtualDisplayConfig config,
+        @ClassName("android.hardware.display.VirtualDisplayConfig")
+            Object virtualDisplayConfigObject,
         IVirtualDisplayCallback callbackWrapper,
         IMediaProjection projectionToken,
         String packageName) {
+      VirtualDisplayConfig config = (VirtualDisplayConfig) virtualDisplayConfigObject;
       DisplayInfo displayInfo = new DisplayInfo();
       displayInfo.flags = config.getFlags();
       displayInfo.type = Display.TYPE_VIRTUAL;
@@ -209,7 +222,7 @@ public class ShadowDisplayManagerGlobal {
       return id;
     }
 
-    // @Override
+    // for android U
     public void resizeVirtualDisplay(
         IVirtualDisplayCallback token, int width, int height, int densityDpi) {
       Integer id = virtualDisplayIds.get(token);
@@ -223,7 +236,7 @@ public class ShadowDisplayManagerGlobal {
       changeDisplay(id, displayInfo);
     }
 
-    // @Override
+    // for android U
     public void releaseVirtualDisplay(IVirtualDisplayCallback token) {
       if (virtualDisplayIds.containsKey(token)) {
         removeDisplay(virtualDisplayIds.remove(token));

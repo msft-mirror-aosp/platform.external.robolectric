@@ -269,8 +269,8 @@ public class ShadowParcel {
       realObject.writeInt(-1);
       return;
     }
-    Number nativePtr = ReflectionHelpers.getField(realObject, "mNativePtr");
-    nativeWriteByteArray(nativePtr.longValue(), b, offset, len);
+    long nativePtr = ReflectionHelpers.getField(realObject, "mNativePtr");
+    nativeWriteByteArray(nativePtr, b, offset, len);
   }
 
   @Implementation
@@ -337,7 +337,6 @@ public class ShadowParcel {
     }
   }
 
-  // nativeWriteBlob was introduced in lollipop, thus no need for a int nativePtr variant
   @Implementation
   protected static void nativeWriteBlob(long nativePtr, byte[] b, int offset, int len) {
     nativeWriteByteArray(nativePtr, b, offset, len);
@@ -378,7 +377,6 @@ public class ShadowParcel {
     return NATIVE_BYTE_BUFFER_REGISTRY.getNativeObject(nativePtr).createByteArray();
   }
 
-  // nativeReadBlob was introduced in lollipop, thus no need for a int nativePtr variant
   @Implementation
   protected static byte[] nativeReadBlob(long nativePtr) {
     return nativeCreateByteArray(nativePtr);
