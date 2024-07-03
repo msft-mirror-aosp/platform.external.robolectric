@@ -43,10 +43,7 @@ class BluetoothGattProxyDelegate {
 
   private void invokeOnAdvertisingSetStarted(IAdvertisingSetCallback callback) {
     reflector(IAdvertisingSetCallbackReflectorU.class, callback)
-      .onAdvertisingSetStarted(
-          0,
-          0,
-          AdvertisingSetCallback.ADVERTISE_SUCCESS);
+        .onAdvertisingSetStarted(0, 0, AdvertisingSetCallback.ADVERTISE_SUCCESS);
   }
 
   // for android V
