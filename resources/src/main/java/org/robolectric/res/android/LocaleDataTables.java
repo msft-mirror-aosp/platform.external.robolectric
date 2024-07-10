@@ -833,7 +833,7 @@ public class LocaleDataTables {
       {0x9C2C0000, 40}, // mbh -> Latn
       {0xB82C0000, 40}, // mbo -> Latn
       {0xC02C0000, 40}, // mbq -> Latn
-      {0xD02C0000, 40}, //
+      {0xD02C0000, 40}, // mbu -> Latn
       {0xD82C0000, 40}, // mbw -> Latn
       {0xA04C0000, 40}, // mci -> Latn
       {0xBC4C0000, 40}, // mcp -> Latn
