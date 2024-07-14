@@ -75,7 +75,8 @@ public class AndroidTestEnvironmentTest {
   }
 
   @Test
-  public void setUpApplicationState_setsBackgroundScheduler_toBeSameAsForeground_whenAdvancedScheduling() {
+  public void
+      setUpApplicationState_setsBackgroundScheduler_toBeSameAsForeground_whenAdvancedScheduling() {
     RoboSettings.setUseGlobalScheduler(true);
     try {
       bootstrapWrapper.callSetUpApplicationState();
@@ -111,10 +112,11 @@ public class AndroidTestEnvironmentTest {
   public void setUpApplicationState_setsMainThread_onAnotherThread() throws InterruptedException {
     final AtomicBoolean res = new AtomicBoolean();
     Thread t =
-        new Thread(() -> {
-          bootstrapWrapper.callSetUpApplicationState();
-          res.set(RuntimeEnvironment.isMainThread());
-        });
+        new Thread(
+            () -> {
+              bootstrapWrapper.callSetUpApplicationState();
+              res.set(RuntimeEnvironment.isMainThread());
+            });
     t.start();
     t.join();
     assertThat(res.get()).isTrue();
@@ -179,9 +181,7 @@ public class AndroidTestEnvironmentTest {
 
     bootstrapWrapper.callSetUpApplicationState();
 
-    String optsForO = RuntimeEnvironment.getApiLevel() >= O
-        ? "nowidecg-lowdr-"
-        : "";
+    String optsForO = RuntimeEnvironment.getApiLevel() >= O ? "nowidecg-lowdr-" : "";
     assertThat(RuntimeEnvironment.getQualifiers())
         .contains(
             "large-notlong-notround-"
@@ -193,8 +193,8 @@ public class AndroidTestEnvironmentTest {
   @Test
   public void setUpApplicationState_shouldCreateStorageDirs() {
     bootstrapWrapper.callSetUpApplicationState();
-    ApplicationInfo applicationInfo = ApplicationProvider.getApplicationContext()
-        .getApplicationInfo();
+    ApplicationInfo applicationInfo =
+        ApplicationProvider.getApplicationContext().getApplicationInfo();
 
     assertThat(applicationInfo.sourceDir).isNotNull();
     assertThat(new File(applicationInfo.sourceDir).exists()).isTrue();
@@ -210,8 +210,8 @@ public class AndroidTestEnvironmentTest {
   @Config(minSdk = Build.VERSION_CODES.N)
   public void setUpApplicationState_shouldCreateStorageDirs_Nplus() {
     bootstrapWrapper.callSetUpApplicationState();
-    ApplicationInfo applicationInfo = ApplicationProvider.getApplicationContext()
-        .getApplicationInfo();
+    ApplicationInfo applicationInfo =
+        ApplicationProvider.getApplicationContext().getApplicationInfo();
 
     assertThat(applicationInfo.credentialProtectedDataDir).isNotNull();
     assertThat(new File(applicationInfo.credentialProtectedDataDir).isDirectory()).isTrue();
@@ -364,9 +364,12 @@ public class AndroidTestEnvironmentTest {
     assertThat(new File(applicationInfo.dataDir).isDirectory()).isTrue();
   }
 
-  @LazyApplication(LazyLoad.ON)
   @Test
   public void testResetterFails_reportsFailureAndContinues() {
+    // bootstrapWrapper is not used in this test, but calling `callSetUpApplicationState` is
+    // required to avoid exceptions in the test teardown.
+    bootstrapWrapper.callSetUpApplicationState();
+
     WorkingShadowProvider workingShadowProvider = new WorkingShadowProvider();
     ShadowProvider[] shadowProviders = new ShadowProvider[2];
     shadowProviders[0] = new ThrowingShadowProvider();
