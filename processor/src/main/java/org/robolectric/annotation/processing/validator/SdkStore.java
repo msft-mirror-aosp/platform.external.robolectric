@@ -31,6 +31,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
@@ -45,6 +47,7 @@ import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.util.TraceSignatureVisitor;
+import org.robolectric.annotation.ClassName;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.InDevelopment;
 import org.robolectric.versioning.AndroidVersionInitTools;
@@ -287,7 +290,7 @@ public class SdkStore {
 
       MethodExtraInfo sdkMethod = classInfo.findMethod(methodElement, looseSignatures);
       if (sdkMethod == null && !suppressWarnings(methodElement, null)) {
-        return "No such method in " + sdkClassName;
+        return "No method " + methodElement + " in " + sdkClassName;
       }
       if (sdkMethod != null) {
         MethodExtraInfo implMethod = new MethodExtraInfo(methodElement);
@@ -411,21 +414,22 @@ public class SdkStore {
         tempFile.deleteOnExit();
         tempDir = tempFile.getParentFile();
       }
-      InputStream jarIn = SdkStore.class.getClassLoader().getResourceAsStream(resourcePath);
-      if (jarIn == null) {
-        throw new RuntimeException("SDK " + resourcePath + " not found");
-      }
-      File outFile = new File(tempDir, new File(resourcePath).getName());
-      outFile.deleteOnExit();
-      try (FileOutputStream jarOut = new FileOutputStream(outFile)) {
-        byte[] buffer = new byte[4096];
-        int len;
-        while ((len = jarIn.read(buffer)) != -1) {
-          jarOut.write(buffer, 0, len);
+      try (InputStream jarIn = SdkStore.class.getClassLoader().getResourceAsStream(resourcePath)) {
+        if (jarIn == null) {
+          throw new RuntimeException("SDK " + resourcePath + " not found");
         }
-      }
+        File outFile = new File(tempDir, new File(resourcePath).getName());
+        outFile.deleteOnExit();
+        try (FileOutputStream jarOut = new FileOutputStream(outFile)) {
+          byte[] buffer = new byte[4096];
+          int len;
+          while ((len = jarIn.read(buffer)) != -1) {
+            jarOut.write(buffer, 0, len);
+          }
+        }
 
-      return outFile;
+        return outFile;
+      }
     }
 
     private ClassNode loadClassNode(String name) {
@@ -574,6 +578,25 @@ public class SdkStore {
       for (VariableElement variableElement : methodElement.getParameters()) {
         TypeMirror varTypeMirror = variableElement.asType();
         String paramType = canonicalize(varTypeMirror);
+
+        // If parameter is annotated with @ClassName, then use the indicated type instead.
+        List<? extends AnnotationMirror> annotationMirrors = variableElement.getAnnotationMirrors();
+        for (AnnotationMirror am : annotationMirrors) {
+          if (am.getAnnotationType().toString().equals(ClassName.class.getName())) {
+            Map<? extends ExecutableElement, ? extends AnnotationValue> annotationEntries =
+                am.getElementValues();
+            Set<? extends ExecutableElement> keys = annotationEntries.keySet();
+            for (ExecutableElement key : keys) {
+              if ("value()".equals(key.toString())) {
+                AnnotationValue annotationValue = annotationEntries.get(key);
+                paramType = annotationValue.getValue().toString().replace('$', '.');
+                break;
+              }
+            }
+            break;
+          }
+        }
+
         String paramTypeWithoutGenerics = typeWithoutGenerics(paramType);
         paramTypes.add(paramTypeWithoutGenerics);
       }
@@ -586,7 +609,14 @@ public class SdkStore {
       } else if (STATIC_INITIALIZER_METHOD_NAME.equals(name)) {
         return "<clinit>";
       } else {
-        return name;
+        Implementation implementation = methodElement.getAnnotation(Implementation.class);
+        String methodName = implementation == null ? "" : implementation.methodName();
+        methodName = methodName == null ? "" : methodName.trim();
+        if (methodName.isEmpty()) {
+          return name;
+        } else {
+          return methodName;
+        }
       }
     }
 

@@ -1,11 +1,9 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.O;
 import static android.os.Build.VERSION_CODES.S;
-import static org.robolectric.RuntimeEnvironment.getApiLevel;
 import static org.robolectric.Shadows.shadowOf;
 
 import android.app.PendingIntent;
@@ -56,30 +54,34 @@ public class ShadowConnectivityManager {
   private final Map<Network, ProxyInfo> proxyInfoMap = new HashMap<>();
 
   public ShadowConnectivityManager() {
-    NetworkInfo wifi = ShadowNetworkInfo.newInstance(NetworkInfo.DetailedState.DISCONNECTED,
-        ConnectivityManager.TYPE_WIFI, 0, true, false);
+    NetworkInfo wifi =
+        ShadowNetworkInfo.newInstance(
+            NetworkInfo.DetailedState.DISCONNECTED, ConnectivityManager.TYPE_WIFI, 0, true, false);
     networkTypeToNetworkInfo.put(ConnectivityManager.TYPE_WIFI, wifi);
 
-    NetworkInfo mobile = ShadowNetworkInfo.newInstance(NetworkInfo.DetailedState.CONNECTED,
-        ConnectivityManager.TYPE_MOBILE, ConnectivityManager.TYPE_MOBILE_MMS, true, true);
+    NetworkInfo mobile =
+        ShadowNetworkInfo.newInstance(
+            NetworkInfo.DetailedState.CONNECTED,
+            ConnectivityManager.TYPE_MOBILE,
+            ConnectivityManager.TYPE_MOBILE_MMS,
+            true,
+            true);
     networkTypeToNetworkInfo.put(ConnectivityManager.TYPE_MOBILE, mobile);
 
     this.activeNetworkInfo = mobile;
 
-    if (getApiLevel() >= LOLLIPOP) {
-      netIdToNetwork.put(NET_ID_WIFI, ShadowNetwork.newInstance(NET_ID_WIFI));
-      netIdToNetwork.put(NET_ID_MOBILE, ShadowNetwork.newInstance(NET_ID_MOBILE));
-      netIdToNetworkInfo.put(NET_ID_WIFI, wifi);
-      netIdToNetworkInfo.put(NET_ID_MOBILE, mobile);
+    netIdToNetwork.put(NET_ID_WIFI, ShadowNetwork.newInstance(NET_ID_WIFI));
+    netIdToNetwork.put(NET_ID_MOBILE, ShadowNetwork.newInstance(NET_ID_MOBILE));
+    netIdToNetworkInfo.put(NET_ID_WIFI, wifi);
+    netIdToNetworkInfo.put(NET_ID_MOBILE, mobile);
 
-      NetworkCapabilities wifiNetworkCapabilities = ShadowNetworkCapabilities.newInstance();
-      shadowOf(wifiNetworkCapabilities).addTransportType(NetworkCapabilities.TRANSPORT_WIFI);
-      NetworkCapabilities mobileNetworkCapabilities = ShadowNetworkCapabilities.newInstance();
-      shadowOf(mobileNetworkCapabilities).addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR);
+    NetworkCapabilities wifiNetworkCapabilities = ShadowNetworkCapabilities.newInstance();
+    shadowOf(wifiNetworkCapabilities).addTransportType(NetworkCapabilities.TRANSPORT_WIFI);
+    NetworkCapabilities mobileNetworkCapabilities = ShadowNetworkCapabilities.newInstance();
+    shadowOf(mobileNetworkCapabilities).addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR);
 
-      networkCapabilitiesMap.put(netIdToNetwork.get(NET_ID_WIFI), wifiNetworkCapabilities);
-      networkCapabilitiesMap.put(netIdToNetwork.get(NET_ID_MOBILE), mobileNetworkCapabilities);
-    }
+    networkCapabilitiesMap.put(netIdToNetwork.get(NET_ID_WIFI), wifiNetworkCapabilities);
+    networkCapabilitiesMap.put(netIdToNetwork.get(NET_ID_MOBILE), mobileNetworkCapabilities);
     defaultNetworkActive = true;
   }
 
@@ -285,9 +287,7 @@ public class ShadowConnectivityManager {
     networkTypeToNetworkInfo.put(networkType, networkInfo);
   }
 
-  /**
-   * Returns the captive portal URL previously set with {@link #setCaptivePortalServerUrl}.
-   */
+  /** Returns the captive portal URL previously set with {@link #setCaptivePortalServerUrl}. */
   @Implementation(minSdk = N)
   protected String getCaptivePortalServerUrl() {
     return captivePortalServerUrl;
@@ -302,29 +302,21 @@ public class ShadowConnectivityManager {
     this.captivePortalServerUrl = captivePortalServerUrl;
   }
 
-  @HiddenApi @Implementation
+  @HiddenApi
+  @Implementation
   public void setBackgroundDataSetting(boolean b) {
     backgroundDataSetting = b;
   }
 
   public void setActiveNetworkInfo(NetworkInfo info) {
-    if (getApiLevel() >= LOLLIPOP) {
-      activeNetworkInfo = info;
-      if (info != null) {
-        networkTypeToNetworkInfo.put(info.getType(), info);
-        netIdToNetwork.put(info.getType(), ShadowNetwork.newInstance(info.getType()));
-        netIdToNetworkInfo.put(info.getType(), info);
-      } else {
-        networkTypeToNetworkInfo.clear();
-        netIdToNetwork.clear();
-      }
+    activeNetworkInfo = info;
+    if (info != null) {
+      networkTypeToNetworkInfo.put(info.getType(), info);
+      netIdToNetwork.put(info.getType(), ShadowNetwork.newInstance(info.getType()));
+      netIdToNetworkInfo.put(info.getType(), info);
     } else {
-      activeNetworkInfo = info;
-      if (info != null) {
-        networkTypeToNetworkInfo.put(info.getType(), info);
-      } else {
-        networkTypeToNetworkInfo.clear();
-      }
+      networkTypeToNetworkInfo.clear();
+      netIdToNetwork.clear();
     }
   }
 
@@ -343,6 +335,7 @@ public class ShadowConnectivityManager {
 
   /**
    * Removes the {@code network} from the list of all {@link android.net.Network}s.
+   *
    * @param network The network.
    */
   public void removeNetwork(Network network) {
@@ -352,9 +345,7 @@ public class ShadowConnectivityManager {
     netIdToNetworkInfo.remove(netId);
   }
 
-  /**
-   * Clears the list of all {@link android.net.Network}s.
-   */
+  /** Clears the list of all {@link android.net.Network}s. */
   public void clearAllNetworks() {
     netIdToNetwork.clear();
     netIdToNetworkInfo.clear();
@@ -363,12 +354,12 @@ public class ShadowConnectivityManager {
   /**
    * Sets the active state of the default network.
    *
-   * By default this is true and affects the result of {@link
+   * <p>By default this is true and affects the result of {@link
    * ConnectivityManager#isActiveNetworkMetered()}, {@link
    * ConnectivityManager#isDefaultNetworkActive()}, {@link ConnectivityManager#getActiveNetwork()}
    * and {@link ConnectivityManager#getAllNetworkInfo()}.
    *
-   * Calling this method with {@code true} after any listeners have been registered with {@link
+   * <p>Calling this method with {@code true} after any listeners have been registered with {@link
    * ConnectivityManager#addDefaultNetworkActiveListener(OnNetworkActiveListener)} will result in
    * those listeners being fired.
    *
