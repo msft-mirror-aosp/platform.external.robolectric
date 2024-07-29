@@ -118,12 +118,12 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
   }
 
   public void callAttach(Intent intent) {
-    callAttach(intent, /*activityOptions=*/ null, /*lastNonConfigurationInstances=*/ null);
+    callAttach(intent, /* activityOptions= */ null, /* lastNonConfigurationInstances= */ null);
   }
 
   public void callAttach(Intent intent, @Nullable Bundle activityOptions) {
     callAttach(
-        intent, /*activityOptions=*/ activityOptions, /*lastNonConfigurationInstances=*/ null);
+        intent, /* activityOptions= */ activityOptions, /* lastNonConfigurationInstances= */ null);
   }
 
   public void callAttach(
@@ -163,6 +163,11 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
 
     ActivityThread activityThread = (ActivityThread) RuntimeEnvironment.getActivityThread();
     Instrumentation instrumentation = activityThread.getInstrumentation();
+
+    if (RuntimeEnvironment.getApiLevel() >= O_MR1) {
+      // ActivityInfo.FLAG_SHOW_WHEN_LOCKED
+      showWhenLocked = (activityInfo.flags & 0x800000) != 0;
+    }
 
     Context activityContext;
     int displayId =
