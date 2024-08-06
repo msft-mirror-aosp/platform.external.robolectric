@@ -220,6 +220,7 @@ java_library {
         "//packages/apps/TV/common/tests/robotests:__pkg__",
         "//packages/apps/Launcher3/tests:__pkg__",
         "//packages/apps/Car/Launcher/libs/appgrid/lib/robotests:__pkg__",
+        "//cts/tests:__subpackages__",
     ],
 }
 
