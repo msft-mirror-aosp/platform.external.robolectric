@@ -287,6 +287,7 @@ java_host_for_device {
         "//frameworks/base/packages/BackupEncryption/test/robolectric-integration:__pkg__",
         "//frameworks/base/packages/BackupEncryption/test/robolectric:__pkg__",
         "//packages/apps/Settings/tests/screenshot:__pkg__",
+        "//cts/tests:__subpackages__",
     ],
 }
 
