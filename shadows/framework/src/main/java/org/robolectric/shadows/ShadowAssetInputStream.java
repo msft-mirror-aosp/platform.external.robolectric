@@ -13,33 +13,28 @@ import org.robolectric.util.ReflectionHelpers;
 @SuppressWarnings("UnusedDeclaration")
 public abstract class ShadowAssetInputStream {
 
-  static AssetInputStream createAssetInputStream(InputStream delegateInputStream, long assetPtr,
-      AssetManager assetManager) {
+  static AssetInputStream createAssetInputStream(
+      InputStream delegateInputStream, long assetPtr, AssetManager assetManager) {
     Asset asset = NATIVE_ASSET_REGISTRY.getNativeObject(assetPtr);
 
-    AssetInputStream ais = ReflectionHelpers.callConstructor(AssetInputStream.class,
-        from(AssetManager.class, assetManager),
-        from(long.class, assetPtr));
+    AssetInputStream ais =
+        ReflectionHelpers.callConstructor(
+            AssetInputStream.class,
+            from(AssetManager.class, assetManager),
+            from(long.class, assetPtr));
 
     ShadowAssetInputStream sais = Shadow.extract(ais);
-    if (sais instanceof ShadowLegacyAssetInputStream) {
-      ShadowLegacyAssetInputStream slais = (ShadowLegacyAssetInputStream) sais;
-      slais.setDelegate(delegateInputStream);
-      slais.setNinePatch(asset.isNinePatch());
-    }
     return ais;
   }
 
   public static class Picker extends ResourceModeShadowPicker<ShadowAssetInputStream> {
 
     public Picker() {
-      super(ShadowLegacyAssetInputStream.class, ShadowArscAssetInputStream.class,
-          ShadowArscAssetInputStream.class);
+      super(ShadowArscAssetInputStream.class, ShadowArscAssetInputStream.class);
     }
   }
 
   abstract InputStream getDelegate();
 
   abstract boolean isNinePatch();
-
 }

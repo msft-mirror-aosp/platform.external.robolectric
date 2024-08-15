@@ -53,7 +53,7 @@ import javax.annotation.Nullable;
  */
 public final class AndroidVersions {
 
-  private static boolean WARN_ONLY = true;
+  private static boolean warnOnly;
 
   private AndroidVersions() {}
 
@@ -867,7 +867,8 @@ public final class AndroidVersions {
                 .append(AndroidVersions.class.getName())
                 .append("and ensure they are aligned with the versions of")
                 .append(" Android.")
-                .toString(), null);
+                .toString(),
+            null);
       }
     }
 
@@ -886,7 +887,8 @@ public final class AndroidVersions {
                   + AndroidVersions.class.getName()
                   + " to mark sdk "
                   + current.getShortCode()
-                  + " as released.", null);
+                  + " as released.",
+              null);
         }
       } else {
         // Get known active code name letters
@@ -941,23 +943,24 @@ public final class AndroidVersions {
             errorMessage(detectedProblems.toString(), null);
           }
 
-          if (current == null) { //only possible in warning mode
-            current = new AndroidUnreleased() {
-              @Override
-              public int getSdkInt() {
-                return 10000; // the super large unknown sdk value.
-              }
+          if (current == null) { // only possible in warning mode
+            current =
+                new AndroidUnreleased() {
+                  @Override
+                  public int getSdkInt() {
+                    return 10000; // the super large unknown sdk value.
+                  }
 
-              @Override
-              public String getShortCode() {
-                return codename.toUpperCase(Locale.getDefault()).substring(0, 1);
-              }
+                  @Override
+                  public String getShortCode() {
+                    return codename.toUpperCase(Locale.getDefault()).substring(0, 1);
+                  }
 
-              @Override
-              public String getVersion() {
-                return "";
-              }
-            };
+                  @Override
+                  public String getVersion() {
+                    return "";
+                  }
+                };
           }
         }
       }
@@ -1029,31 +1032,31 @@ public final class AndroidVersions {
     String codenames = buildProps.getProperty("ro.build.version.all_codenames");
     String[] allCodeNames = codenames == null ? new String[0] : codenames.split(",");
     String[] activeCodeNames =
-            allCodeNames.length > 0 && allCodeNames[0].equals("REL") ? new String[0] : allCodeNames;
+        allCodeNames.length > 0 && allCodeNames[0].equals("REL") ? new String[0] : allCodeNames;
     return information.computeCurrentSdk(sdk, release, codename, asList(activeCodeNames));
   }
 
   private static final SdkInformation information;
 
-  private static final void errorMessage(String errorMessage, @Nullable Exception ex){
-    if (WARN_ONLY) {
+  private static final void errorMessage(String errorMessage, @Nullable Exception ex) {
+    if (warnOnly) {
       System.err.println(errorMessage);
     } else {
       throw new IllegalStateException(errorMessage, ex);
     }
   }
 
-
   static {
     // We shouldn't break in annotation processors, only test runs.
     String cmd = System.getProperty("sun.java.command");
     // We appear to be in an annotation processor, so only warn users.
-    if (cmd.indexOf("-Aorg.robolectric.annotation.processing.") != -1) {
-      System.err.println("Robolectric's AndroidVersions is running in warning mode,"
-                             + " no errors will be thrown.");
-      WARN_ONLY = true;
+    if (cmd.contains("-Aorg.robolectric.annotation.processing.")) {
+      System.err.println(
+          "Robolectric's AndroidVersions is running in warning mode,"
+              + " no errors will be thrown.");
+      warnOnly = true;
     } else {
-      WARN_ONLY = false;
+      warnOnly = false;
     }
     AndroidRelease currentRelease = null;
     information = gatherStaticSdkInformationFromThisClass();

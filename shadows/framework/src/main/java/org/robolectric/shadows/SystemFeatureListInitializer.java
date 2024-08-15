@@ -13,6 +13,8 @@ final class SystemFeatureListInitializer {
     int apiLevel = RuntimeEnvironment.getApiLevel();
     Map<String, Boolean> features = new HashMap<>();
 
+    features.put(PackageManager.FEATURE_TOUCHSCREEN, true);
+
     if (apiLevel >= VERSION_CODES.N_MR1) {
       features.put(PackageManager.FEATURE_WIFI, true);
     }
@@ -25,6 +27,12 @@ final class SystemFeatureListInitializer {
     if (apiLevel >= VERSION_CODES.P) {
       features.put(PackageManager.FEATURE_WIFI_DIRECT, true);
       features.put(PackageManager.FEATURE_WIFI_RTT, true);
+    }
+
+    if (apiLevel >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
+      // Starting in V, FEATURE_TELEPHONY_SUBSCRIPTION is required for some system services,
+      // such as VcnManager.
+      features.put(PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION, true);
     }
 
     return ImmutableMap.copyOf(features);

@@ -29,11 +29,6 @@ public class RobolectricTestRunnerSelfTest {
     assertWithMessage("onCreate called")
         .that(((MyTestApplication) ApplicationProvider.getApplicationContext()).onCreateWasCalled)
         .isTrue();
-    if (RuntimeEnvironment.useLegacyResources()) {
-      assertWithMessage("Application resource loader")
-          .that(RuntimeEnvironment.getAppResourceTable())
-          .isNotNull();
-    }
   }
 
   @Test
@@ -85,7 +80,8 @@ public class RobolectricTestRunnerSelfTest {
     assertThat(Build.VERSION.RELEASE).isEqualTo("5.0.2");
   }
 
-  @Test public void hamcrestMatchersDontBlowUpDuringLinking() throws Exception {
+  @Test
+  public void hamcrestMatchersDontBlowUpDuringLinking() throws Exception {
     org.hamcrest.MatcherAssert.assertThat(true, CoreMatchers.is(true));
   }
 
@@ -103,7 +99,7 @@ public class RobolectricTestRunnerSelfTest {
     public void onCreate() {
       this.onCreateWasCalled = true;
     }
-    
+
     @Override
     public void onTerminate() {
       onTerminateCalledFromMain =

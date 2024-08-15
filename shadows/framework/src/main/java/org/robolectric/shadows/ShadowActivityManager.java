@@ -25,6 +25,8 @@ import android.os.UserHandle;
 import android.util.ArrayMap;
 import android.util.SparseIntArray;
 import com.google.common.base.Preconditions;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -49,6 +51,7 @@ public class ShadowActivityManager {
   private String backgroundPackage;
   private ActivityManager.MemoryInfo memoryInfo;
   private final List<ActivityManager.AppTask> appTasks = new CopyOnWriteArrayList<>();
+  private final List<ActivityManager.RecentTaskInfo> recentTasks = new CopyOnWriteArrayList<>();
   private final List<ActivityManager.RunningTaskInfo> tasks = new CopyOnWriteArrayList<>();
   private final List<ActivityManager.RunningServiceInfo> services = new CopyOnWriteArrayList<>();
   private static final List<ActivityManager.RunningAppProcessInfo> processes =
@@ -114,6 +117,19 @@ public class ShadowActivityManager {
   @Implementation
   protected List<ActivityManager.AppTask> getAppTasks() {
     return appTasks;
+  }
+
+  /**
+   * For tests, returns the list of {@link android.app.ActivityManager.RecentTaskInfo} set using
+   * {@link #setAppTasks(List)} with at most {@code maxNum} tasks. Returns empty list if nothing is
+   * set {@code flags} is ignored.
+   *
+   * @see #setAppTasks(List)
+   * @return List of current AppTask.
+   */
+  @Implementation
+  protected List<ActivityManager.RecentTaskInfo> getRecentTasks(int maxNum, int flags) {
+    return recentTasks.size() > maxNum ? recentTasks.subList(0, maxNum) : recentTasks;
   }
 
   @Implementation
@@ -194,7 +210,9 @@ public class ShadowActivityManager {
     this.configurationInfo = configurationInfo;
   }
 
-  /** @param tasks List of running tasks. */
+  /**
+   * @param tasks List of running tasks.
+   */
   public void setTasks(List<ActivityManager.RunningTaskInfo> tasks) {
     this.tasks.clear();
     this.tasks.addAll(tasks);
@@ -211,29 +229,50 @@ public class ShadowActivityManager {
     this.appTasks.addAll(appTasks);
   }
 
-  /** @param services List of running services. */
+  /**
+   * Sets the values to be returned by {@link #getRecentTasks()}.
+   *
+   * @see #getRecentTasks()
+   * @param recentTasks List of recent tasks.
+   */
+  public void setRecentTasks(List<ActivityManager.RecentTaskInfo> recentTasks) {
+    this.recentTasks.clear();
+    this.recentTasks.addAll(recentTasks);
+  }
+
+  /**
+   * @param services List of running services.
+   */
   public void setServices(List<ActivityManager.RunningServiceInfo> services) {
     this.services.clear();
     this.services.addAll(services);
   }
 
-  /** @param processes List of running processes. */
+  /**
+   * @param processes List of running processes.
+   */
   public void setProcesses(List<ActivityManager.RunningAppProcessInfo> processes) {
     ShadowActivityManager.processes.clear();
     ShadowActivityManager.processes.addAll(processes);
   }
 
-  /** @return Get the package name of the last background processes killed. */
+  /**
+   * @return Get the package name of the last background processes killed.
+   */
   public String getBackgroundPackage() {
     return backgroundPackage;
   }
 
-  /** @param memoryClass Set the application's memory class. */
+  /**
+   * @param memoryClass Set the application's memory class.
+   */
   public void setMemoryClass(int memoryClass) {
     this.memoryClass = memoryClass;
   }
 
-  /** @param memoryInfo Set the application's memory info. */
+  /**
+   * @param memoryInfo Set the application's memory info.
+   */
   public void setMemoryInfo(ActivityManager.MemoryInfo memoryInfo) {
     this.memoryInfo = memoryInfo;
   }
@@ -388,73 +427,93 @@ public class ShadowActivityManager {
   public static class ApplicationExitInfoBuilder {
 
     private final ApplicationExitInfo instance;
+    private final ShadowApplicationExitInfo shadow;
 
     public static ApplicationExitInfoBuilder newBuilder() {
       return new ApplicationExitInfoBuilder();
     }
 
+    @CanIgnoreReturnValue
     public ApplicationExitInfoBuilder setDefiningUid(int uid) {
       instance.setDefiningUid(uid);
       return this;
     }
 
+    @CanIgnoreReturnValue
     public ApplicationExitInfoBuilder setDescription(String description) {
       instance.setDescription(description);
       return this;
     }
 
+    @CanIgnoreReturnValue
     public ApplicationExitInfoBuilder setImportance(int importance) {
       instance.setImportance(importance);
       return this;
     }
 
+    @CanIgnoreReturnValue
     public ApplicationExitInfoBuilder setPackageUid(int packageUid) {
       instance.setPackageUid(packageUid);
       return this;
     }
 
+    @CanIgnoreReturnValue
     public ApplicationExitInfoBuilder setPid(int pid) {
       instance.setPid(pid);
       return this;
     }
 
+    @CanIgnoreReturnValue
     public ApplicationExitInfoBuilder setProcessName(String processName) {
       instance.setProcessName(processName);
       return this;
     }
 
+    @CanIgnoreReturnValue
     public ApplicationExitInfoBuilder setProcessStateSummary(byte[] processStateSummary) {
       instance.setProcessStateSummary(processStateSummary);
       return this;
     }
 
+    @CanIgnoreReturnValue
     public ApplicationExitInfoBuilder setPss(long pss) {
       instance.setPss(pss);
       return this;
     }
 
+    @CanIgnoreReturnValue
     public ApplicationExitInfoBuilder setRealUid(int realUid) {
       instance.setRealUid(realUid);
       return this;
     }
 
+    @CanIgnoreReturnValue
     public ApplicationExitInfoBuilder setReason(int reason) {
       instance.setReason(reason);
       return this;
     }
 
+    @CanIgnoreReturnValue
     public ApplicationExitInfoBuilder setRss(long rss) {
       instance.setRss(rss);
       return this;
     }
 
+    @CanIgnoreReturnValue
     public ApplicationExitInfoBuilder setStatus(int status) {
       instance.setStatus(status);
       return this;
     }
 
+    @CanIgnoreReturnValue
     public ApplicationExitInfoBuilder setTimestamp(long timestamp) {
       instance.setTimestamp(timestamp);
+      return this;
+    }
+
+    @CanIgnoreReturnValue
+    public ApplicationExitInfoBuilder setTraceInputStream(InputStream in) {
+      shadow.setTraceInputStream(in);
       return this;
     }
 
@@ -464,6 +523,7 @@ public class ShadowActivityManager {
 
     private ApplicationExitInfoBuilder() {
       this.instance = new ApplicationExitInfo();
+      this.shadow = Shadow.extract(instance);
     }
   }
 
