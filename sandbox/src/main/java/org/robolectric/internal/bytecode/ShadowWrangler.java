@@ -8,10 +8,11 @@ import static java.lang.invoke.MethodType.methodType;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
 import com.google.auto.service.AutoService;
+import com.google.errorprone.annotations.Keep;
+import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -22,6 +23,8 @@ import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Priority;
+import org.robolectric.annotation.ClassName;
+import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.RealObject;
 import org.robolectric.annotation.ReflectorObject;
 import org.robolectric.sandbox.ShadowMatcher;
@@ -133,32 +136,6 @@ public class ShadowWrangler implements ClassHandler {
     }
   }
 
-  public static Class<?> loadClass(String paramType, ClassLoader classLoader) {
-    Class<?> primitiveClass = RoboType.findPrimitiveClass(paramType);
-    if (primitiveClass != null) return primitiveClass;
-
-    int arrayLevel = 0;
-    while (paramType.endsWith("[]")) {
-      arrayLevel++;
-      paramType = paramType.substring(0, paramType.length() - 2);
-    }
-
-    Class<?> clazz = RoboType.findPrimitiveClass(paramType);
-    if (clazz == null) {
-      try {
-        clazz = classLoader.loadClass(paramType);
-      } catch (ClassNotFoundException e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    while (arrayLevel-- > 0) {
-      clazz = Array.newInstance(clazz, 0).getClass();
-    }
-
-    return clazz;
-  }
-
   @SuppressWarnings("ReferenceEquality")
   @Override
   public void classInitializing(Class clazz) {
@@ -186,11 +163,6 @@ public class ShadowWrangler implements ClassHandler {
     } catch (InvocationTargetException | IllegalAccessException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  @Override
-  public Object initializing(Object instance) {
-    return createShadowFor(instance);
   }
 
   @SuppressWarnings({"ReferenceEquality"})
@@ -308,6 +280,7 @@ public class ShadowWrangler implements ClassHandler {
       Class<?> shadowClass) {
     Method method =
         findShadowMethodDeclaredOnClass(shadowClass, name, types, shadowInfo.looseSignatures);
+
     if (method != null) {
       return method;
     } else {
@@ -332,7 +305,9 @@ public class ShadowWrangler implements ClassHandler {
   private Method findShadowMethodDeclaredOnClass(
       Class<?> shadowClass, String methodName, Class<?>[] paramClasses, boolean looseSignatures) {
     Method foundMethod = null;
-    for (Method method : shadowClass.getDeclaredMethods()) {
+    // Try to find shadow method with exact method name and looseSignature.
+    Method[] methods = shadowClass.getDeclaredMethods();
+    for (Method method : methods) {
       if (!method.getName().equals(methodName)
           || method.getParameterCount() != paramClasses.length) {
         continue;
@@ -349,6 +324,7 @@ public class ShadowWrangler implements ClassHandler {
         foundMethod = method;
         break;
       }
+
       if (looseSignatures) {
         boolean allParameterTypesAreObject = true;
         for (Class<?> paramClass : method.getParameterTypes()) {
@@ -361,6 +337,31 @@ public class ShadowWrangler implements ClassHandler {
           // Found a looseSignatures match, but continue looking for an exact match.
           foundMethod = method;
         }
+      } else {
+        // Or maybe support @ClassName.
+        if (parameterClassNameMatch(method, paramClasses) && shadowMatcher.matches(method)) {
+          // Found a @ClassName match, but continue looking for an exact match.
+          foundMethod = method;
+        }
+      }
+    }
+
+    if (foundMethod == null) {
+      // Try to find shadow method with Implementation#methodName's mapping name
+      for (Method method : methods) {
+        Implementation implementation = method.getAnnotation(Implementation.class);
+        if (implementation == null) {
+          continue;
+        }
+        String mappedMethodName = implementation.methodName().trim();
+        if (mappedMethodName.isEmpty() || !mappedMethodName.equals(methodName)) {
+          continue;
+        }
+        if (Arrays.equals(method.getParameterTypes(), paramClasses)
+            || parameterClassNameMatch(method, paramClasses)) {
+          foundMethod = method;
+          break;
+        }
       }
     }
 
@@ -372,6 +373,37 @@ public class ShadowWrangler implements ClassHandler {
     }
   }
 
+  /**
+   * Check whether the parameters (which could be @ClassName annotated) of the {@code method}
+   * matches {@code paramClasses}.
+   */
+  private boolean parameterClassNameMatch(Method method, Class<?>[] paramClasses) {
+    Class<?>[] parameterTypes = method.getParameterTypes();
+    if (parameterTypes.length != paramClasses.length) {
+      return false;
+    }
+
+    Annotation[][] annotations = method.getParameterAnnotations();
+    for (int i = 0; i < paramClasses.length; ++i) {
+      if (parameterTypes[i].equals(paramClasses[i])) {
+        continue;
+      }
+      if (!parameterTypes[i].equals(Object.class)) {
+        return false; // @ClassName only applicable to parameter of Object type
+      }
+      boolean matches = false;
+      for (Annotation annotation : annotations[i]) {
+        if (annotation instanceof ClassName) {
+          matches = ((ClassName) annotation).value().equals(paramClasses[i].getName());
+          break;
+        }
+      }
+      if (!matches) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   @Override
   public Object intercept(String signature, Object instance, Object[] params, Class theClass)
@@ -430,30 +462,6 @@ public class ShadowWrangler implements ClassHandler {
     return throwable;
   }
 
-  Object createShadowFor(Object instance) {
-    Class<?> theClass = instance.getClass();
-    Object shadow = createShadowFor(theClass);
-    injectRealObjectOn(shadow, instance);
-    injectReflectorObjectOn(shadow, instance);
-    return shadow;
-  }
-
-  private Object createShadowFor(Class<?> theClass) {
-    ShadowInfo shadowInfo = getShadowInfo(theClass);
-    if (shadowInfo == null) {
-      return NO_SHADOW;
-    } else {
-      try {
-        Class<?> shadowClass = loadClass(shadowInfo.shadowClassName, theClass.getClassLoader());
-        ShadowMetadata shadowMetadata = getShadowMetadata(shadowClass);
-        return shadowMetadata.constructor.newInstance();
-      } catch (IllegalAccessException | InstantiationException | InvocationTargetException e) {
-        throw new RuntimeException(
-            "Could not instantiate shadow " + shadowInfo.shadowClassName + " for " + theClass, e);
-      }
-    }
-  }
-
   private ShadowMetadata getShadowMetadata(Class<?> shadowClass) {
     return cachedShadowMetadata.get(shadowClass);
   }
@@ -495,13 +503,7 @@ public class ShadowWrangler implements ClassHandler {
     }
   }
 
-  private void injectRealObjectOn(Object shadow, Object instance) {
-    ShadowMetadata shadowMetadata = getShadowMetadata(shadow.getClass());
-    for (Field realObjectField : shadowMetadata.realObjectFields) {
-      setField(shadow, instance, realObjectField);
-    }
-  }
-
+  @Keep // This method is looked up using reflection.
   private void injectReflectorObjectOn(Object shadow, Object instance) {
     ShadowMetadata shadowMetadata = getShadowMetadata(shadow.getClass());
     for (Field reflectorObjectField : shadowMetadata.reflectorObjectFields) {
