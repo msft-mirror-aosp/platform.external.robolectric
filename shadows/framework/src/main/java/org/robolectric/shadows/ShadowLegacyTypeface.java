@@ -54,6 +54,7 @@ public class ShadowLegacyTypeface extends ShadowTypeface {
   }
 
   @Implementation(minSdk = U.SDK_INT)
+  @InDevelopment
   protected void __constructor__(long fontId, String familyName) {
     description = findById(fontId);
   }
