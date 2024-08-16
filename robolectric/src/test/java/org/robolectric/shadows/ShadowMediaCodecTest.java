@@ -3,6 +3,7 @@ package org.robolectric.shadows;
 import static com.google.common.truth.Truth.assertThat;
 import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.max;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -365,7 +366,8 @@ public final class ShadowMediaCodecTest {
   @Test
   public void whenCustomCodec_InputBufferIsOfExpectedSize() throws Exception {
     int inputBufferSize = 1000;
-    CodecConfig config = new CodecConfig(inputBufferSize, /*outputBufferSize=*/ 0, (in, out) -> {});
+    CodecConfig config =
+        new CodecConfig(inputBufferSize, /* outputBufferSize= */ 0, (in, out) -> {});
     ShadowMediaCodec.addEncoder(AUDIO_MIME, config);
 
     MediaCodec codec = createSyncEncoder();
@@ -377,19 +379,20 @@ public final class ShadowMediaCodecTest {
   @Test
   public void whenCustomCodec_OutputBufferIsOfExpectedSize() throws Exception {
     int outputBufferSize = 1000;
-    CodecConfig config = new CodecConfig(/*inputBufferSize=*/ 0, outputBufferSize, (in, out) -> {});
+    CodecConfig config =
+        new CodecConfig(/* inputBufferSize= */ 0, outputBufferSize, (in, out) -> {});
     ShadowMediaCodec.addEncoder(AUDIO_MIME, config);
     MediaCodec codec = createSyncEncoder();
 
-    int inputBuffer = codec.dequeueInputBuffer(/*timeoutUs=*/ 0);
+    int inputBuffer = codec.dequeueInputBuffer(/* timeoutUs= */ 0);
     codec.queueInputBuffer(
-        inputBuffer, /* offset=*/ 0, /* size=*/ 0, /* presentationTimeUs=*/ 0, /* flags=*/ 0);
+        inputBuffer, /* offset= */ 0, /* size= */ 0, /* presentationTimeUs= */ 0, /* flags= */ 0);
 
     assertThat(codec.dequeueOutputBuffer(new BufferInfo(), /* timeoutUs= */ 0))
         .isEqualTo(MediaCodec.INFO_OUTPUT_FORMAT_CHANGED);
 
     ByteBuffer outputBuffer =
-        codec.getOutputBuffer(codec.dequeueOutputBuffer(new BufferInfo(), /*timeoutUs=*/ 0));
+        codec.getOutputBuffer(codec.dequeueOutputBuffer(new BufferInfo(), /* timeoutUs= */ 0));
     assertThat(outputBuffer.capacity()).isEqualTo(outputBufferSize);
   }
 
@@ -431,7 +434,7 @@ public final class ShadowMediaCodecTest {
   @Test
   public void inSyncMode_outputBufferInfoPopulated() throws Exception {
     MediaCodec codec = createSyncEncoder();
-    int inputBuffer = codec.dequeueInputBuffer(/*timeoutUs=*/ 0);
+    int inputBuffer = codec.dequeueInputBuffer(/* timeoutUs= */ 0);
     codec.getInputBuffer(inputBuffer).put(ByteBuffer.allocateDirect(512));
     codec.queueInputBuffer(
         inputBuffer,
@@ -615,6 +618,64 @@ public final class ShadowMediaCodecTest {
       fail();
     } catch (CodecException expected) {
     }
+  }
+
+  @Test
+  public void getInputFormat_shouldThrowIllegalStateExceptionWhenCodecNotConfigured()
+      throws Exception {
+    MediaCodec codec = MediaCodec.createEncoderByType(AUDIO_MIME);
+
+    assertThrows(IllegalStateException.class, codec::getInputFormat);
+  }
+
+  @Test
+  public void getInputFormat_shouldReturnConfiguredFormatWhenCodecIsConfigured() throws Exception {
+    MediaFormat basicAacFormat = getBasicAacFormat();
+    MediaCodec codec = MediaCodec.createEncoderByType(AUDIO_MIME);
+    codec.configure(
+        basicAacFormat, /* surface= */ null, /* crypto= */ null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+
+    MediaFormat codecFormat = codec.getInputFormat();
+
+    assertThat(codecFormat.getString(MediaFormat.KEY_MIME))
+        .isEqualTo(basicAacFormat.getString(MediaFormat.KEY_MIME));
+    assertThat(codecFormat.getInteger(MediaFormat.KEY_BIT_RATE))
+        .isEqualTo(basicAacFormat.getInteger(MediaFormat.KEY_BIT_RATE));
+    assertThat(codecFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT))
+        .isEqualTo(basicAacFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT));
+    assertThat(codecFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE))
+        .isEqualTo(basicAacFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE));
+    assertThat(codecFormat.getInteger(MediaFormat.KEY_AAC_PROFILE))
+        .isEqualTo(basicAacFormat.getInteger(MediaFormat.KEY_AAC_PROFILE));
+  }
+
+  @Test
+  public void getOutputFormat_shouldThrowIllegalStateExceptionWhenCodecNotConfigured()
+      throws Exception {
+    MediaCodec codec = MediaCodec.createEncoderByType(AUDIO_MIME);
+
+    assertThrows(IllegalStateException.class, codec::getOutputFormat);
+  }
+
+  @Test
+  public void getOutputFormat_shouldReturnConfiguredFormatWhenCodecIsConfigured() throws Exception {
+    MediaFormat basicAacFormat = getBasicAacFormat();
+    MediaCodec codec = MediaCodec.createEncoderByType(AUDIO_MIME);
+    codec.configure(
+        basicAacFormat, /* surface= */ null, /* crypto= */ null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+
+    MediaFormat codecFormat = codec.getOutputFormat();
+
+    assertThat(codecFormat.getString(MediaFormat.KEY_MIME))
+        .isEqualTo(basicAacFormat.getString(MediaFormat.KEY_MIME));
+    assertThat(codecFormat.getInteger(MediaFormat.KEY_BIT_RATE))
+        .isEqualTo(basicAacFormat.getInteger(MediaFormat.KEY_BIT_RATE));
+    assertThat(codecFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT))
+        .isEqualTo(basicAacFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT));
+    assertThat(codecFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE))
+        .isEqualTo(basicAacFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE));
+    assertThat(codecFormat.getInteger(MediaFormat.KEY_AAC_PROFILE))
+        .isEqualTo(basicAacFormat.getInteger(MediaFormat.KEY_AAC_PROFILE));
   }
 
   public static <T> T asyncVerify(T mock) {

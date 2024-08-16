@@ -175,10 +175,30 @@ public class ShadowTextToSpeech {
     return TextToSpeech.LANG_NOT_SUPPORTED;
   }
 
+  /**
+   * Sets the text-to-speech language.
+   *
+   * <p>This method sets the current voice to the default one for the given Locale; getVoice() can
+   * be used to retrieve it.
+   */
   @Implementation
   protected int setLanguage(Locale locale) {
     this.language = locale;
-    return isLanguageAvailable(locale);
+    int languageAvailability = isLanguageAvailable(locale);
+
+    // Set to default voice (locale voice) if no voice is set.
+    if (languageAvailability >= TextToSpeech.LANG_AVAILABLE && this.currentVoice == null) {
+      setVoice(
+          new Voice(
+              locale.toLanguageTag(),
+              locale,
+              Voice.QUALITY_NORMAL,
+              Voice.LATENCY_NORMAL,
+              /* requiresNetworkConnection= */ false,
+              new HashSet<String>()));
+    }
+
+    return languageAvailability;
   }
 
   /**
@@ -236,6 +256,14 @@ public class ShadowTextToSpeech {
     return TextToSpeech.SUCCESS;
   }
 
+  /**
+   * Returns the Voice instance describing the voice currently being used for synthesis requests.
+   */
+  @Implementation
+  protected Voice getVoice() {
+    return this.currentVoice;
+  }
+
   @Implementation
   protected Set<Voice> getVoices() {
     return voices;
@@ -265,7 +293,9 @@ public class ShadowTextToSpeech {
     return shutdown;
   }
 
-  /** @return {@code true} if the TTS is stopped. */
+  /**
+   * @return {@code true} if the TTS is stopped.
+   */
   public boolean isStopped() {
     return stopped;
   }
