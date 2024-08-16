@@ -14,23 +14,50 @@
 // limitations under the License.
 
 genrule {
+    name: "font-resources-public",
+    out: ["values/public.xml"],
+    cmd: "mkdir -p $(genDir)/values; echo '<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+        " <resources>" +
+        " <public type=\"string\" name=\"config_bodyFontFamily\" id=\"0x010401fe\" /> " +
+        " <public type=\"string\" name=\"config_headlineFontFamily\" id=\"0x01040273\" /> " +
+        " </resources>' > $(out)",
+}
+
+genrule {
     name: "font-resources-compile-public",
     tools: ["aapt2"],
     srcs: [
-        "font_resources/values/public.xml",
+        ":font-resources-public",
     ],
     out: ["values_public.arsc.flat"],
     cmd: "$(location aapt2) compile $(in) -o $(genDir)",
 }
 
 genrule {
+    name: "font-resources-config",
+    out: ["values/config.xml"],
+    cmd: "mkdir -p $(genDir)/values; echo '<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+        " <resources xmlns:xliff=\"urn:oasis:names:tc:xliff:document:1.2\">" +
+        " <string name=\"config_headlineFontFamily\" translatable=\"false\">plh-go-sans</string>" +
+        " <string name=\"config_bodyFontFamily\" translatable=\"false\">plh-go-sans-text</string>" +
+        " </resources>' > $(out)",
+}
+
+genrule {
     name: "font-resources-compile-config",
     tools: ["aapt2"],
     srcs: [
-        "font_resources/values/config.xml",
+        ":font-resources-config",
     ],
     out: ["values_config.arsc.flat"],
     cmd: "$(location aapt2) compile $(in) -o $(genDir)",
+}
+
+genrule {
+    name: "font-manifest",
+    out: ["FontAndroidManifest.xml"],
+    cmd: "echo '<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"" +
+        " package=\"android\"> <application/> </manifest>' > $(out)",
 }
 
 genrule {
@@ -38,7 +65,7 @@ genrule {
     tools: ["aapt2"],
     // The first input file in the list must be the manifest
     srcs: [
-        "FontAndroidManifest.xml",
+        ":font-manifest",
         ":font-resources-compile-public",
         ":font-resources-compile-config",
     ],
