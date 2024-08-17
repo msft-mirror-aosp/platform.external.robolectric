@@ -34,7 +34,6 @@ class AndroidProjectConfigPlugin implements Plugin<Project> {
                     '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
                     '--add-opens=java.base/java.io=ALL-UNNAMED',
                     '--add-opens=java.base/java.net=ALL-UNNAMED',
-                    '--add-opens=java.base/java.nio=ALL-UNNAMED', // required for ShadowVMRuntime
                     '--add-opens=java.base/java.security=ALL-UNNAMED',
                     '--add-opens=java.base/java.text=ALL-UNNAMED',
                     '--add-opens=java.base/java.util=ALL-UNNAMED',
