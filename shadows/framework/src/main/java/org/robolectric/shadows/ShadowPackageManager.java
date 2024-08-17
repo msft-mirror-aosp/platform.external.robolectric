@@ -65,7 +65,6 @@ import android.content.pm.ProviderInfo;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.content.pm.Signature;
-import android.content.pm.SigningInfo;
 import android.content.pm.pkg.FrameworkPackageUserState;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
@@ -948,26 +947,6 @@ public class ShadowPackageManager {
       String packageName, String initiatingPackage, String installerPackage) {
     packageInstallSourceInfoMap.put(
         packageName, new InstallSourceInfo(initiatingPackage, null, null, installerPackage));
-  }
-
-  /** Adds install source information for a package. */
-  public void setInstallSourceInfo(
-      String packageName,
-      @Nullable String initiatingPackageName,
-      @Nullable SigningInfo initiatingPackageSigningInfo,
-      @Nullable String originatingPackageName,
-      @Nullable String installingPackageName,
-      @Nullable String updateOwnerPackageName,
-      int packageSource) {
-    packageInstallSourceInfoMap.put(
-        packageName,
-        new InstallSourceInfo(
-            initiatingPackageName,
-            initiatingPackageSigningInfo,
-            originatingPackageName,
-            installingPackageName,
-            updateOwnerPackageName,
-            packageSource));
   }
 
   /**
