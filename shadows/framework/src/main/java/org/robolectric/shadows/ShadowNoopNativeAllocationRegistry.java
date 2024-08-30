@@ -46,7 +46,7 @@ public class ShadowNoopNativeAllocationRegistry {
       long size,
       boolean mallocAllocation) {
     ClassLoader loader =
-        (null == classLoader) ? Thread.currentThread().getContextClassLoader() : classLoader;
+        (classLoader == null) ? Thread.currentThread().getContextClassLoader() : classLoader;
     invokeConstructor(
         NativeAllocationRegistry.class,
         realNativeAllocationRegistry,
