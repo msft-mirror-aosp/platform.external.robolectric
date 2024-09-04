@@ -29,9 +29,9 @@ import android.provider.FontsContract;
 import android.util.DisplayMetrics;
 import androidx.test.platform.app.InstrumentationRegistry;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.security.Security;
 import java.security.cert.Certificate;
@@ -57,7 +57,6 @@ import org.robolectric.annotation.LooperMode;
 import org.robolectric.annotation.SQLiteMode;
 import org.robolectric.annotation.experimental.LazyApplication.LazyLoad;
 import org.robolectric.config.ConfigurationRegistry;
-import org.robolectric.internal.ResourcesMode;
 import org.robolectric.internal.ShadowProvider;
 import org.robolectric.internal.TestEnvironment;
 import org.robolectric.manifest.AndroidManifest;
@@ -97,7 +96,6 @@ import org.robolectric.versioning.AndroidVersions.V;
 public class AndroidTestEnvironment implements TestEnvironment {
 
   private static final String CONSCRYPT_PROVIDER = "Conscrypt";
-  private static final int MAX_DATA_DIR_NAME_LENGTH = 120;
 
   private final Sdk compileSdk;
 
@@ -112,7 +110,6 @@ public class AndroidTestEnvironment implements TestEnvironment {
   public AndroidTestEnvironment(
       @Named("runtimeSdk") Sdk runtimeSdk,
       @Named("compileSdk") Sdk compileSdk,
-      ResourcesMode resourcesMode,
       ShadowProvider[] shadowProviders,
       TestEnvironmentLifecyclePlugin[] lifecyclePlugins) {
     this.compileSdk = compileSdk;
@@ -127,7 +124,8 @@ public class AndroidTestEnvironment implements TestEnvironment {
 
   @Override
   public void setUpApplicationState(
-      Method method, Configuration configuration, AndroidManifest appManifest) {
+      String tmpDirName, Configuration configuration, AndroidManifest appManifest) {
+    Preconditions.checkArgument(tmpDirName != null && !tmpDirName.isEmpty());
     Config config = configuration.get(Config.class);
 
     ConfigurationRegistry.instance = new ConfigurationRegistry(configuration.map());
@@ -144,7 +142,7 @@ public class AndroidTestEnvironment implements TestEnvironment {
       DefaultNativeRuntimeLoader.injectAndLoad();
     }
 
-    RuntimeEnvironment.setTempDirectory(new TempDirectory(createTestDataDirRootPath(method)));
+    RuntimeEnvironment.setTempDirectory(new TempDirectory(tmpDirName));
     if (ShadowLooper.looperMode() == LooperMode.Mode.LEGACY) {
       RuntimeEnvironment.setMasterScheduler(new Scheduler());
       RuntimeEnvironment.setMainThread(Thread.currentThread());
@@ -516,19 +514,6 @@ public class AndroidTestEnvironment implements TestEnvironment {
 
     androidInstrumentation.onCreate(new Bundle());
     return androidInstrumentation;
-  }
-
-  /** Create a file system safe directory path name for the current test. */
-  @SuppressWarnings("DoNotCall")
-  private String createTestDataDirRootPath(Method method) {
-    // Cap the size to 120 to avoid unnecessarily long directory names.
-    String directoryName =
-        (method.getDeclaringClass().getSimpleName() + "_" + method.getName())
-            .replaceAll("[^a-zA-Z0-9.-]", "_");
-    if (directoryName.length() > MAX_DATA_DIR_NAME_LENGTH) {
-      directoryName = directoryName.substring(0, MAX_DATA_DIR_NAME_LENGTH);
-    }
-    return directoryName;
   }
 
   @Override
