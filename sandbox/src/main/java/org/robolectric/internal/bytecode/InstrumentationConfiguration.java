@@ -29,11 +29,7 @@ public class InstrumentationConfiguration {
       ImmutableSet.of(
           RobolectricInternals.class.getName(),
           InvokeDynamicSupport.class.getName(),
-          Shadow.class.getName(),
-
-          // these classes are deprecated and will be removed soon:
-          "org.robolectric.util.FragmentTestUtil",
-          "org.robolectric.util.FragmentTestUtil$FragmentUtilActivity");
+          Shadow.class.getName());
 
   static final ImmutableSet<String> PACKAGES_TO_NEVER_ACQUIRE =
       ImmutableSet.of(
@@ -152,10 +148,7 @@ public class InstrumentationConfiguration {
         return false;
       }
     }
-
-    // R classes must be loaded from system CP
-    boolean isRClass = name.matches(".*\\.R(|\\$[a-z]+)$");
-    return !isRClass && !classesToNotAcquire.contains(name);
+    return !classesToNotAcquire.contains(name);
   }
 
   /**
