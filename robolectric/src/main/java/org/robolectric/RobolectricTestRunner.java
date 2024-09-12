@@ -28,7 +28,6 @@ import org.robolectric.annotation.SQLiteMode;
 import org.robolectric.config.AndroidConfigurer;
 import org.robolectric.interceptors.AndroidInterceptors;
 import org.robolectric.internal.AndroidSandbox;
-import org.robolectric.internal.BuckManifestFactory;
 import org.robolectric.internal.DefaultManifestFactory;
 import org.robolectric.internal.ManifestFactory;
 import org.robolectric.internal.ManifestIdentifier;
@@ -194,15 +193,15 @@ public class RobolectricTestRunner extends SandboxTestRunner {
         List<Sdk> sdksToRun = sdkPicker.selectSdks(configuration, appManifest);
         RobolectricFrameworkMethod last = null;
         for (Sdk sdk : sdksToRun) {
-            children.add(
-                last =
-                    new RobolectricFrameworkMethod(
-                        frameworkMethod.getMethod(),
-                        appManifest,
-                        sdk,
-                        configuration,
-                        ResourcesMode.BINARY,
-                        alwaysIncludeVariantMarkersInName));
+          children.add(
+              last =
+                  new RobolectricFrameworkMethod(
+                      frameworkMethod.getMethod(),
+                      appManifest,
+                      sdk,
+                      configuration,
+                      ResourcesMode.BINARY,
+                      alwaysIncludeVariantMarkersInName));
         }
         if (last != null) {
           last.dontIncludeVariantMarkersInTestName();
@@ -338,11 +337,7 @@ public class RobolectricTestRunner extends SandboxTestRunner {
       return new DefaultManifestFactory(buildSystemApiProperties);
     }
 
-    if (BuckManifestFactory.isBuck()) {
-      return new BuckManifestFactory();
-    } else {
-      return new MavenManifestFactory();
-    }
+    return new MavenManifestFactory();
   }
 
   protected Properties getBuildSystemApiProperties() {
