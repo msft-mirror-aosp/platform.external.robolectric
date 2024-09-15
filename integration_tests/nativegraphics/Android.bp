@@ -20,7 +20,10 @@ android_library {
 android_app {
     name: "NativeGraphicsPseudoApp",
     srcs: [],
-    static_libs: ["NativeGraphicsTestsAssetsLib"],
+    static_libs: [
+        "NativeGraphicsTestsAssetsLib",
+        "androidx.core_core",
+    ],
     manifest: "robo-manifest.xml",
     aaptflags: [
         "--extra-packages",
@@ -49,7 +52,6 @@ android_robolectric_test {
         "src/**/*.java",
     ],
     static_libs: [
-        "androidx.core_core",
         "androidx.test.uiautomator_uiautomator",
         "androidx.test.ext.junit",
     ],
