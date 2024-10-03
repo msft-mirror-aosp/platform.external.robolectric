@@ -45,7 +45,7 @@ import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.Resetter;
 
 /** Shadow of {@link UsageStatsManager}. */
-@Implements(value = UsageStatsManager.class, looseSignatures = true)
+@Implements(value = UsageStatsManager.class)
 public class ShadowUsageStatsManager {
   private static @StandbyBuckets int currentAppStandbyBucket =
       UsageStatsManager.STANDBY_BUCKET_ACTIVE;
@@ -61,14 +61,14 @@ public class ShadowUsageStatsManager {
    * Keys {@link UsageStats} objects by intervalType (e.g. {@link
    * UsageStatsManager#INTERVAL_WEEKLY}).
    */
-  private SetMultimap<Integer, UsageStats> usageStatsByIntervalType =
+  private static SetMultimap<Integer, UsageStats> usageStatsByIntervalType =
       Multimaps.synchronizedSetMultimap(HashMultimap.create());
 
   private static final Map<String, Integer> appStandbyBuckets = Maps.newConcurrentMap();
 
   /** Used with T APIs for {@link BroadcastResponseStats}. */
-  private final Map<String, Map<Long, Object /*BroadcastResponseStats */>> appBroadcastStats =
-      Maps.newConcurrentMap();
+  private static final Map<String, Map<Long, Object /*BroadcastResponseStats */>>
+      appBroadcastStats = Maps.newConcurrentMap();
 
   /**
    * App usage observer registered via {@link UsageStatsManager#registerAppUsageObserver(int,
@@ -586,21 +586,16 @@ public class ShadowUsageStatsManager {
     currentUsageSource = usageSource;
   }
 
-  /**
-   * Requires loose signatures because return value is a list of {@link BroadcastResponseStats},
-   * which is a hidden class introduced in Android T.
-   */
   @SuppressWarnings("unchecked")
   @Implementation(minSdk = TIRAMISU)
-  protected Object /* List<BroadcastResponseStats> */ queryBroadcastResponseStats(
-      @Nullable Object packageName, Object id) {
+  protected List</*android.app.usage.BroadcastResponseStats*/ ?> queryBroadcastResponseStats(
+      @Nullable String packageName, long id) {
     List<BroadcastResponseStats> result = new ArrayList<>();
     for (Map.Entry<String, Map<Long, Object /*BroadcastResponseStats*/>> entry :
         appBroadcastStats.entrySet()) {
       if (packageName == null || entry.getKey().equals(packageName)) {
         result.addAll(
-            (List<BroadcastResponseStats>)
-                queryBroadcastResponseStatsForId(entry.getValue(), (long) id));
+            (List<BroadcastResponseStats>) queryBroadcastResponseStatsForId(entry.getValue(), id));
       }
     }
     return result;
@@ -652,6 +647,9 @@ public class ShadowUsageStatsManager {
     appUsageObserversById.clear();
     usageSessionObserversById.clear();
     appUsageLimitObserversById.clear();
+
+    usageStatsByIntervalType.clear();
+    appBroadcastStats.clear();
   }
 
   /**
