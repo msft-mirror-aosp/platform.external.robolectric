@@ -1,9 +1,11 @@
 package org.robolectric.shadows;
 
 import static android.os.Build.VERSION_CODES.N;
+import static android.os.Build.VERSION_CODES.P;
 import static org.robolectric.shadow.api.Shadow.invokeConstructor;
 
 import libcore.util.NativeAllocationRegistry;
+import org.robolectric.annotation.ClassName;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.InDevelopment;
@@ -12,17 +14,15 @@ import org.robolectric.util.ReflectionHelpers.ClassParameter;
 import org.robolectric.versioning.AndroidVersions.V;
 
 /** Shadow for {@link NativeAllocationRegistry} that is a no-op. */
-@Implements(
-    value = NativeAllocationRegistry.class,
-    minSdk = N,
-    isInAndroidSdk = false,
-    looseSignatures = true)
+@Implements(value = NativeAllocationRegistry.class, minSdk = N, isInAndroidSdk = false)
 public class ShadowNoopNativeAllocationRegistry {
 
   @RealObject protected NativeAllocationRegistry realNativeAllocationRegistry;
 
-  @Implementation
-  protected Runnable registerNativeAllocation(Object referent, Object allocator) {
+  @Implementation(maxSdk = P)
+  protected Runnable registerNativeAllocation(
+      Object referent,
+      @ClassName("libcore.util.NativeAllocationRegistry$Allocator") Object allocator) {
     return () -> {};
   }
 
