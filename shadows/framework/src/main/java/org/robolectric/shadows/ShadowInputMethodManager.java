@@ -23,6 +23,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.annotation.ClassName;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.Resetter;
@@ -33,7 +34,7 @@ import org.robolectric.util.reflector.Static;
 import org.robolectric.versioning.AndroidVersions.U;
 
 /** Shadow for InputMethodManager. */
-@Implements(value = InputMethodManager.class, looseSignatures = true)
+@Implements(value = InputMethodManager.class)
 public class ShadowInputMethodManager {
 
   /**
@@ -55,12 +56,13 @@ public class ShadowInputMethodManager {
     void onPrivateCommand(View view, String action, Bundle data);
   }
 
-  private boolean softInputVisible;
-  private Optional<SoftInputVisibilityChangeHandler> visibilityChangeHandler = Optional.absent();
-  private Optional<PrivateCommandListener> privateCommandListener = Optional.absent();
-  private List<InputMethodInfo> inputMethodInfoList = ImmutableList.of();
-  private List<InputMethodInfo> enabledInputMethodInfoList = ImmutableList.of();
-  private Optional<InputMethodSubtype> inputMethodSubtype = Optional.absent();
+  private static boolean softInputVisible;
+  private static Optional<SoftInputVisibilityChangeHandler> visibilityChangeHandler =
+      Optional.absent();
+  private static Optional<PrivateCommandListener> privateCommandListener = Optional.absent();
+  private static List<InputMethodInfo> inputMethodInfoList = ImmutableList.of();
+  private static List<InputMethodInfo> enabledInputMethodInfoList = ImmutableList.of();
+  private static Optional<InputMethodSubtype> inputMethodSubtype = Optional.absent();
 
   @Implementation
   protected boolean showSoftInput(View view, int flags) {
@@ -81,9 +83,12 @@ public class ShadowInputMethodManager {
 
   @Implementation(minSdk = U.SDK_INT)
   protected boolean showSoftInput(
-      Object view, Object statsToken, Object flags, Object resultReceiver, Object reason) {
-    return showSoftInput(
-        (View) view, (Integer) flags, (ResultReceiver) resultReceiver, (Integer) reason);
+      View view,
+      @ClassName("android.view.inputmethod.ImeTracker$Token") Object statsToken,
+      int flags,
+      ResultReceiver resultReceiver,
+      int reason) {
+    return showSoftInput(view, flags, resultReceiver, reason);
   }
 
   @Implementation(minSdk = S)
@@ -270,6 +275,12 @@ public class ShadowInputMethodManager {
     if (apiLevel > P) {
       _reflector.getInstanceMap().clear();
     }
+    softInputVisible = false;
+    visibilityChangeHandler = Optional.absent();
+    privateCommandListener = Optional.absent();
+    inputMethodInfoList = ImmutableList.of();
+    enabledInputMethodInfoList = ImmutableList.of();
+    inputMethodSubtype = Optional.absent();
   }
 
   @ForType(InputMethodManager.class)

@@ -1895,6 +1895,22 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
+  @Config(minSdk = TIRAMISU)
+  public void queryIntentServices_Match_withResolveInfoFlags() {
+    Intent i = new Intent(Intent.ACTION_MAIN, null);
+
+    ResolveInfo info = new ResolveInfo();
+    info.serviceInfo = new ServiceInfo();
+    info.nonLocalizedLabel = TEST_PACKAGE_LABEL;
+
+    shadowOf(packageManager).addResolveInfoForIntent(i, info);
+
+    List<ResolveInfo> services = packageManager.queryIntentServices(i, ResolveInfoFlags.of(0));
+    assertThat(services).hasSize(1);
+    assertThat(services.get(0).nonLocalizedLabel.toString()).isEqualTo(TEST_PACKAGE_LABEL);
+  }
+
+  @Test
   public void queryIntentServices_fromManifest() {
     Intent i = new Intent("org.robolectric.ACTION_DIFFERENT_PACKAGE");
     i.addCategory(Intent.CATEGORY_LAUNCHER);
@@ -3015,7 +3031,7 @@ public class ShadowPackageManagerTest {
   public void getResourcesForApplication_ApkNotPresent() {
     ApplicationInfo applicationInfo =
         ApplicationInfoBuilder.newBuilder().setPackageName("com.not.present").build();
-    applicationInfo.sourceDir = applicationInfo.publicSourceDir = "/some/nonexistant/path";
+    applicationInfo.sourceDir = applicationInfo.publicSourceDir = "/some/nonexistent/path";
 
     try {
       packageManager.getResourcesForApplication(applicationInfo);
@@ -3135,7 +3151,7 @@ public class ShadowPackageManagerTest {
   @Config(minSdk = N, maxSdk = N_MR1) // Functionality removed in O
   public void whenPackageNotPresent_getPackageSizeInfo_callsBackWithFailure() throws Exception {
     IPackageStatsObserver packageStatsObserver = mock(IPackageStatsObserver.class);
-    packageManager.getPackageSizeInfo("nonexistant.package", packageStatsObserver);
+    packageManager.getPackageSizeInfo("nonexistent.package", packageStatsObserver);
     shadowMainLooper().idle();
 
     verify(packageStatsObserver).onGetStatsCompleted(packageStatsCaptor.capture(), eq(false));
@@ -3148,7 +3164,7 @@ public class ShadowPackageManagerTest {
       throws Exception {
     shadowMainLooper().pause();
     IPackageStatsObserver packageStatsObserver = mock(IPackageStatsObserver.class);
-    packageManager.getPackageSizeInfo("nonexistant.package", packageStatsObserver);
+    packageManager.getPackageSizeInfo("nonexistent.package", packageStatsObserver);
 
     verifyNoMoreInteractions(packageStatsObserver);
 
