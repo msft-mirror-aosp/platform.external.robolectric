@@ -18,8 +18,8 @@ import dalvik.system.CloseGuard;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Array;
 import java.time.Duration;
-import javax.annotation.concurrent.GuardedBy;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.annotation.ClassName;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.RealObject;
@@ -46,10 +46,7 @@ import org.robolectric.versioning.AndroidVersions.U;
  * the next frame will only trigger when the clock is advance manually or via the {@link
  * ShadowLooper}.
  */
-@Implements(
-    className = "android.view.DisplayEventReceiver",
-    isInAndroidSdk = false,
-    looseSignatures = true)
+@Implements(className = "android.view.DisplayEventReceiver", isInAndroidSdk = false)
 public class ShadowDisplayEventReceiver {
 
   private static NativeObjRegistry<NativeDisplayEventReceiver> nativeObjRegistry =
@@ -141,6 +138,16 @@ public class ShadowDisplayEventReceiver {
     }
   }
 
+  void resetState() {
+    if (realReceiver.getClass().getName().contains("FrameDisplayEventReceiver")) {
+      FrameDisplayEventReceiverReflector frameReflector =
+          reflector(FrameDisplayEventReceiverReflector.class, realReceiver);
+      frameReflector.setFrame(0);
+      frameReflector.setHavePendingVsync(false);
+      frameReflector.setTimestampNanos(0);
+    }
+  }
+
   /**
    * A simulation of the native code that provides synchronization with the display hardware frames
    * (aka vsync), that attempts to provide relatively accurate behavior, while adjusting for
@@ -162,22 +169,21 @@ public class ShadowDisplayEventReceiver {
     private final WeakReference<DisplayEventReceiver> receiverRef;
     private final ShadowPausedSystemClock.Listener clockListener = this::onClockAdvanced;
 
-    @GuardedBy("this")
-    private long nextVsyncTime = 0;
-
     public NativeDisplayEventReceiver(WeakReference<DisplayEventReceiver> receiverRef) {
       this.receiverRef = receiverRef;
       // register a clock listener for the async mode
-      ShadowPausedSystemClock.addListener(clockListener);
+      ShadowPausedSystemClock.addStaticListener(clockListener);
     }
 
     private void onClockAdvanced() {
       synchronized (this) {
+        long nextVsyncTime = ShadowChoreographer.getNextVsyncTime();
         if (nextVsyncTime == 0 || ShadowPausedSystemClock.uptimeMillis() < nextVsyncTime) {
           return;
         }
-        nextVsyncTime = 0;
+        ShadowChoreographer.setNextVsyncTime(0);
       }
+
       doVsync();
     }
 
@@ -188,8 +194,8 @@ public class ShadowDisplayEventReceiver {
     public void scheduleVsync() {
       Duration frameDelay = ShadowChoreographer.getFrameDelay();
       if (ShadowChoreographer.isPaused()) {
-        synchronized (this) {
-          nextVsyncTime = SystemClock.uptimeMillis() + frameDelay.toMillis();
+        if (ShadowChoreographer.getNextVsyncTime() < SystemClock.uptimeMillis()) {
+          ShadowChoreographer.setNextVsyncTime(SystemClock.uptimeMillis() + frameDelay.toMillis());
         }
       } else {
         // simulate an immediate callback
@@ -208,7 +214,8 @@ public class ShadowDisplayEventReceiver {
   }
 
   @Implementation(minSdk = TIRAMISU)
-  protected Object getLatestVsyncEventData() {
+  protected @ClassName("android.view.DisplayEventReceiver$VsyncEventData") Object
+      getLatestVsyncEventData() {
     return newVsyncEventData();
   }
 
@@ -269,6 +276,18 @@ public class ShadowDisplayEventReceiver {
 
     @Accessor("mReceiverPtr")
     long getReceiverPtr();
+  }
+
+  @ForType(className = "android.view.Choreographer$FrameDisplayEventReceiver")
+  interface FrameDisplayEventReceiverReflector {
+    @Accessor("mHavePendingVsync")
+    void setHavePendingVsync(boolean val);
+
+    @Accessor("mTimestampNanos")
+    void setTimestampNanos(long val);
+
+    @Accessor("mFrame")
+    void setFrame(int val);
   }
 
   @ForType(className = "android.view.DisplayEventReceiver$VsyncEventData")

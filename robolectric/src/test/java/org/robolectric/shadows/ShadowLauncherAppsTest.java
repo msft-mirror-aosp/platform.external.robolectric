@@ -6,6 +6,7 @@ import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.O;
 import static android.os.Build.VERSION_CODES.O_MR1;
 import static android.os.Build.VERSION_CODES.P;
+import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.R;
 import static android.os.Build.VERSION_CODES.TIRAMISU;
 import static com.google.common.truth.Truth.assertThat;
@@ -15,6 +16,7 @@ import static org.junit.Assert.assertTrue;
 import static org.robolectric.Shadows.shadowOf;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
+import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.ActivityInfo;
@@ -33,6 +35,7 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Process;
 import android.os.UserHandle;
+import android.os.UserManager;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import java.util.ArrayList;
@@ -42,6 +45,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.Robolectric;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
@@ -379,6 +383,26 @@ public class ShadowLauncherAppsTest {
                 + USER_HANDLE.getIdentifier());
   }
 
+  @Test
+  @Config(minSdk = Q)
+  public void getProfiles_returnsMainProfileByDefault() {
+    assertThat(launcherApps.getProfiles()).containsExactly(UserHandle.of(0));
+  }
+
+  @Test
+  @Config(minSdk = Q)
+  public void getProfiles_returnsAllProfiles() {
+    UserManager userManager =
+        (UserManager)
+            ApplicationProvider.getApplicationContext().getSystemService(Context.USER_SERVICE);
+
+    shadowOf(userManager).addProfile(UserHandle.myUserId(), 10, "profile10", /* profileFlags= */ 0);
+    shadowOf(userManager).addProfile(UserHandle.myUserId(), 11, "profile11", /* profileFlags= */ 0);
+
+    assertThat(launcherApps.getProfiles())
+        .containsExactly(UserHandle.of(0), UserHandle.of(10), UserHandle.of(11));
+  }
+
   private List<ShortcutInfo> getPinnedShortcuts(String packageName, ComponentName activity) {
     ShortcutQuery query = new ShortcutQuery();
     query.setQueryFlags(ShortcutQuery.FLAG_MATCH_DYNAMIC | ShortcutQuery.FLAG_MATCH_PINNED);
@@ -424,6 +448,36 @@ public class ShadowLauncherAppsTest {
           LauncherActivityInfo.class,
           ClassParameter.from(Context.class, ApplicationProvider.getApplicationContext()),
           ClassParameter.from(LauncherActivityInfoInternal.class, launcherActivityInfoInternal));
+    }
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void launcherApps_activityContextEnabled_differentInstancesRetrieveProfiles() {
+    String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
+    System.setProperty("robolectric.createActivityContexts", "true");
+    Activity activity = null;
+
+    try {
+      LauncherApps applicationLauncherApps =
+          ApplicationProvider.getApplicationContext().getSystemService(LauncherApps.class);
+      activity = Robolectric.setupActivity(Activity.class);
+      LauncherApps activityLauncherApps = activity.getSystemService(LauncherApps.class);
+
+      assertThat(applicationLauncherApps).isNotSameInstanceAs(activityLauncherApps);
+
+      List<UserHandle> applicationProfiles = applicationLauncherApps.getProfiles();
+      List<UserHandle> activityProfiles = activityLauncherApps.getProfiles();
+
+      assertThat(applicationProfiles).isNotEmpty();
+      assertThat(activityProfiles).isNotEmpty();
+
+      assertThat(activityProfiles).isEqualTo(applicationProfiles);
+    } finally {
+      if (activity != null) {
+        activity.finish();
+      }
+      System.setProperty("robolectric.createActivityContexts", originalProperty);
     }
   }
 }

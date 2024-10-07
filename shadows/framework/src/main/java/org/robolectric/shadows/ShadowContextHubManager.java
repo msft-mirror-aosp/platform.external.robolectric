@@ -2,7 +2,6 @@ package org.robolectric.shadows;
 
 import static org.robolectric.util.reflector.Reflector.reflector;
 
-import android.annotation.Nullable;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.hardware.location.ContextHubClient;
@@ -16,10 +15,12 @@ import android.hardware.location.NanoAppState;
 import android.os.Build;
 import android.os.Build.VERSION;
 import android.os.Build.VERSION_CODES;
+import com.google.auto.value.AutoValue;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -27,6 +28,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.robolectric.annotation.ClassName;
 import org.robolectric.annotation.HiddenApi;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
@@ -39,23 +43,19 @@ import org.robolectric.util.reflector.Accessor;
 import org.robolectric.util.reflector.ForType;
 
 /** Shadow for {@link ContextHubManager}. */
-@Implements(
-    value = ContextHubManager.class,
-    minSdk = VERSION_CODES.N,
-    isInAndroidSdk = false,
-    looseSignatures = true)
+@Implements(value = ContextHubManager.class, minSdk = VERSION_CODES.N, isInAndroidSdk = false)
 public class ShadowContextHubManager {
   private static final List<ContextHubInfo> contextHubInfoList = new ArrayList<>();
   private static final List<ContextHubClient> contextHubClientWithPendingIntentList =
       new ArrayList<>();
-
-  private final Map<Integer, NanoAppInstanceInfo> nanoAppUidToInfo = new ConcurrentHashMap<>();
-  private final Multimap<ContextHubInfo, Integer> contextHubToNanoappUid =
+  private static final Map<Integer, NanoAppInstanceInfo> nanoAppUidToInfo =
+      new ConcurrentHashMap<>();
+  private static final Multimap<ContextHubInfo, Integer> contextHubToNanoappUid =
       Multimaps.synchronizedMultimap(HashMultimap.<ContextHubInfo, Integer>create());
-  private final HashMultimap<String, ContextHubClient> attributionTagToClientMap =
+  private static final HashMultimap<String, ContextHubClient> attributionTagToClientMap =
       HashMultimap.create();
-  private final Map<ContextHubClient, ContextHubClientCallback> contextHubClientCallbacks =
-      new HashMap<>();
+  private static final Map<ContextHubClient, ContextHubClientCallbackDetails>
+      contextHubClientCallbacks = new HashMap<>();
 
   static {
     contextHubInfoList.add(new ContextHubInfo());
@@ -98,9 +98,10 @@ public class ShadowContextHubManager {
 
   @Implementation(minSdk = VERSION_CODES.P)
   @HiddenApi
-  protected Object /* ContextHubClient */ createClient(
-      Object /* ContextHubInfo */ contextHubInfo,
-      Object /* ContextHubClientCallback */ contextHubClientCallback) {
+  protected @ClassName("android.hardware.location.ContextHubClient") Object createClient(
+      @ClassName("android.hardware.location.ContextHubInfo") Object contextHubInfo,
+      @ClassName("android.hardware.location.ContextHubClientCallback") Object callback) {
+
     ContextHubClient client;
 
     if (Build.VERSION.SDK_INT >= VERSION_CODES.Q) {
@@ -111,40 +112,50 @@ public class ShadowContextHubManager {
       client = reflector(ContextHubClientReflector.class).newContextHubClient();
     }
 
-    contextHubClientCallbacks.put(client, (ContextHubClientCallback) contextHubClientCallback);
+    if (callback != null) {
+      contextHubClientCallbacks.put(
+          client,
+          ContextHubClientCallbackDetails.create(
+              (ContextHubClientCallback) callback, MoreExecutors.directExecutor()));
+    }
     return client;
   }
 
   @Implementation(minSdk = VERSION_CODES.P)
   @HiddenApi
-  protected Object /* ContextHubClient */ createClient(
-      ContextHubInfo contextHubInfo,
-      ContextHubClientCallback contextHubClientCallback,
+  protected @ClassName("android.hardware.location.ContextHubClient") Object createClient(
+      @ClassName("android.hardware.location.ContextHubInfo") Object contextHubInfo,
+      @ClassName("android.hardware.location.ContextHubClientCallback") Object callback,
       Executor executor) {
     ContextHubClient client;
     if (Build.VERSION.SDK_INT >= VERSION_CODES.Q) {
       client =
-          reflector(ContextHubClientReflector.class).newContextHubClient(contextHubInfo, false);
+          reflector(ContextHubClientReflector.class)
+              .newContextHubClient((ContextHubInfo) contextHubInfo, false);
     } else {
       client = reflector(ContextHubClientReflector.class).newContextHubClient();
     }
 
-    contextHubClientCallbacks.put(
-        client,
-        (ContextHubClientCallback)
-            createContextHubClientCallback(contextHubClientCallback, executor));
+    if (callback != null) {
+      contextHubClientCallbacks.put(
+          client,
+          ContextHubClientCallbackDetails.create((ContextHubClientCallback) callback, executor));
+    }
 
     return client;
   }
 
   @Implementation(minSdk = VERSION_CODES.Q)
   @HiddenApi
-  protected Object /* ContextHubClient */ createClient(
-      ContextHubInfo contextHubInfo, PendingIntent pendingIntent, long nanoAppId) {
+  protected @ClassName("android.hardware.location.ContextHubClient") Object createClient(
+      @ClassName("android.hardware.location.ContextHubInfo") Object contextHubInfo,
+      PendingIntent pendingIntent,
+      long nanoAppId) {
     ContextHubClient client;
     if (Build.VERSION.SDK_INT >= VERSION_CODES.Q) {
       client =
-          reflector(ContextHubClientReflector.class).newContextHubClient(contextHubInfo, false);
+          reflector(ContextHubClientReflector.class)
+              .newContextHubClient((ContextHubInfo) contextHubInfo, false);
     } else {
       client = reflector(ContextHubClientReflector.class).newContextHubClient();
     }
@@ -154,34 +165,35 @@ public class ShadowContextHubManager {
 
   @Implementation(minSdk = VERSION_CODES.S)
   @HiddenApi
-  protected Object /* ContextHubClient */ createClient(
-      Object /* Context */ context,
-      Object /* ContextHubInfo */ contextHubInfo,
-      Object /* Executor */ executor,
-      Object /* ContextHubClientCallback */ contextHubClientCallback) {
+  protected @ClassName("android.hardware.location.ContextHubClient") Object createClient(
+      Context context,
+      @ClassName("android.hardware.location.ContextHubInfo") Object contextHubInfo,
+      Executor executor,
+      @ClassName("android.hardware.location.ContextHubClientCallback") Object callback) {
     ContextHubClient client =
         reflector(ContextHubClientReflector.class)
             .newContextHubClient((ContextHubInfo) contextHubInfo, false);
     if (context != null && ((Context) context).getAttributionTag() != null) {
       attributionTagToClientMap.put(((Context) context).getAttributionTag(), client);
     }
-    contextHubClientCallbacks.put(
-        client,
-        (ContextHubClientCallback)
-            createContextHubClientCallback(
-                (ContextHubClientCallback) contextHubClientCallback, (Executor) executor));
+
+    if (callback != null) {
+      contextHubClientCallbacks.put(
+          client,
+          ContextHubClientCallbackDetails.create((ContextHubClientCallback) callback, executor));
+    }
     return client;
   }
 
   @Implementation(minSdk = VERSION_CODES.S)
   @HiddenApi
-  protected Object /* ContextHubClient */ createClient(
-      Context context, ContextHubInfo hubInfo, PendingIntent pendingIntent, long nanoAppId) {
+  protected @ClassName("android.hardware.location.ContextHubClient") Object createClient(
+      Context context, ContextHubInfo contextHubInfo, PendingIntent pendingIntent, long nanoAppId) {
     ContextHubClient client =
         Shadow.newInstance(
             ContextHubClient.class,
             new Class<?>[] {ContextHubInfo.class, Boolean.TYPE},
-            new Object[] {hubInfo, false});
+            new Object[] {contextHubInfo, false});
     contextHubClientWithPendingIntentList.add(client);
     return client;
   }
@@ -197,59 +209,124 @@ public class ShadowContextHubManager {
   }
 
   public void resetContextHub() {
-    contextHubClientCallbacks.forEach((client, callback) -> callback.onHubReset(client));
+    for (Map.Entry<ContextHubClient, ContextHubClientCallbackDetails> entry :
+        contextHubClientCallbacks.entrySet()) {
+      entry
+          .getValue()
+          .getExecutor()
+          .execute(() -> entry.getValue().getCallback().onHubReset(entry.getKey()));
+    }
   }
 
-  public void broadcastMessageFromNanoApp(NanoAppMessage message) {
-    contextHubClientCallbacks.forEach(
-        (client, callback) -> callback.onMessageFromNanoApp(client, message));
+  public void broadcastMessageFromNanoApp(/*NanoAppMessage*/ Object message) {
+    for (Map.Entry<ContextHubClient, ContextHubClientCallbackDetails> entry :
+        contextHubClientCallbacks.entrySet()) {
+      entry
+          .getValue()
+          .getExecutor()
+          .execute(
+              () ->
+                  entry
+                      .getValue()
+                      .getCallback()
+                      .onMessageFromNanoApp(entry.getKey(), (NanoAppMessage) message));
+    }
   }
 
   public void broadcastNanoAppAborted(long nanoAppId, int abortCode) {
-    contextHubClientCallbacks.forEach(
-        (client, callback) -> callback.onNanoAppAborted(client, nanoAppId, abortCode));
+    for (Map.Entry<ContextHubClient, ContextHubClientCallbackDetails> entry :
+        contextHubClientCallbacks.entrySet()) {
+      entry
+          .getValue()
+          .getExecutor()
+          .execute(
+              () ->
+                  entry
+                      .getValue()
+                      .getCallback()
+                      .onNanoAppAborted(entry.getKey(), nanoAppId, abortCode));
+    }
   }
 
   public void broadcastNanoAppLoaded(long nanoAppId) {
-    contextHubClientCallbacks.forEach(
-        (client, callback) -> callback.onNanoAppLoaded(client, nanoAppId));
+    for (Map.Entry<ContextHubClient, ContextHubClientCallbackDetails> entry :
+        contextHubClientCallbacks.entrySet()) {
+      entry
+          .getValue()
+          .getExecutor()
+          .execute(() -> entry.getValue().getCallback().onNanoAppLoaded(entry.getKey(), nanoAppId));
+    }
   }
 
   public void broadcastNanoAppUnloaded(long nanoAppId) {
-    contextHubClientCallbacks.forEach(
-        (client, callback) -> callback.onNanoAppUnloaded(client, nanoAppId));
+    for (Map.Entry<ContextHubClient, ContextHubClientCallbackDetails> entry :
+        contextHubClientCallbacks.entrySet()) {
+      entry
+          .getValue()
+          .getExecutor()
+          .execute(
+              () -> entry.getValue().getCallback().onNanoAppUnloaded(entry.getKey(), nanoAppId));
+    }
   }
 
   public void broadcastNanoAppEnabled(long nanoAppId) {
-    contextHubClientCallbacks.forEach(
-        (client, callback) -> callback.onNanoAppEnabled(client, nanoAppId));
+    for (Map.Entry<ContextHubClient, ContextHubClientCallbackDetails> entry :
+        contextHubClientCallbacks.entrySet()) {
+      entry
+          .getValue()
+          .getExecutor()
+          .execute(
+              () -> entry.getValue().getCallback().onNanoAppEnabled(entry.getKey(), nanoAppId));
+    }
   }
 
   public void broadcastNanoAppDisabled(long nanoAppId) {
-    contextHubClientCallbacks.forEach(
-        (client, callback) -> callback.onNanoAppDisabled(client, nanoAppId));
+
+    for (Map.Entry<ContextHubClient, ContextHubClientCallbackDetails> entry :
+        contextHubClientCallbacks.entrySet()) {
+      entry
+          .getValue()
+          .getExecutor()
+          .execute(
+              () -> entry.getValue().getCallback().onNanoAppDisabled(entry.getKey(), nanoAppId));
+    }
   }
 
   public void broadcastClientAuthorizationChanged(long nanoAppId, int authorization) {
-    contextHubClientCallbacks.forEach(
-        (client, callback) ->
-            callback.onClientAuthorizationChanged(client, nanoAppId, authorization));
+    for (Map.Entry<ContextHubClient, ContextHubClientCallbackDetails> entry :
+        contextHubClientCallbacks.entrySet()) {
+      entry
+          .getValue()
+          .getExecutor()
+          .execute(
+              () ->
+                  entry
+                      .getValue()
+                      .getCallback()
+                      .onClientAuthorizationChanged(entry.getKey(), nanoAppId, authorization));
+    }
   }
 
   @Resetter
   public static void clearContextHubClientWithPendingIntentList() {
     contextHubClientWithPendingIntentList.clear();
+    nanoAppUidToInfo.clear();
+    contextHubToNanoappUid.clear();
+    attributionTagToClientMap.clear();
+    contextHubClientCallbacks.clear();
   }
 
   @Implementation(minSdk = VERSION_CODES.P)
   @HiddenApi
-  protected Object queryNanoApps(ContextHubInfo hubInfo) {
+  protected @ClassName(
+      "android.hardware.location.ContextHubTransaction<java.util.List<android.hardware.location.NanoAppState>>")
+  Object queryNanoApps(ContextHubInfo contextHubInfo) {
     @SuppressWarnings("unchecked")
     ContextHubTransaction<List<NanoAppState>> transaction =
         ReflectionHelpers.callConstructor(
             ContextHubTransaction.class,
             ClassParameter.from(int.class, ContextHubTransaction.TYPE_QUERY_NANOAPPS));
-    Collection<Integer> uids = contextHubToNanoappUid.get(hubInfo);
+    Collection<Integer> uids = contextHubToNanoappUid.get(contextHubInfo);
     List<NanoAppState> nanoAppStates = new ArrayList<>();
 
     for (Integer uid : uids) {
@@ -302,51 +379,19 @@ public class ShadowContextHubManager {
     return nanoAppUidToInfo.get(nanoAppHandle);
   }
 
-  private static Object createContextHubClientCallback(
-      ContextHubClientCallback callback, Executor executor) {
-    return new ContextHubClientCallback() {
-      @Override
-      public void onMessageFromNanoApp(ContextHubClient client, NanoAppMessage message) {
-        executor.execute(() -> callback.onMessageFromNanoApp(client, message));
-      }
+  @AutoValue
+  abstract static class ContextHubClientCallbackDetails {
+    @Nonnull
+    abstract ContextHubClientCallback getCallback();
 
-      @Override
-      public void onHubReset(ContextHubClient client) {
-        executor.execute(() -> callback.onHubReset(client));
-      }
+    @Nonnull
+    abstract Executor getExecutor();
 
-      @Override
-      public void onNanoAppAborted(ContextHubClient client, long nanoAppId, int abortCode) {
-        executor.execute(() -> callback.onNanoAppAborted(client, nanoAppId, abortCode));
-      }
-
-      @Override
-      public void onNanoAppLoaded(ContextHubClient client, long nanoAppId) {
-        executor.execute(() -> callback.onNanoAppLoaded(client, nanoAppId));
-      }
-
-      @Override
-      public void onNanoAppUnloaded(ContextHubClient client, long nanoAppId) {
-        executor.execute(() -> callback.onNanoAppUnloaded(client, nanoAppId));
-      }
-
-      @Override
-      public void onNanoAppEnabled(ContextHubClient client, long nanoAppId) {
-        executor.execute(() -> callback.onNanoAppEnabled(client, nanoAppId));
-      }
-
-      @Override
-      public void onNanoAppDisabled(ContextHubClient client, long nanoAppId) {
-        executor.execute(() -> callback.onNanoAppDisabled(client, nanoAppId));
-      }
-
-      @Override
-      public void onClientAuthorizationChanged(
-          ContextHubClient client, long nanoAppId, int authorization) {
-        executor.execute(
-            () -> callback.onClientAuthorizationChanged(client, nanoAppId, authorization));
-      }
-    };
+    static ContextHubClientCallbackDetails create(
+        ContextHubClientCallback callback, Executor executor) {
+      return new AutoValue_ShadowContextHubManager_ContextHubClientCallbackDetails(
+          callback, executor);
+    }
   }
 
   /** Accessor interface for {@link NanoAppInstanceInfo}'s internals. */
@@ -373,3 +418,4 @@ public class ShadowContextHubManager {
     void setContents(List<NanoAppState> contents);
   }
 }
+

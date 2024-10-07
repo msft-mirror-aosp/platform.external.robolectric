@@ -156,6 +156,10 @@ public class ShadowPackageManagerTest {
   private static final String TEST_PACKAGE3_NAME = "com.a.third.package";
   private static final int TEST_PACKAGE_VERSION_CODE = 10000;
   public static final int INSTALL_VERIFICATION_ID = 1234;
+  public static final String INITIATING_PACKAGE_NAME = "initiating.package";
+  public static final String INSTALLING_PACKAGE_NAME = "installing.package";
+  public static final String ORIGINATING_PACKAGE_NAME = "originating.package";
+  public static final String UPDATE_OWNER_PACKAGE_NAME = "update.owner.package";
 
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
   private Context context;
@@ -1891,6 +1895,22 @@ public class ShadowPackageManagerTest {
   }
 
   @Test
+  @Config(minSdk = TIRAMISU)
+  public void queryIntentServices_Match_withResolveInfoFlags() {
+    Intent i = new Intent(Intent.ACTION_MAIN, null);
+
+    ResolveInfo info = new ResolveInfo();
+    info.serviceInfo = new ServiceInfo();
+    info.nonLocalizedLabel = TEST_PACKAGE_LABEL;
+
+    shadowOf(packageManager).addResolveInfoForIntent(i, info);
+
+    List<ResolveInfo> services = packageManager.queryIntentServices(i, ResolveInfoFlags.of(0));
+    assertThat(services).hasSize(1);
+    assertThat(services.get(0).nonLocalizedLabel.toString()).isEqualTo(TEST_PACKAGE_LABEL);
+  }
+
+  @Test
   public void queryIntentServices_fromManifest() {
     Intent i = new Intent("org.robolectric.ACTION_DIFFERENT_PACKAGE");
     i.addCategory(Intent.CATEGORY_LAUNCHER);
@@ -3011,7 +3031,7 @@ public class ShadowPackageManagerTest {
   public void getResourcesForApplication_ApkNotPresent() {
     ApplicationInfo applicationInfo =
         ApplicationInfoBuilder.newBuilder().setPackageName("com.not.present").build();
-    applicationInfo.sourceDir = applicationInfo.publicSourceDir = "/some/nonexistant/path";
+    applicationInfo.sourceDir = applicationInfo.publicSourceDir = "/some/nonexistent/path";
 
     try {
       packageManager.getResourcesForApplication(applicationInfo);
@@ -3131,7 +3151,7 @@ public class ShadowPackageManagerTest {
   @Config(minSdk = N, maxSdk = N_MR1) // Functionality removed in O
   public void whenPackageNotPresent_getPackageSizeInfo_callsBackWithFailure() throws Exception {
     IPackageStatsObserver packageStatsObserver = mock(IPackageStatsObserver.class);
-    packageManager.getPackageSizeInfo("nonexistant.package", packageStatsObserver);
+    packageManager.getPackageSizeInfo("nonexistent.package", packageStatsObserver);
     shadowMainLooper().idle();
 
     verify(packageStatsObserver).onGetStatsCompleted(packageStatsCaptor.capture(), eq(false));
@@ -3144,7 +3164,7 @@ public class ShadowPackageManagerTest {
       throws Exception {
     shadowMainLooper().pause();
     IPackageStatsObserver packageStatsObserver = mock(IPackageStatsObserver.class);
-    packageManager.getPackageSizeInfo("nonexistant.package", packageStatsObserver);
+    packageManager.getPackageSizeInfo("nonexistent.package", packageStatsObserver);
 
     verifyNoMoreInteractions(packageStatsObserver);
 
@@ -3214,19 +3234,6 @@ public class ShadowPackageManagerTest {
     shadowMainLooper().idle();
     verify(packageStatsObserver).onGetStatsCompleted(packageStatsCaptor.capture(), eq(true));
     assertThat(packageStatsCaptor.getValue().packageName).isEqualTo("org.robolectric");
-  }
-
-  @Test
-  public void addCurrentToCannonicalName() {
-    shadowOf(packageManager).addCurrentToCannonicalName("current_name_1", "canonical_name_1");
-    shadowOf(packageManager).addCurrentToCannonicalName("current_name_2", "canonical_name_2");
-
-    assertThat(
-            packageManager.currentToCanonicalPackageNames(
-                new String[] {"current_name_1", "current_name_2", "some_other_name"}))
-        .asList()
-        .containsExactly("canonical_name_1", "canonical_name_2", "some_other_name")
-        .inOrder();
   }
 
   @Test
@@ -3566,13 +3573,35 @@ public class ShadowPackageManagerTest {
 
   @Test
   @Config(minSdk = VERSION_CODES.R)
-  public void installerSourceInfo() throws Exception {
+  public void installerSourceInfo_setPackageNames() throws Exception {
     shadowOf(packageManager)
-        .setInstallSourceInfo("target.package", "initiating.package", "installing.package");
+        .setInstallSourceInfo("target.package", INITIATING_PACKAGE_NAME, INSTALLING_PACKAGE_NAME);
 
     InstallSourceInfo info = packageManager.getInstallSourceInfo("target.package");
-    assertThat(info.getInitiatingPackageName()).isEqualTo("initiating.package");
-    assertThat(info.getInstallingPackageName()).isEqualTo("installing.package");
+    assertThat(info.getInitiatingPackageName()).isEqualTo(INITIATING_PACKAGE_NAME);
+    assertThat(info.getInstallingPackageName()).isEqualTo(INSTALLING_PACKAGE_NAME);
+  }
+
+  @Test
+  @Config(minSdk = VERSION_CODES.UPSIDE_DOWN_CAKE)
+  public void installerSourceInfo() throws Exception {
+    shadowOf(packageManager)
+        .setInstallSourceInfo(
+            "target.package",
+            INITIATING_PACKAGE_NAME,
+            new SigningInfo(),
+            ORIGINATING_PACKAGE_NAME,
+            INSTALLING_PACKAGE_NAME,
+            UPDATE_OWNER_PACKAGE_NAME,
+            PackageInstaller.PACKAGE_SOURCE_STORE);
+
+    InstallSourceInfo info = packageManager.getInstallSourceInfo("target.package");
+    assertThat(info.getInitiatingPackageName()).isEqualTo(INITIATING_PACKAGE_NAME);
+    assertThat(info.getInstallingPackageName()).isEqualTo(INSTALLING_PACKAGE_NAME);
+    assertThat(info.getOriginatingPackageName()).isEqualTo(ORIGINATING_PACKAGE_NAME);
+    assertThat(info.getUpdateOwnerPackageName()).isEqualTo(UPDATE_OWNER_PACKAGE_NAME);
+    assertThat(info.getInitiatingPackageSigningInfo()).isNotNull();
+    assertThat(info.getPackageSource()).isEqualTo(PackageInstaller.PACKAGE_SOURCE_STORE);
   }
 
   @Test

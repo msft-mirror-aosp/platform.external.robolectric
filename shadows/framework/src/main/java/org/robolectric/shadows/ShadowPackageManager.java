@@ -65,6 +65,7 @@ import android.content.pm.ProviderInfo;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.content.pm.Signature;
+import android.content.pm.SigningInfo;
 import android.content.pm.pkg.FrameworkPackageUserState;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
@@ -949,6 +950,26 @@ public class ShadowPackageManager {
         packageName, new InstallSourceInfo(initiatingPackage, null, null, installerPackage));
   }
 
+  /** Adds install source information for a package. */
+  public void setInstallSourceInfo(
+      String packageName,
+      @Nullable String initiatingPackageName,
+      @Nullable SigningInfo initiatingPackageSigningInfo,
+      @Nullable String originatingPackageName,
+      @Nullable String installingPackageName,
+      @Nullable String updateOwnerPackageName,
+      int packageSource) {
+    packageInstallSourceInfoMap.put(
+        packageName,
+        new InstallSourceInfo(
+            initiatingPackageName,
+            initiatingPackageSigningInfo,
+            originatingPackageName,
+            installingPackageName,
+            updateOwnerPackageName,
+            packageSource));
+  }
+
   /**
    * Adds a package to the {@link PackageManager}, but doesn't set any default values on it.
    *
@@ -1184,14 +1205,6 @@ public class ShadowPackageManager {
   /** Clears the values returned by {@link PackageManager#getSystemSharedLibraryNames()}. */
   public void clearSystemSharedLibraryNames() {
     systemSharedLibraryNames.clear();
-  }
-
-  @Deprecated
-  /**
-   * @deprecated use {@link #addCanonicalName} instead.}
-   */
-  public void addCurrentToCannonicalName(String currentName, String canonicalName) {
-    currentToCanonicalNames.put(currentName, canonicalName);
   }
 
   /**

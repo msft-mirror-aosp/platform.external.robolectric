@@ -40,11 +40,13 @@ import android.content.IClipboard;
 import android.content.IRestrictionsManager;
 import android.content.integrity.IAppIntegrityManager;
 import android.content.pm.ICrossProfileApps;
+import android.content.pm.ILauncherApps;
 import android.content.pm.IShortcutService;
 import android.content.rollback.IRollbackManager;
 import android.hardware.ISensorPrivacyManager;
 import android.hardware.biometrics.IAuthService;
 import android.hardware.biometrics.IBiometricService;
+import android.hardware.display.IColorDisplayManager;
 import android.hardware.fingerprint.IFingerprintService;
 import android.hardware.input.IInputManager;
 import android.hardware.location.IContextHubService;
@@ -111,6 +113,7 @@ import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.Resetter;
 import org.robolectric.util.ReflectionHelpers;
+import org.robolectric.versioning.AndroidVersions.V;
 
 /** Shadow for {@link ServiceManager}. */
 @SuppressWarnings("NewApi")
@@ -236,6 +239,12 @@ public class ShadowServiceManager {
         Context.VOICE_INTERACTION_MANAGER_SERVICE,
         IVoiceInteractionManagerService.class,
         BinderProxyType.DEEP);
+    addBinderService(
+        binderServices,
+        Context.LAUNCHER_APPS_SERVICE,
+        ILauncherApps.class,
+        BinderProxyType.DELEGATING,
+        new LauncherAppsDelegate());
 
     if (RuntimeEnvironment.getApiLevel() >= M) {
       addBinderService(binderServices, Context.FINGERPRINT_SERVICE, IFingerprintService.class);
@@ -276,6 +285,7 @@ public class ShadowServiceManager {
       addBinderService(binderServices, Context.ROLLBACK_SERVICE, IRollbackManager.class);
       addBinderService(binderServices, Context.THERMAL_SERVICE, IThermalService.class);
       addBinderService(binderServices, Context.BUGREPORT_SERVICE, IDumpstate.class);
+      addBinderService(binderServices, Context.COLOR_DISPLAY_SERVICE, IColorDisplayManager.class);
     }
     if (RuntimeEnvironment.getApiLevel() >= R) {
       addBinderService(binderServices, Context.APP_INTEGRITY_SERVICE, IAppIntegrityManager.class);
@@ -312,6 +322,19 @@ public class ShadowServiceManager {
       addBinderService(binderServices, Context.VIRTUAL_DEVICE_SERVICE, IVirtualDeviceManager.class);
       addBinderService(
           binderServices, Context.WEARABLE_SENSING_SERVICE, IWearableSensingManager.class);
+    }
+    if (RuntimeEnvironment.getApiLevel() >= V.SDK_INT) {
+      // TODO: replace strings with references once compiling against V
+      addBinderService(
+          binderServices,
+          "sensitive_content_protection_service" /* Context.SENSITIVE_CONTENT_PROTECTION_SERVICE */,
+          "android.view.ISensitiveContentProtectionManager"
+          /*ISensitiveContentProtectionManager.class*/ );
+
+      addBinderService(
+          binderServices,
+          "grammatical_inflection" /* Context.GRAMMATICAL_INFLECTION_SERVICE */,
+          "android.app.IGrammaticalInflectionManager" /* IGrammaticalInflectionManager.class */);
     }
 
     return binderServices;

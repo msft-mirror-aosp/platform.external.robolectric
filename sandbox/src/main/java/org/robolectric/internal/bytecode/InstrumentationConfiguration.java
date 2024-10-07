@@ -148,10 +148,7 @@ public class InstrumentationConfiguration {
         return false;
       }
     }
-
-    // R classes must be loaded from system CP
-    boolean isRClass = name.matches(".*\\.R(|\\$[a-z]+)$");
-    return !isRClass && !classesToNotAcquire.contains(name);
+    return !classesToNotAcquire.contains(name);
   }
 
   /**
@@ -333,7 +330,6 @@ public class InstrumentationConfiguration {
       return this;
     }
 
-    @SuppressWarnings("AndroidJdkLibsChecker")
     public InstrumentationConfiguration build() {
       // Remove redundant packages, e.g. remove 'android.os' if 'android.' is present.
       List<String> minimalPackages = new ArrayList<>(instrumentedPackages);
