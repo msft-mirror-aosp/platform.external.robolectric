@@ -337,6 +337,13 @@ public class ShadowServiceManager {
           binderServices,
           "grammatical_inflection" /* Context.GRAMMATICAL_INFLECTION_SERVICE */,
           "android.app.IGrammaticalInflectionManager" /* IGrammaticalInflectionManager.class */);
+          
+          
+      addBinderService(
+          binderServices,
+          "protolog_configuration" /* Context.PROTOLOG_CONFIGURATION_SERVICE, */,
+          "com.android.internal.protolog.ProtoLogConfigurationService"  /* new ProtoLogConfigurationServiceImpl.class */);
+
     }
 
     return binderServices;
