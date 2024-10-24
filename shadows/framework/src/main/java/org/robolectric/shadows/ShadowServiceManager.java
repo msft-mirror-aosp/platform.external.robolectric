@@ -343,7 +343,6 @@ public class ShadowServiceManager {
           "protolog_configuration" /* Context.PROTOLOG_CONFIGURATION_SERVICE, */,
           "com.android.internal.protolog.ProtoLogConfigurationService"
           /* new ProtoLogConfigurationServiceImpl.class */ );
-
     }
 
     return binderServices;
