@@ -1,7 +1,6 @@
 package org.robolectric.shadows;
 
 import static android.os.Build.VERSION_CODES.P;
-import static android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.max;
@@ -35,6 +34,7 @@ import java.io.Closeable;
 import java.lang.reflect.Proxy;
 import java.util.List;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.annotation.ClassName;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.Resetter;
@@ -46,7 +46,7 @@ import org.robolectric.util.reflector.Static;
 
 /** Shadow for {@link WindowManagerGlobal}. */
 @SuppressWarnings("unused") // Unused params are implementations of Android SDK methods.
-@Implements(value = WindowManagerGlobal.class, isInAndroidSdk = false, looseSignatures = true)
+@Implements(value = WindowManagerGlobal.class, isInAndroidSdk = false)
 public class ShadowWindowManagerGlobal {
   private static WindowSessionDelegate windowSessionDelegate = new WindowSessionDelegate();
   private static IWindowSession windowSession;
@@ -326,7 +326,8 @@ public class ShadowWindowManagerGlobal {
   }
 
   @Implementation
-  public static Object getWindowManagerService() throws RemoteException {
+  public static @ClassName("android.view.IWindowManager") Object getWindowManagerService()
+      throws RemoteException {
     IWindowManager service =
         reflector(WindowManagerGlobalReflector.class).getWindowManagerService();
     if (service == null) {
@@ -429,6 +430,15 @@ public class ShadowWindowManagerGlobal {
         boolean triggerBack,
         int swipeEdge,
         RemoteAnimationTarget departingAnimationTarget);
+
+    @Constructor
+    BackMotionEvent newBackMotionEventPostV(
+        float touchX,
+        float touchY,
+        float progress,
+        boolean triggerBack,
+        int swipeEdge,
+        RemoteAnimationTarget departingAnimationTarget);
   }
 
   private static class BackMotionEvents {
@@ -436,8 +446,32 @@ public class ShadowWindowManagerGlobal {
 
     static BackMotionEvent newBackMotionEvent(
         @BackEvent.SwipeEdge int edge, float touchX, float touchY, float progress) {
-      if (RuntimeEnvironment.getApiLevel() >= UPSIDE_DOWN_CAKE) {
-        try {
+      // normally we would determine which constructor to call based on API level,
+      // but that is tricky for in development SDKS. So just determine
+      // what constructor to call based on the constructors we find reflectively
+      switch (getNumOfConstructorParams()) {
+        case 6:
+          {
+            return reflector(BackMotionEventReflector.class)
+                .newBackMotionEventPostV(
+                    touchX,
+                    touchY,
+                    progress,
+                    Boolean.FALSE, // trigger back
+                    edge, // swipe edge
+                    null);
+          }
+        case 7:
+          {
+            return reflector(BackMotionEventReflector.class)
+                .newBackMotionEvent(
+                    touchX, touchY, progress, 0f, // velocity x
+                    0f, // velocity y
+                    edge, // swipe edge
+                    null);
+          }
+        case 8:
+          {
           return reflector(BackMotionEventReflector.class)
               .newBackMotionEventV(
                   touchX,
@@ -448,25 +482,22 @@ public class ShadowWindowManagerGlobal {
                   Boolean.FALSE, // trigger back
                   edge, // swipe edge
                   null);
-        } catch (Throwable t) {
-          if (NoSuchMethodException.class.isInstance(t) || AssertionError.class.isInstance(t)) {
-            // fall through, assuming (perhaps falsely?) this exception is thrown by reflector(),
-            // and not the method reflected in to.
-          } else {
-            if (RuntimeException.class.isInstance(t)) {
-              throw (RuntimeException) t;
-            } else {
-              throw new RuntimeException(t);
-            }
           }
+        default:
+          {
+            throw new IllegalStateException("Could not find a BackMotionEvent constructor to call");
         }
       }
-      return reflector(BackMotionEventReflector.class)
-          .newBackMotionEvent(
-              touchX, touchY, progress, 0f, // velocity x
-              0f, // velocity y
-              edge, // swipe edge
-              null);
+    }
+
+    private static int getNumOfConstructorParams() {
+      for (java.lang.reflect.Constructor<?> constructor :
+          BackMotionEvent.class.getDeclaredConstructors()) {
+        if (constructor.getParameterCount() > 0) {
+          return constructor.getParameterCount();
+        }
+      }
+      throw new IllegalStateException("Could not find a BackMotionEvent constructor");
     }
   }
 }
