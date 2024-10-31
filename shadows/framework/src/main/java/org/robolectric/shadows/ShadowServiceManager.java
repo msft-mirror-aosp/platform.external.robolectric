@@ -43,9 +43,11 @@ import android.content.pm.ICrossProfileApps;
 import android.content.pm.ILauncherApps;
 import android.content.pm.IShortcutService;
 import android.content.rollback.IRollbackManager;
+import android.credentials.ICredentialManager;
 import android.hardware.ISensorPrivacyManager;
 import android.hardware.biometrics.IAuthService;
 import android.hardware.biometrics.IBiometricService;
+import android.hardware.display.IColorDisplayManager;
 import android.hardware.fingerprint.IFingerprintService;
 import android.hardware.input.IInputManager;
 import android.hardware.location.IContextHubService;
@@ -112,6 +114,7 @@ import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.Resetter;
 import org.robolectric.util.ReflectionHelpers;
+import org.robolectric.versioning.AndroidVersions.V;
 
 /** Shadow for {@link ServiceManager}. */
 @SuppressWarnings("NewApi")
@@ -283,6 +286,7 @@ public class ShadowServiceManager {
       addBinderService(binderServices, Context.ROLLBACK_SERVICE, IRollbackManager.class);
       addBinderService(binderServices, Context.THERMAL_SERVICE, IThermalService.class);
       addBinderService(binderServices, Context.BUGREPORT_SERVICE, IDumpstate.class);
+      addBinderService(binderServices, Context.COLOR_DISPLAY_SERVICE, IColorDisplayManager.class);
     }
     if (RuntimeEnvironment.getApiLevel() >= R) {
       addBinderService(binderServices, Context.APP_INTEGRITY_SERVICE, IAppIntegrityManager.class);
@@ -317,8 +321,28 @@ public class ShadowServiceManager {
     }
     if (RuntimeEnvironment.getApiLevel() >= UPSIDE_DOWN_CAKE) {
       addBinderService(binderServices, Context.VIRTUAL_DEVICE_SERVICE, IVirtualDeviceManager.class);
+      addBinderService(binderServices, Context.CREDENTIAL_SERVICE, ICredentialManager.class);
       addBinderService(
           binderServices, Context.WEARABLE_SENSING_SERVICE, IWearableSensingManager.class);
+    }
+    if (RuntimeEnvironment.getApiLevel() >= V.SDK_INT) {
+      // TODO: replace strings with references once compiling against V
+      addBinderService(
+          binderServices,
+          "sensitive_content_protection_service" /* Context.SENSITIVE_CONTENT_PROTECTION_SERVICE */,
+          "android.view.ISensitiveContentProtectionManager"
+          /*ISensitiveContentProtectionManager.class*/ );
+
+      addBinderService(
+          binderServices,
+          "grammatical_inflection" /* Context.GRAMMATICAL_INFLECTION_SERVICE */,
+          "android.app.IGrammaticalInflectionManager" /* IGrammaticalInflectionManager.class */);
+
+      addBinderServiceIfClassExists(
+          binderServices,
+          "protolog_configuration" /* Context.PROTOLOG_CONFIGURATION_SERVICE, */,
+          "com.android.internal.protolog.ProtoLogConfigurationService"
+          /* new ProtoLogConfigurationServiceImpl.class */ );
     }
 
     return binderServices;
@@ -366,6 +390,17 @@ public class ShadowServiceManager {
       BinderProxyType proxyType,
       @Nullable Object delegate) {
     binderServices.put(name, new BinderService(clazz, className, proxyType, delegate));
+  }
+
+  private static void addBinderServiceIfClassExists(
+      Map<String, BinderService> binderServices, String name, String className) {
+    Class<? extends IInterface> clazz;
+    try {
+      clazz = Class.forName(className).asSubclass(IInterface.class);
+      addBinderService(binderServices, name, clazz, className, BinderProxyType.NULL, null);
+    } catch (ClassNotFoundException e) {
+      return;
+    }
   }
 
   /**
