@@ -104,7 +104,10 @@ public class ShadowInputMethodManager {
   @Implementation(minSdk = Baklava.SDK_INT)
   @InDevelopment
   protected boolean hideSoftInputFromWindow(
-      IBinder windowToken, int flags, ResultReceiver resultReceiver, int ignoredReason,
+      IBinder windowToken,
+      int flags,
+      ResultReceiver resultReceiver,
+      int ignoredReason,
       @ClassName("android.view.inputmethod.ImeTracker$Token") Object statsToken) {
     return hideSoftInputFromWindow(windowToken, flags, resultReceiver);
   }
