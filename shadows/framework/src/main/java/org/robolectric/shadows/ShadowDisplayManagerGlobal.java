@@ -20,6 +20,7 @@ import android.os.RemoteException;
 import android.util.SparseArray;
 import android.view.Display;
 import android.view.DisplayInfo;
+import android.view.Surface;
 import com.google.common.annotations.VisibleForTesting;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
@@ -42,7 +43,7 @@ import org.robolectric.util.reflector.Accessor;
 import org.robolectric.util.reflector.ForType;
 
 /** Shadow for {@link DisplayManagerGlobal}. */
-@Implements(value = DisplayManagerGlobal.class, isInAndroidSdk = false, looseSignatures = true)
+@Implements(value = DisplayManagerGlobal.class, isInAndroidSdk = false)
 public class ShadowDisplayManagerGlobal {
   private static DisplayManagerGlobal instance;
 
@@ -194,9 +195,9 @@ public class ShadowDisplayManagerGlobal {
       registerCallback(iDisplayManagerCallback);
     }
 
-    // for android U
+    // for android R+ (SDK 30+)
     // Use Object here instead of VirtualDisplayConfig to avoid breaking projects that still
-    // compile against SDKs < U
+    // compile against SDKs < R
     public int createVirtualDisplay(
         @ClassName("android.hardware.display.VirtualDisplayConfig")
             Object virtualDisplayConfigObject,
@@ -216,6 +217,36 @@ public class ShadowDisplayManagerGlobal {
       displayInfo.logicalWidth = config.getWidth();
       displayInfo.appHeight = config.getHeight();
       displayInfo.logicalHeight = config.getHeight();
+      displayInfo.state = Display.STATE_ON;
+      int id = addDisplay(displayInfo);
+      virtualDisplayIds.put(callbackWrapper, id);
+      return id;
+    }
+
+    // for android Q (SDK 29) and below
+    public int createVirtualDisplay(
+        IVirtualDisplayCallback callbackWrapper,
+        IMediaProjection projectionToken,
+        String packageName,
+        String name,
+        int width,
+        int height,
+        int densityDpi,
+        Surface surface,
+        int flags,
+        String uniqueId) {
+      DisplayInfo displayInfo = new DisplayInfo();
+      displayInfo.flags = flags;
+      displayInfo.type = Display.TYPE_VIRTUAL;
+      displayInfo.name = name;
+      displayInfo.logicalDensityDpi = densityDpi;
+      displayInfo.physicalXDpi = densityDpi;
+      displayInfo.physicalYDpi = densityDpi;
+      displayInfo.ownerPackageName = packageName;
+      displayInfo.appWidth = width;
+      displayInfo.logicalWidth = width;
+      displayInfo.appHeight = height;
+      displayInfo.logicalHeight = height;
       displayInfo.state = Display.STATE_ON;
       int id = addDisplay(displayInfo);
       virtualDisplayIds.put(callbackWrapper, id);
@@ -243,12 +274,23 @@ public class ShadowDisplayManagerGlobal {
       }
     }
 
+    // for android Q through V
     // @Override
     public void setVirtualDisplayState(IVirtualDisplayCallback token, boolean isOn) {
       Integer id = virtualDisplayIds.get(token);
       DisplayInfo displayInfo = displayInfos.get(id);
-      displayInfo.state = isOn ? Display.STATE_ON : Display.STATE_OFF;
-      changeDisplay(id, displayInfo);
+      int newState = isOn ? Display.STATE_ON : Display.STATE_OFF;
+      if (displayInfo.state != newState) {
+        displayInfo.state = newState;
+        changeDisplay(id, displayInfo);
+      }
+    }
+
+    public void setVirtualDisplaySurface(IVirtualDisplayCallback token, Surface surface) {
+      // in post android V, the setVirtualDisplayState has been removed and the virtual device
+      // state is propagated from system service
+      // TODO: also check power group state if > android V
+      setVirtualDisplayState(token, surface != null);
     }
 
     private synchronized int addDisplay(DisplayInfo displayInfo) {
@@ -308,14 +350,17 @@ public class ShadowDisplayManagerGlobal {
   @Implementation(minSdk = P)
   @HiddenApi
   protected void setBrightnessConfigurationForUser(
-      Object configObject, Object userId, Object packageName) {
+      @ClassName("android.hardware.display.BrightnessConfiguration") Object configObject,
+      int userId,
+      String packageName) {
     BrightnessConfiguration config = (BrightnessConfiguration) configObject;
     brightnessConfiguration.put((int) userId, config);
   }
 
   @Implementation(minSdk = P)
   @HiddenApi
-  protected Object getBrightnessConfigurationForUser(int userId) {
+  protected @ClassName("android.hardware.display.BrightnessConfiguration") Object
+      getBrightnessConfigurationForUser(int userId) {
     BrightnessConfiguration config = brightnessConfiguration.get(userId);
     if (config != null) {
       return config;
@@ -326,7 +371,8 @@ public class ShadowDisplayManagerGlobal {
 
   @Implementation(minSdk = P)
   @HiddenApi
-  protected Object getDefaultBrightnessConfiguration() {
+  protected @ClassName("android.hardware.display.BrightnessConfiguration") Object
+      getDefaultBrightnessConfiguration() {
     return defaultBrightnessConfiguration;
   }
 
