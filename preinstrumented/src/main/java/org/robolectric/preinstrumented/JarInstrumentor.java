@@ -1,12 +1,14 @@
 package org.robolectric.preinstrumented;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.io.ByteStreams;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.Enumeration;
 import java.util.Locale;
 import java.util.jar.JarEntry;
@@ -28,6 +30,18 @@ import org.robolectric.versioning.AndroidVersions.AndroidRelease;
 public class JarInstrumentor {
 
   private static final int ONE_MB = 1024 * 1024;
+
+  private static final ImmutableSet<String> NON_CLASS_FILES_TO_KEEP =
+      ImmutableSet.of(
+          "android/icu/impl/data", // Required by android.icu.impl.locale.LikelySubtags
+          "AndroidManifest.xml",
+          "assets/", // These are referenced by the platform resources.arsc
+          "build.prop",
+          "com/android/i18n/phonenumbers/data/", // Required by android.telephony.PhoneNumberUtils
+          "res/",
+          "resources.arsc",
+          "usr/share/zoneinfo/" // Required by android.text.format.Time
+          );
 
   private static final Injector INJECTOR = new Injector.Builder().build();
 
@@ -104,7 +118,12 @@ public class JarInstrumentor {
         JarEntry jarEntry = entries.nextElement();
 
         String name = jarEntry.getName();
+        Path normalizedPath = new File(destJarFile.getParentFile(), name).toPath().normalize();
+        if (!normalizedPath.startsWith(destJarFile.getParentFile().toPath())) {
+          throw new IOException("Bad zip entry: " + name);
+        }
         if (name.endsWith("/")) {
+          // Copy directories
           jarOut.putNextEntry(createJarEntry(jarEntry));
         } else if (name.endsWith(".class")) {
           String className = name.substring(0, name.length() - ".class".length()).replace('/', '.');
@@ -126,10 +145,14 @@ public class JarInstrumentor {
                 "Skipping instrumenting due to NegativeArraySizeException for class: " + className);
           }
         } else {
-          // resources & stuff
-          jarOut.putNextEntry(createJarEntry(jarEntry));
-          ByteStreams.copy(jarFile.getInputStream(jarEntry), jarOut);
-          nonClassCount++;
+          for (String s : NON_CLASS_FILES_TO_KEEP) {
+            if (name.startsWith(s)) {
+              jarOut.putNextEntry(createJarEntry(jarEntry));
+              ByteStreams.copy(jarFile.getInputStream(jarEntry), jarOut);
+              nonClassCount++;
+              break;
+            }
+          }
         }
       }
     }
