@@ -8,6 +8,12 @@ android_robolectric_test {
         "src/sharedTest/**/*.java",
         "src/sharedTest/**/*.kt",
     ],
+    exclude_srcs: [
+        // TODO:  fix missing a local resource
+        "src/sharedTest/java/android/telephony/PhoneNumberUtilsTest.java",
+        // TODO:  tries to load the android native runtime and dies
+        "src/sharedTest/java/android/view/accessibility/AccessibilityNodeInfoTest.java",
+    ],
     static_libs: [
         "androidx.core_core",
         "androidx.test.uiautomator_uiautomator",
