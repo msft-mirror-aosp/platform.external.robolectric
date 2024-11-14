@@ -32,6 +32,7 @@ import org.robolectric.util.reflector.Direct;
 import org.robolectric.util.reflector.ForType;
 import org.robolectric.util.reflector.WithType;
 import org.robolectric.versioning.AndroidVersions.U;
+import org.robolectric.versioning.AndroidVersions.Baklava;
 
 /**
  * Shadow of {@link DisplayEventReceiver}. The {@link Choreographer} is a subclass of {@link
@@ -240,12 +241,19 @@ public class ShadowDisplayEventReceiver {
       if (RuntimeEnvironment.getApiLevel() <= TIRAMISU) {
         return vsyncEventDataReflector.newVsyncEventData(
             timelineArray, /* preferredFrameTimelineIndex= */ 0, /* frameInterval= */ 1);
-      } else {
+      } else if (RuntimeEnvironment.getApiLevel() < Baklava.SDK_INT) { //TODO: check method exists for aosp.
         return vsyncEventDataReflector.newVsyncEventData(
             timelineArray,
             /* preferredFrameTimelineIndex= */ 0,
             timelineArrayLength,
             /* frameInterval= */ 1);
+      } else {
+        return vsyncEventDataReflector.newVsyncEventData(
+            timelineArray,
+            /* preferredFrameTimelineIndex= */ 0,
+            timelineArrayLength,
+            /* frameInterval= */ 1,
+            /* numberQueuedBuffers= */ 0);
       }
     } catch (ClassNotFoundException e) {
       throw new LinkageError("Unable to construct VsyncEventData", e);
@@ -309,6 +317,15 @@ public class ShadowDisplayEventReceiver {
         int preferredFrameTimelineIndex,
         int timelineArrayLength,
         long frameInterval);
+
+    @Constructor
+    Object newVsyncEventData(
+        @WithType("[Landroid.view.DisplayEventReceiver$VsyncEventData$FrameTimeline;")
+            Object frameTimelineArray,
+        int preferredFrameTimelineIndex,
+        int timelineArrayLength,
+        long frameInterval,
+        int numberQueuedBuffers);
   }
 
   @ForType(className = "android.view.DisplayEventReceiver$VsyncEventData$FrameTimeline")
