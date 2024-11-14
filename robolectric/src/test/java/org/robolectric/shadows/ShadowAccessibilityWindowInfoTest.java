@@ -20,9 +20,7 @@ public class ShadowAccessibilityWindowInfoTest {
 
   @Before
   public void setUp() {
-    ShadowAccessibilityWindowInfo.resetObtainedInstances();
-    assertThat(ShadowAccessibilityWindowInfo.areThereUnrecycledWindows(true)).isEqualTo(false);
-    window = ShadowAccessibilityWindowInfo.obtain();
+    window = AccessibilityWindowInfo.obtain();
     assertThat(window).isNotNull();
     shadow = shadowOf(window);
   }
@@ -68,5 +66,14 @@ public class ShadowAccessibilityWindowInfoTest {
     assertThat(window.isInPictureInPictureMode()).isFalse();
     window.setPictureInPicture(true);
     assertThat(window.isInPictureInPictureMode()).isTrue();
+  }
+
+  @Test
+  public void shadowFieldsClearedAfterRecycle() {
+    AccessibilityWindowInfo window2 = AccessibilityWindowInfo.obtain();
+    shadow.addChild(window2);
+    assertThat(shadow.getChild(0)).isEqualTo(window2);
+    window.recycle();
+    assertThat(shadow.getChild(0)).isNull();
   }
 }
