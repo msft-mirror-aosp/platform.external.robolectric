@@ -3,6 +3,8 @@ package org.robolectric.shadows;
 import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.O;
 import static android.os.Build.VERSION_CODES.Q;
+import static org.robolectric.shadows.ShadowAccessibilityNodeInfo.checkRealAniDisabled;
+import static org.robolectric.shadows.ShadowAccessibilityNodeInfo.useRealAni;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
 import android.graphics.Rect;
@@ -10,17 +12,15 @@ import android.os.Build.VERSION_CODES;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.RealObject;
 import org.robolectric.shadow.api.Shadow;
-import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.reflector.Direct;
 import org.robolectric.util.reflector.ForType;
+import org.robolectric.util.reflector.Static;
 
 /**
  * Shadow of {@link android.view.accessibility.AccessibilityWindowInfo} that allows a test to set
@@ -28,10 +28,6 @@ import org.robolectric.util.reflector.ForType;
  */
 @Implements(value = AccessibilityWindowInfo.class)
 public class ShadowAccessibilityWindowInfo {
-
-  private static final Map<StrictEqualityWindowWrapper, StackTraceElement[]> obtainedInstances =
-      new HashMap<>();
-
   private List<AccessibilityWindowInfo> children = null;
 
   private AccessibilityWindowInfo parent = null;
@@ -40,136 +36,43 @@ public class ShadowAccessibilityWindowInfo {
 
   private AccessibilityNodeInfo anchorNode = null;
 
-  private Rect boundsInScreen = new Rect();
+  private Rect boundsInScreenOverride;
 
   @RealObject private AccessibilityWindowInfo realAccessibilityWindowInfo;
 
   @Implementation
-  protected static AccessibilityWindowInfo obtain() {
-    final AccessibilityWindowInfo obtainedInstance =
-        ReflectionHelpers.callConstructor(AccessibilityWindowInfo.class);
-    StrictEqualityWindowWrapper wrapper = new StrictEqualityWindowWrapper(obtainedInstance);
-    obtainedInstances.put(wrapper, Thread.currentThread().getStackTrace());
-    return obtainedInstance;
-  }
-
-  @Implementation
   protected static AccessibilityWindowInfo obtain(AccessibilityWindowInfo window) {
-    final ShadowAccessibilityWindowInfo shadowInfo = Shadow.extract(window);
-    final AccessibilityWindowInfo obtainedInstance = shadowInfo.getClone();
-    StrictEqualityWindowWrapper wrapper = new StrictEqualityWindowWrapper(obtainedInstance);
-    obtainedInstances.put(wrapper, Thread.currentThread().getStackTrace());
-    return obtainedInstance;
-  }
+    final AccessibilityWindowInfo newInstance =
+        reflector(AccessibilityWindowInfoReflector.class).obtain(window);
 
-  private AccessibilityWindowInfo getClone() {
-    final AccessibilityWindowInfo newInfo =
-        ReflectionHelpers.callConstructor(AccessibilityWindowInfo.class);
-    final ShadowAccessibilityWindowInfo newShadow = Shadow.extract(newInfo);
-
-    newShadow.boundsInScreen = new Rect(boundsInScreen);
-    newShadow.parent = parent;
-    newShadow.rootNode = rootNode;
-    newShadow.anchorNode = anchorNode;
-    newInfo.setType(realAccessibilityWindowInfo.getType());
-    newInfo.setLayer(realAccessibilityWindowInfo.getLayer());
-    newInfo.setId(realAccessibilityWindowInfo.getId());
-    newInfo.setAccessibilityFocused(realAccessibilityWindowInfo.isAccessibilityFocused());
-    newInfo.setActive(realAccessibilityWindowInfo.isActive());
-    newInfo.setFocused(realAccessibilityWindowInfo.isFocused());
-    if (RuntimeEnvironment.getApiLevel() >= N) {
-      newInfo.setTitle(realAccessibilityWindowInfo.getTitle());
+    if (useRealAni()) {
+      return newInstance;
     }
-    if (children != null) {
-      newShadow.children = new ArrayList<>(children);
+
+    final ShadowAccessibilityWindowInfo shadowInfo = Shadow.extract(window);
+    final ShadowAccessibilityWindowInfo newShadow = Shadow.extract(newInstance);
+
+    if (shadowInfo.boundsInScreenOverride != null) {
+      newShadow.boundsInScreenOverride = new Rect(shadowInfo.boundsInScreenOverride);
+    }
+    newShadow.parent = shadowInfo.parent;
+    newShadow.rootNode = shadowInfo.rootNode;
+    newShadow.anchorNode = shadowInfo.anchorNode;
+
+    if (shadowInfo.children != null) {
+      newShadow.children = new ArrayList<>(shadowInfo.children);
     } else {
       newShadow.children = null;
     }
-
-    return newInfo;
-  }
-
-  /**
-   * Clear list of obtained instance objects. {@code areThereUnrecycledWindows} will always return
-   * false if called immediately afterwards.
-   */
-  public static void resetObtainedInstances() {
-    obtainedInstances.clear();
-  }
-
-  /**
-   * Check for leaked objects that were {@code obtain}ed but never {@code recycle}d.
-   *
-   * @param printUnrecycledWindowsToSystemErr - if true, stack traces of calls to {@code obtain}
-   *     that lack matching calls to {@code recycle} are dumped to System.err.
-   * @return {@code true} if there are unrecycled windows
-   */
-  public static boolean areThereUnrecycledWindows(boolean printUnrecycledWindowsToSystemErr) {
-    if (printUnrecycledWindowsToSystemErr) {
-      for (final StrictEqualityWindowWrapper wrapper : obtainedInstances.keySet()) {
-        final ShadowAccessibilityWindowInfo shadow = Shadow.extract(wrapper.mInfo);
-
-        System.err.println(
-            String.format(
-                "Leaked type = %d, id = %d. Stack trace:",
-                shadow.realAccessibilityWindowInfo.getType(), wrapper.mInfo.getId()));
-        for (final StackTraceElement stackTraceElement : obtainedInstances.get(wrapper)) {
-          System.err.println(stackTraceElement.toString());
-        }
-      }
-    }
-
-    return (obtainedInstances.size() != 0);
-  }
-
-  @SuppressWarnings("ReferenceEquality")
-  public boolean deepEquals(Object object) {
-    if (!(object instanceof AccessibilityWindowInfo)) {
-      return false;
-    }
-
-    final AccessibilityWindowInfo window = (AccessibilityWindowInfo) object;
-    final ShadowAccessibilityWindowInfo otherShadow = Shadow.extract(window);
-
-    boolean areEqual = (realAccessibilityWindowInfo.getType() == window.getType());
-    areEqual &=
-        (parent == null)
-            ? (otherShadow.getParent() == null)
-            : parent.equals(otherShadow.getParent());
-    areEqual &=
-        (rootNode == null)
-            ? (otherShadow.getRoot() == null)
-            : rootNode.equals(otherShadow.getRoot());
-    areEqual &=
-        (anchorNode == null)
-            ? (otherShadow.getAnchor() == null)
-            : anchorNode.equals(otherShadow.getAnchor());
-    areEqual &= (realAccessibilityWindowInfo.getLayer() == window.getLayer());
-    areEqual &= (realAccessibilityWindowInfo.getId() == window.getId());
-    if (RuntimeEnvironment.getApiLevel() >= N) {
-      areEqual &= (realAccessibilityWindowInfo.getTitle() == window.getTitle());
-    }
-    areEqual &=
-        (realAccessibilityWindowInfo.isAccessibilityFocused() == window.isAccessibilityFocused());
-    areEqual &= (realAccessibilityWindowInfo.isActive() == window.isActive());
-    areEqual &= (realAccessibilityWindowInfo.isFocused() == window.isFocused());
-    Rect anotherBounds = new Rect();
-    otherShadow.getBoundsInScreen(anotherBounds);
-    areEqual &= boundsInScreen.equals(anotherBounds);
-    return areEqual;
-  }
-
-  @Override
-  @Implementation
-  public int hashCode() {
-    // This is 0 for a reason. If you change it, you will break the obtained instances map in
-    // a manner that is remarkably difficult to debug. Having a dynamic hash code keeps this
-    // object from being located in the map if it was mutated after being obtained.
-    return 0;
+    return newInstance;
   }
 
   @Implementation
   protected int getChildCount() {
+    if (useRealAni()) {
+      return reflector(AccessibilityWindowInfoReflector.class, realAccessibilityWindowInfo)
+          .getChildCount();
+    }
     if (children == null) {
       return 0;
     }
@@ -179,6 +82,10 @@ public class ShadowAccessibilityWindowInfo {
 
   @Implementation
   protected AccessibilityWindowInfo getChild(int index) {
+    if (useRealAni()) {
+      return reflector(AccessibilityWindowInfoReflector.class, realAccessibilityWindowInfo)
+          .getChild(index);
+    }
     if (children == null) {
       return null;
     }
@@ -188,38 +95,59 @@ public class ShadowAccessibilityWindowInfo {
 
   @Implementation
   protected AccessibilityWindowInfo getParent() {
+    if (useRealAni()) {
+      return reflector(AccessibilityWindowInfoReflector.class, realAccessibilityWindowInfo)
+          .getParent();
+    }
     return parent;
   }
 
   @Implementation
   protected AccessibilityNodeInfo getRoot() {
+    if (useRealAni()) {
+      return reflector(AccessibilityWindowInfoReflector.class, realAccessibilityWindowInfo)
+          .getRoot();
+    }
     return (rootNode == null) ? null : AccessibilityNodeInfo.obtain(rootNode);
   }
 
   @Implementation(minSdk = N)
   protected AccessibilityNodeInfo getAnchor() {
+    if (useRealAni()) {
+      return reflector(AccessibilityWindowInfoReflector.class, realAccessibilityWindowInfo)
+          .getAnchor();
+    }
     return (anchorNode == null) ? null : AccessibilityNodeInfo.obtain(anchorNode);
   }
 
   @Implementation
   protected void getBoundsInScreen(Rect outBounds) {
-    if (boundsInScreen == null) {
-      outBounds.setEmpty();
+    if (useRealAni() || boundsInScreenOverride == null) {
+      reflector(AccessibilityWindowInfoReflector.class, realAccessibilityWindowInfo)
+          .getBoundsInScreen(outBounds);
     } else {
-      outBounds.set(boundsInScreen);
+      outBounds.set(boundsInScreenOverride);
     }
   }
 
   @Implementation
   protected void recycle() {
-    // This shadow does not track recycling of windows.
+    reflector(AccessibilityWindowInfoReflector.class, realAccessibilityWindowInfo).recycle();
+    // Clear shadow fields.
+    children = null;
+    parent = null;
+    rootNode = null;
+    anchorNode = null;
+    boundsInScreenOverride = null;
   }
 
   public void setRoot(AccessibilityNodeInfo root) {
+    checkRealAniDisabled();
     rootNode = root;
   }
 
   public void setAnchor(AccessibilityNodeInfo anchor) {
+    checkRealAniDisabled();
     anchorNode = anchor;
   }
 
@@ -230,7 +158,12 @@ public class ShadowAccessibilityWindowInfo {
 
   @Implementation(maxSdk = Q)
   public void setBoundsInScreen(Rect bounds) {
-    boundsInScreen.set(bounds);
+    if (RuntimeEnvironment.getApiLevel() <= Q) {
+      reflector(AccessibilityWindowInfoReflector.class, realAccessibilityWindowInfo)
+          .setBoundsInScreen(bounds);
+    } else {
+      boundsInScreenOverride = bounds;
+    }
   }
 
   @Implementation
@@ -283,55 +216,13 @@ public class ShadowAccessibilityWindowInfo {
   }
 
   public void addChild(AccessibilityWindowInfo child) {
+    checkRealAniDisabled();
     if (children == null) {
       children = new ArrayList<>();
     }
 
     children.add(child);
     ((ShadowAccessibilityWindowInfo) Shadow.extract(child)).parent = realAccessibilityWindowInfo;
-  }
-
-  /**
-   * Private class to keep different windows referring to the same window straight in the
-   * mObtainedInstances map.
-   */
-  private static class StrictEqualityWindowWrapper {
-    public final AccessibilityWindowInfo mInfo;
-
-    public StrictEqualityWindowWrapper(AccessibilityWindowInfo info) {
-      mInfo = info;
-    }
-
-    @Override
-    @SuppressWarnings("ReferenceEquality")
-    public boolean equals(Object object) {
-      if (object == null) {
-        return false;
-      }
-
-      if (!(object instanceof StrictEqualityWindowWrapper)) {
-        return false;
-      }
-      final StrictEqualityWindowWrapper wrapper = (StrictEqualityWindowWrapper) object;
-      return mInfo == wrapper.mInfo;
-    }
-
-    @Override
-    public int hashCode() {
-      return mInfo.hashCode();
-    }
-  }
-
-  @Override
-  @Implementation
-  public String toString() {
-    return "ShadowAccessibilityWindowInfo@"
-        + System.identityHashCode(this)
-        + ":{id:"
-        + realAccessibilityWindowInfo.getId()
-        + ", title:"
-        + realAccessibilityWindowInfo.getTitle()
-        + "}";
   }
 
   @ForType(AccessibilityWindowInfo.class)
@@ -363,5 +254,33 @@ public class ShadowAccessibilityWindowInfo {
 
     @Direct
     void setDisplayId(int displayId);
+
+    @Direct
+    void setBoundsInScreen(Rect bounds);
+
+    @Direct
+    void getBoundsInScreen(Rect outBounds);
+
+    @Direct
+    int getChildCount();
+
+    @Direct
+    AccessibilityWindowInfo getChild(int index);
+
+    @Direct
+    AccessibilityWindowInfo getParent();
+
+    @Direct
+    AccessibilityNodeInfo getRoot();
+
+    @Direct
+    AccessibilityNodeInfo getAnchor();
+
+    @Direct
+    void recycle();
+
+    @Direct
+    @Static
+    AccessibilityWindowInfo obtain(AccessibilityWindowInfo window);
   }
 }
