@@ -323,7 +323,7 @@ public class ShadowPausedMessageQueue extends ShadowMessageQueue {
           }
         }
         if (msg.isAsynchronous() && getApiLevel() >= V.SDK_INT) {
-          queueReflector.setAsyncMessageCount(queueReflector.getAsyncMessageCount() - 1);
+            queueReflector.setAsyncMessageCount(queueReflector.getAsyncMessageCount() - 1);
         }
       }
       return msg;
@@ -469,7 +469,6 @@ public class ShadowPausedMessageQueue extends ShadowMessageQueue {
     @Accessor("mQuitting")
     boolean getQuitting();
 
-    // start for android V
     @Accessor("mLast")
     void setLast(Message msg);
 
@@ -478,6 +477,5 @@ public class ShadowPausedMessageQueue extends ShadowMessageQueue {
 
     @Accessor("mAsyncMessageCount")
     void setAsyncMessageCount(int asyncMessageCount);
-    // end android V
   }
 }
