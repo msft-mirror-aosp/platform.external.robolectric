@@ -197,7 +197,7 @@ public class RobolectricTestRunner extends SandboxTestRunner {
 
     private static ResModeStrategy getFromProperties() {
       String resourcesMode = System.getProperty("robolectric.resourcesMode");
-      return resourcesMode == null ? DEFAULT : valueOf(resourcesMode);
+      return resourcesMode == null ? DEFAULT : valueOf(resourcesMode != null ? resourcesMode.toLowerCase() : null);
     }
 
     boolean includeLegacy(AndroidManifest appManifest) {
