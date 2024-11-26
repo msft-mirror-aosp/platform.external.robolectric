@@ -324,7 +324,7 @@ public class ShadowDisplayManagerGlobal {
       }
 
       displayInfos.put(displayId, displayInfo);
-      notifyListeners(displayId, DisplayManagerGlobal.EVENT_DISPLAY_CHANGED);
+      notifyListeners(displayId, DisplayManagerGlobal.EVENT_DISPLAY_BASIC_CHANGED);
     }
 
     private synchronized void removeDisplay(int displayId) {
