@@ -42,6 +42,10 @@ public class RobolectricProcessor extends AbstractProcessor {
   static final String JSON_DOCS_ENABLED = "org.robolectric.annotation.processing.jsonDocsEnabled";
   static final String SDK_CHECK_MODE = "org.robolectric.annotation.processing.sdkCheckMode";
   private static final String SDKS_FILE = "org.robolectric.annotation.processing.sdks";
+  private static final String DISABLE_INDEVELOPMENT =
+      "org.robolectric.annotation.processing.disableInDevelopment";
+  private static final String ALLOW_LOOSE_SIGNATURES =
+      "org.robolectric.annotation.processing.allowLooseSignatures";
 
   /** required for Android Development. */
   private static final String VALIDATE_COMPILE_SDKS =
@@ -62,8 +66,10 @@ public class RobolectricProcessor extends AbstractProcessor {
   private File jsonDocsDir;
   private boolean jsonDocsEnabled;
   private boolean validateCompiledSdk;
+  private boolean allowInDev;
   private String overrideSdkLocation;
   private int overrideSdkInt;
+  private boolean allowLooseSignatures;
 
   /** Default constructor. */
   public RobolectricProcessor() {}
@@ -97,7 +103,9 @@ public class RobolectricProcessor extends AbstractProcessor {
         new SdkStore(sdksFile, validateCompiledSdk, overrideSdkLocation, overrideSdkInt);
 
     addValidator(new ImplementationValidator(modelBuilder, environment));
-    addValidator(new ImplementsValidator(modelBuilder, environment, sdkCheckMode, sdkStore));
+    addValidator(
+        new ImplementsValidator(
+            modelBuilder, environment, sdkCheckMode, sdkStore, allowInDev, allowLooseSignatures));
     addValidator(new RealObjectValidator(modelBuilder, environment));
     addValidator(new ResetterValidator(modelBuilder, environment));
   }
@@ -150,7 +158,10 @@ public class RobolectricProcessor extends AbstractProcessor {
           "true".equalsIgnoreCase(options.getOrDefault(VALIDATE_COMPILE_SDKS, "false"));
       this.sdksFile = getSdksFile(options, SDKS_FILE);
       this.priority = Integer.parseInt(options.getOrDefault(PRIORITY, "0"));
-
+      this.allowInDev =
+          !"true".equalsIgnoreCase(options.getOrDefault(DISABLE_INDEVELOPMENT, "false"));
+      this.allowLooseSignatures =
+          "true".equalsIgnoreCase(options.getOrDefault(ALLOW_LOOSE_SIGNATURES, "false"));
       if (this.shadowPackage == null) {
         throw new IllegalArgumentException("no package specified for " + PACKAGE_OPT);
       }
