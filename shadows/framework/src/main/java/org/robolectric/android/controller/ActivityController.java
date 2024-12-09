@@ -234,7 +234,6 @@ public class ActivityController<T extends Activity>
     // root can be null if activity does not have content attached, or if looper is paused.
     // this is unusual but leave the check here for legacy compatibility
     if (root != null) {
-      callDispatchResized(root);
       shadowMainLooper.idleIfPaused();
     }
     return this;
@@ -405,7 +404,7 @@ public class ActivityController<T extends Activity>
       Configuration newConfiguration, DisplayMetrics newMetrics) {
     ActivityReflector activityReflector = reflector(ActivityReflector.class, component);
     Configuration currentConfig =
-        Boolean.getBoolean("robolectric.configurationChangeFix")
+        System.getProperty("robolectric.configurationChangeFix", "true").equals("true")
             ? activityReflector.getCurrentConfig()
             : component.getResources().getConfiguration();
     return configurationChange(newConfiguration, newMetrics, currentConfig.diff(newConfiguration));
