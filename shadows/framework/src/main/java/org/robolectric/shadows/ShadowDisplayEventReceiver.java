@@ -34,7 +34,6 @@ import org.robolectric.util.reflector.ForType;
 import org.robolectric.util.reflector.WithType;
 import org.robolectric.versioning.AndroidVersions.Baklava;
 import org.robolectric.versioning.AndroidVersions.U;
-import org.robolectric.versioning.AndroidVersions.Baklava;
 
 /**
  * Shadow of {@link DisplayEventReceiver}. The {@link Choreographer} is a subclass of {@link
