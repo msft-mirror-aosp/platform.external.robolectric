@@ -16,8 +16,6 @@ import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.toCollection;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
-import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
 import android.annotation.TargetApi;
@@ -40,6 +38,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.ClassName;
 import org.robolectric.annotation.HiddenApi;
@@ -328,7 +328,7 @@ public class ShadowPowerManager {
   @RequiresPermission(android.Manifest.permission.DEVICE_POWER)
   @Implementation(minSdk = S)
   protected void setBatteryDischargePrediction(
-      @NonNull Duration timeRemaining, boolean isPersonalized) {
+      @Nonnull Duration timeRemaining, boolean isPersonalized) {
     this.batteryDischargePrediction = timeRemaining;
     this.isBatteryDischargePredictionPersonalized = isPersonalized;
   }
@@ -472,6 +472,7 @@ public class ShadowPowerManager {
     private void acquireInternal(Optional<Long> timeoutOptional) {
       ++timesHeld;
       timeoutTimestampList.add(timeoutOptional);
+      reflector(WakeLockReflector.class, realWakeLock).setHeld(true);
     }
 
     /** Iterate all the wake lock and remove those timeouted ones. */
@@ -531,6 +532,7 @@ public class ShadowPowerManager {
         // the effect of all previous calls to acquire().
         timeoutTimestampList = new ArrayList<>();
       }
+      reflector(WakeLockReflector.class, realWakeLock).setHeld(false);
     }
 
     @Implementation
@@ -578,6 +580,9 @@ public class ShadowPowerManager {
     private interface WakeLockReflector {
       @Accessor("mTag")
       String getTag();
+
+      @Accessor("mHeld")
+      void setHeld(boolean held);
     }
   }
 
