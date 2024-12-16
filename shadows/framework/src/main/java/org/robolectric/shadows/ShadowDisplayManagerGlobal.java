@@ -96,6 +96,9 @@ public class ShadowDisplayManagerGlobal {
       displayManagerGlobal.setTopologyListeners(new CopyOnWriteArrayList<>());
     }
     displayManagerGlobal.setDisplayInfoCache(new SparseArray<>());
+    if (ReflectionHelpers.hasField(DisplayManagerGlobal.class, TOPOLOGY_LISTENERS_FIELD_NAME)) {
+      displayManagerGlobal.setTopologyListeners(new CopyOnWriteArrayList<>());
+    }
     return instance;
   }
 
@@ -424,5 +427,8 @@ public class ShadowDisplayManagerGlobal {
 
     @Accessor("mDisplayInfoCache")
     void setDisplayInfoCache(SparseArray<DisplayInfo> displayInfoCache);
+
+    @Accessor("mTopologyListeners")
+    void setTopologyListeners(CopyOnWriteArrayList<?> listeners);
   }
 }

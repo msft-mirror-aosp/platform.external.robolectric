@@ -1,6 +1,5 @@
 package org.robolectric.shadows;
 
-
 import android.net.wifi.WifiUsabilityStatsEntry;
 import android.net.wifi.WifiUsabilityStatsEntry.ContentionTimeStats;
 import android.net.wifi.WifiUsabilityStatsEntry.RadioStats;
@@ -131,6 +130,7 @@ public class WifiUsabilityStatsEntryBuilder {
           ClassParameter.from(boolean.class, false),
           ClassParameter.from(int.class, 0),
           ClassParameter.from(boolean.class, false),
+          ClassParameter.from(int.class, 0),
           ClassParameter.from(int.class, 0),
           ClassParameter.from(int.class, 0),
           ClassParameter.from(int.class, 0),
