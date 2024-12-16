@@ -2,16 +2,14 @@ package org.robolectric.shadows;
 
 import static android.os.Build.VERSION_CODES.TIRAMISU;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.robolectric.util.reflector.Reflector.reflector;
 
-import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.annotation.TargetApi;
 import android.app.PendingIntent;
 import android.app.PendingIntent.CanceledException;
 import android.app.usage.BroadcastResponseStats;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageEvents.Event;
+import android.app.usage.UsageEventsQuery;
 import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
 import android.app.usage.UsageStatsManager.StandbyBuckets;
@@ -42,15 +40,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.annotation.ClassName;
 import org.robolectric.annotation.HiddenApi;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.Resetter;
-import org.robolectric.util.reflector.Accessor;
-import org.robolectric.util.reflector.ForType;
-import org.robolectric.versioning.AndroidVersions.V;
 
 /** Shadow of {@link UsageStatsManager}. */
 @Implements(value = UsageStatsManager.class)
@@ -87,25 +83,25 @@ public class ShadowUsageStatsManager {
 
     public static AppUsageObserver build(
         int observerId,
-        @NonNull Collection<String> packageNames,
+        @Nonnull Collection<String> packageNames,
         long timeLimit,
-        @NonNull TimeUnit timeUnit,
-        @NonNull PendingIntent callbackIntent) {
+        @Nonnull TimeUnit timeUnit,
+        @Nonnull PendingIntent callbackIntent) {
       return new AutoValue_ShadowUsageStatsManager_AppUsageObserver(
           observerId, ImmutableList.copyOf(packageNames), timeLimit, timeUnit, callbackIntent);
     }
 
     public abstract int getObserverId();
 
-    @NonNull
+    @Nonnull
     public abstract ImmutableList<String> getPackageNames();
 
     public abstract long getTimeLimit();
 
-    @NonNull
+    @Nonnull
     public abstract TimeUnit getTimeUnit();
 
-    @NonNull
+    @Nonnull
     public abstract PendingIntent getCallbackIntent();
   }
 
@@ -121,11 +117,11 @@ public class ShadowUsageStatsManager {
   public abstract static class UsageSessionObserver {
     public static UsageSessionObserver build(
         int observerId,
-        @NonNull List<String> packageNames,
+        @Nonnull List<String> packageNames,
         Duration sessionStepDuration,
         Duration thresholdDuration,
-        @NonNull PendingIntent sessionStepTriggeredIntent,
-        @NonNull PendingIntent sessionEndedIntent) {
+        @Nonnull PendingIntent sessionStepTriggeredIntent,
+        @Nonnull PendingIntent sessionEndedIntent) {
       return new AutoValue_ShadowUsageStatsManager_UsageSessionObserver(
           observerId,
           ImmutableList.copyOf(packageNames),
@@ -137,7 +133,7 @@ public class ShadowUsageStatsManager {
 
     public abstract int getObserverId();
 
-    @NonNull
+    @Nonnull
     public abstract ImmutableList<String> getPackageNames();
 
     @Nullable
@@ -146,10 +142,10 @@ public class ShadowUsageStatsManager {
     @Nullable
     public abstract Duration getThresholdDuration();
 
-    @NonNull
+    @Nonnull
     public abstract PendingIntent getSessionStepTriggeredIntent();
 
-    @NonNull
+    @Nonnull
     public abstract PendingIntent getSessionEndedIntent();
   }
 
@@ -170,10 +166,10 @@ public class ShadowUsageStatsManager {
 
     public AppUsageLimitObserver(
         int observerId,
-        @NonNull List<String> packageNames,
-        @NonNull Duration timeLimit,
-        @NonNull Duration timeUsed,
-        @NonNull PendingIntent callbackIntent) {
+        @Nonnull List<String> packageNames,
+        @Nonnull Duration timeLimit,
+        @Nonnull Duration timeUsed,
+        @Nonnull PendingIntent callbackIntent) {
       this.observerId = observerId;
       this.packageNames = ImmutableList.copyOf(packageNames);
       this.timeLimit = checkNotNull(timeLimit);
@@ -185,22 +181,22 @@ public class ShadowUsageStatsManager {
       return observerId;
     }
 
-    @NonNull
+    @Nonnull
     public ImmutableList<String> getPackageNames() {
       return packageNames;
     }
 
-    @NonNull
+    @Nonnull
     public Duration getTimeLimit() {
       return timeLimit;
     }
 
-    @NonNull
+    @Nonnull
     public Duration getTimeUsed() {
       return timeUsed;
     }
 
-    @NonNull
+    @Nonnull
     public PendingIntent getCallbackIntent() {
       return callbackIntent;
     }
@@ -243,12 +239,11 @@ public class ShadowUsageStatsManager {
     return createUsageEvents(results);
   }
 
-  @Implementation(minSdk = V.SDK_INT)
-  protected UsageEvents queryEvents(@ClassName("android.app.usage.UsageEventsQuery") Object query) {
-    UsageEventsQueryReflector queryReflector = reflector(UsageEventsQueryReflector.class, query);
-    long beginTime = queryReflector.getBeginTimeMillis();
-    long endTime = queryReflector.getEndTimeMillis();
-    int[] eventTypes = queryReflector.getEventTypes();
+  @Implementation(minSdk = Build.VERSION_CODES.VANILLA_ICE_CREAM)
+  protected UsageEvents queryEvents(UsageEventsQuery query) {
+    long beginTime = query.getBeginTimeMillis();
+    long endTime = query.getEndTimeMillis();
+    int[] eventTypes = query.getEventTypes();
     ImmutableSet<Integer> eventTypesSet = ImmutableSet.copyOf(Ints.asList(eventTypes));
     List<Event> results = new ArrayList<>();
     for (Event event : Iterables.concat(eventsByTimeStamp.subMap(beginTime, endTime).values())) {
@@ -806,29 +801,10 @@ public class ShadowUsageStatsManager {
       return this;
     }
 
-    @TargetApi(V.SDK_INT)
+    @TargetApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     public EventBuilder setExtras(PersistableBundle extras) {
-      EventReflector eventReflector = reflector(EventReflector.class, event);
-      eventReflector.setExtras(extras);
+      event.mExtras = extras;
       return this;
     }
-  }
-
-  // TODO: remove reflection calls once Android V is fully supported.
-  @ForType(className = "android.app.usage.UsageEventsQuery")
-  interface UsageEventsQueryReflector {
-    int[] getEventTypes();
-
-    long getBeginTimeMillis();
-
-    long getEndTimeMillis();
-  }
-
-  @ForType(Event.class)
-  interface EventReflector {
-    @Accessor("mExtras")
-    void setExtras(PersistableBundle extras);
-
-    PersistableBundle getExtras();
   }
 }

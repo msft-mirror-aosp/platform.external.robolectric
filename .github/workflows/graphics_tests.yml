@@ -25,7 +25,7 @@ jobs:
         device: [
           macos-13, # Tests Mac x86_64
           macos-14, # Tests Mac arm64
-          ubuntu-22.04, # Tests Linux x86_64
+          ubuntu-latest, # Tests Linux x86_64
           windows-2022, # Tests Windows x86_64
         ]
     runs-on: ${{ matrix.device }}
@@ -44,11 +44,6 @@ jobs:
       - name: Show runner info
         run: uname -a
 
-      - name: Disable graphics tests for Windows on Android V
-        if: runner.os == 'Windows'
-        run: |
-          echo "ENABLED_SDKS=26,27,28,29,30,31,32,33,34" >> $env:GITHUB_ENV
-
       - name: Run unit tests
         env:
           SKIP_ERRORPRONE: true
@@ -56,11 +51,8 @@ jobs:
         run: >
           ./gradlew
           :integration_tests:nativegraphics:testDebugUnitTest
-          --info --stacktrace --continue
-          --parallel
-          --no-watch-fs
+          --stacktrace --continue
           "-Drobolectric.alwaysIncludeVariantMarkersInTestName=true"
-          "-Drobolectric.enabledSdks=${{ env.ENABLED_SDKS }}"
           "-Dorg.gradle.workers.max=2"
 
       - name: Upload Test Results

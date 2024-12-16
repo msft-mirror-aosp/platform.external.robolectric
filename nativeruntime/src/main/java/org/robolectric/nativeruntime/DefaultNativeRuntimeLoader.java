@@ -114,7 +114,7 @@ public class DefaultNativeRuntimeLoader implements NativeRuntimeLoader {
           });
 
   /**
-   * {@link #DEFERRED_STATIC_INITIALIZERS} that invoke their own native methods in static
+   * {@code DEFERRED_STATIC_INITIALIZERS} that invoke their own native methods in static
    * initializers. Unlike libcore, registering JNI on the JVM causes static initialization to be
    * performed on the class. Because of this, static initializers cannot invoke the native methods
    * of the class under registration. Executing these static initializers must be deferred until
@@ -209,7 +209,7 @@ public class DefaultNativeRuntimeLoader implements NativeRuntimeLoader {
    * graphics.
    */
   private void maybeCopyFonts(TempDirectory tempDirectory) throws IOException {
-    URI fontsUri = null;
+    URI fontsUri;
     try {
       fontsUri = Resources.getResource("fonts/").toURI();
     } catch (IllegalArgumentException | URISyntaxException e) {
@@ -249,10 +249,7 @@ public class DefaultNativeRuntimeLoader implements NativeRuntimeLoader {
   }
 
   private void loadLibrary(TempDirectory tempDirectory) throws IOException {
-    String libraryName =
-        System.mapLibraryName(
-            isAndroidVOrGreater() ? "android_runtime" : "robolectric-nativeruntime");
-    Path libraryPath = tempDirectory.getBasePath().resolve(libraryName);
+    Path libraryPath = tempDirectory.getBasePath().resolve(libraryName());
     URL libraryResource = Resources.getResource(nativeLibraryPath());
     Resources.asByteSource(libraryResource).copyTo(Files.asByteSink(libraryPath.toFile()));
     System.load(libraryPath.toAbsolutePath().toString());
@@ -266,14 +263,17 @@ public class DefaultNativeRuntimeLoader implements NativeRuntimeLoader {
   }
 
   private static String nativeLibraryPath() {
-    String os = osName();
-    String arch = arch();
-    return String.format(
-        "native/%s/%s/%s",
-        os,
-        arch,
-        System.mapLibraryName(
-            isAndroidVOrGreater() ? "android_runtime" : "robolectric-nativeruntime"));
+    return String.format("native/%s/%s/%s", osName(), arch(), libraryName());
+  }
+
+  protected static String libraryName() {
+    if (isAndroidVOrGreater()) {
+      // For V and above, hwui's android_graphics_HardwareRenderer.cpp has shared library symbol
+      // lookup logic that assumes that Windows library name is "libandroid_runtime.dll".
+      return System.mapLibraryName(OsUtil.isWindows() ? "libandroid_runtime" : "android_runtime");
+    } else {
+      return System.mapLibraryName("robolectric-nativeruntime");
+    }
   }
 
   private static String osName() {
