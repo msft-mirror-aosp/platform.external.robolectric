@@ -2,6 +2,7 @@ package org.robolectric.shadows;
 
 import static android.os.Build.VERSION_CODES.P;
 import static android.os.Build.VERSION_CODES.Q;
+import static android.os.Build.VERSION_CODES.S;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -168,8 +169,24 @@ public class ShadowPausedSystemClockTest {
   }
 
   @Test
+  @Config(minSdk = S)
+  public void advanceTimeBy_shouldAdvanceNanoTime() {
+    long startUptimeNanos = SystemClock.uptimeNanos();
+    long startUptimeMs = SystemClock.uptimeMillis();
+    ShadowSystemClock.advanceBy(Duration.ofNanos(100));
+
+    assertThat(SystemClock.uptimeNanos()).isEqualTo(startUptimeNanos + 100);
+    assertThat(SystemClock.uptimeMillis()).isEqualTo(startUptimeMs);
+
+    ShadowSystemClock.advanceBy(Duration.ofMillis(1));
+    assertThat(SystemClock.uptimeMillis()).isEqualTo(startUptimeMs + 1);
+    assertThat(SystemClock.uptimeNanos())
+        .isEqualTo(startUptimeNanos + 100 + ShadowPausedSystemClock.MILLIS_PER_NANO);
+  }
+
+  @Test
   public void simulateDeepSleep_shouldOnlyAdvanceElapsedRealtime() {
-    SystemClock.setCurrentTimeMillis(1000);
+    ShadowSystemClock.advanceBy(1000 - SystemClock.uptimeMillis(), TimeUnit.MILLISECONDS);
 
     ShadowPausedSystemClock.simulateDeepSleep(Duration.ofMillis(100));
 
@@ -180,13 +197,13 @@ public class ShadowPausedSystemClockTest {
 
   @Test
   public void testElapsedRealtime() {
-    SystemClock.setCurrentTimeMillis(1000);
+    ShadowSystemClock.advanceBy(1000 - SystemClock.uptimeMillis(), TimeUnit.MILLISECONDS);
     assertThat(SystemClock.elapsedRealtime()).isEqualTo(1000);
   }
 
   @Test
   public void testElapsedRealtimeNanos() {
-    SystemClock.setCurrentTimeMillis(1000);
+    ShadowSystemClock.advanceBy(1000 - SystemClock.uptimeMillis(), TimeUnit.MILLISECONDS);
     assertThat(SystemClock.elapsedRealtimeNanos()).isEqualTo(1000000000);
   }
 
@@ -244,5 +261,12 @@ public class ShadowPausedSystemClockTest {
     } catch (DateTimeException e) {
       // pass
     }
+  }
+
+  @Test
+  public void advanceBy_shouldIgnoreNegativeTime() {
+    long currentTime = SystemClock.uptimeMillis();
+    ShadowPausedSystemClock.advanceBy(Duration.ofMillis(-1));
+    assertThat(SystemClock.uptimeMillis()).isEqualTo(currentTime);
   }
 }
