@@ -56,6 +56,8 @@ import org.robolectric.versioning.AndroidVersions;
 /** Encapsulates a collection of Android framework jars. */
 public class SdkStore {
 
+  private static final String VALID_CLASS_NAME_ANNOTATION_CHARS = "^\\[?[a-zA-Z0-9_$.]+;?$";
+
   private final Set<Sdk> sdks = new TreeSet<>();
   private boolean loaded = false;
 
@@ -280,22 +282,27 @@ public class SdkStore {
      * @return a string describing any problems with this method, or null if it checks out.
      */
     public String verifyMethod(
-        String sdkClassName, ExecutableElement methodElement, boolean looseSignatures) {
+        String sdkClassName,
+        ExecutableElement methodElement,
+        boolean looseSignatures,
+        boolean allowInDev) {
       ClassInfo classInfo = getClassInfo(sdkClassName);
 
       // Probably should not be reachable
-      if (classInfo == null && !suppressWarnings(methodElement.getEnclosingElement(), null)) {
+      if (classInfo == null
+          && !suppressWarnings(methodElement.getEnclosingElement(), null, allowInDev)) {
         return null;
       }
 
       MethodExtraInfo sdkMethod = classInfo.findMethod(methodElement, looseSignatures);
-      if (sdkMethod == null && !suppressWarnings(methodElement, null)) {
+      if (sdkMethod == null && !suppressWarnings(methodElement, null, allowInDev)) {
         return "No method " + methodElement + " in " + sdkClassName;
       }
       if (sdkMethod != null) {
         MethodExtraInfo implMethod = new MethodExtraInfo(methodElement);
         if (!sdkMethod.equals(implMethod)
-            && !suppressWarnings(methodElement, "robolectric.ShadowReturnTypeMismatch")) {
+            && !suppressWarnings(
+                methodElement, "robolectric.ShadowReturnTypeMismatch", allowInDev)) {
           if (implMethod.isStatic != sdkMethod.isStatic) {
             return "@Implementation for "
                 + methodElement.getSimpleName()
@@ -332,7 +339,7 @@ public class SdkStore {
      * @param warningName the name of the warning, if null, @InDevelopment will still be honored.
      * @return true if the warning should be suppressed, else false
      */
-    boolean suppressWarnings(Element annotatedElement, String warningName) {
+    boolean suppressWarnings(Element annotatedElement, String warningName, boolean allowInDev) {
       SuppressWarnings[] suppressWarnings =
           annotatedElement.getAnnotationsByType(SuppressWarnings.class);
       for (SuppressWarnings suppression : suppressWarnings) {
@@ -343,7 +350,15 @@ public class SdkStore {
         }
       }
       InDevelopment[] inDev = annotatedElement.getAnnotationsByType(InDevelopment.class);
-      if (inDev.length > 0 && !sdkRelease.isReleased()) {
+      // Marked in development, sdk is not released, or is the last release (which may still be
+      // marked unreleased in g/main aosp/main.
+      if (allowInDev
+          && inDev.length > 0
+          && (!sdkRelease.isReleased()
+              || sdkRelease
+                  == AndroidVersions.getReleases().stream()
+                      .max(AndroidVersions.AndroidRelease::compareTo)
+                      .get())) {
         return true;
       }
       return false;
@@ -580,21 +595,24 @@ public class SdkStore {
         String paramType = canonicalize(varTypeMirror);
 
         // If parameter is annotated with @ClassName, then use the indicated type instead.
-        List<? extends AnnotationMirror> annotationMirrors = variableElement.getAnnotationMirrors();
-        for (AnnotationMirror am : annotationMirrors) {
-          if (am.getAnnotationType().toString().equals(ClassName.class.getName())) {
-            Map<? extends ExecutableElement, ? extends AnnotationValue> annotationEntries =
-                am.getElementValues();
-            Set<? extends ExecutableElement> keys = annotationEntries.keySet();
-            for (ExecutableElement key : keys) {
-              if ("value()".equals(key.toString())) {
-                AnnotationValue annotationValue = annotationEntries.get(key);
-                paramType = annotationValue.getValue().toString().replace('$', '.');
-                break;
-              }
-            }
-            break;
+        ClassName className = variableElement.getAnnotation(ClassName.class);
+        if (className != null) {
+          if (!className.value().matches(VALID_CLASS_NAME_ANNOTATION_CHARS)) {
+            throw new RuntimeException(
+                "Invalid @ClassName annotation '"
+                    + paramType
+                    + "' in "
+                    + methodElement.getEnclosingElement().getSimpleName()
+                    + "."
+                    + methodElement.getSimpleName());
           }
+          paramType = className.value();
+          if (paramType.startsWith("[")) {
+            // Convert an array type descriptor to a Java class name.
+            // e.g. '[java.lang.String;'-> 'java.lang.String[]'
+            paramType = Type.getType(paramType).getClassName();
+          }
+          paramType = paramType.replace('$', '.');
         }
 
         String paramTypeWithoutGenerics = typeWithoutGenerics(paramType);
@@ -655,14 +673,36 @@ public class SdkStore {
     private final boolean isStatic;
     private final String returnType;
 
+    /** Create a MethodExtraInfo from ASM in-memory representation (an Android framework method). */
     public MethodExtraInfo(MethodNode method) {
       this.isStatic = (method.access & Opcodes.ACC_STATIC) != 0;
       this.returnType = typeWithoutGenerics(normalize(Type.getReturnType(method.desc)));
     }
 
+    /** Create a MethodExtraInfo from AST (an @Implementation method in a shadow class). */
     public MethodExtraInfo(ExecutableElement methodElement) {
       this.isStatic = methodElement.getModifiers().contains(Modifier.STATIC);
-      this.returnType = typeWithoutGenerics(canonicalize(methodElement.getReturnType()));
+
+      TypeMirror rtType = methodElement.getReturnType();
+      String rt = canonicalize(rtType);
+      // If return type is annotated with @ClassName, then use the indicated type instead.
+      List<? extends AnnotationMirror> annotationMirrors = rtType.getAnnotationMirrors();
+      for (AnnotationMirror am : annotationMirrors) {
+        if (am.getAnnotationType().toString().equals(ClassName.class.getName())) {
+          Map<? extends ExecutableElement, ? extends AnnotationValue> annotationEntries =
+              am.getElementValues();
+          Set<? extends ExecutableElement> keys = annotationEntries.keySet();
+          for (ExecutableElement key : keys) {
+            if ("value()".equals(key.toString())) {
+              AnnotationValue annotationValue = annotationEntries.get(key);
+              rt = annotationValue.getValue().toString().replace('$', '.');
+              break;
+            }
+          }
+          break;
+        }
+      }
+      this.returnType = typeWithoutGenerics(rt);
     }
 
     @Override

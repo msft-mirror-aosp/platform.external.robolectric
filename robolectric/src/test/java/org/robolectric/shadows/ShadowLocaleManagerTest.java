@@ -3,6 +3,7 @@ package org.robolectric.shadows;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import android.app.Activity;
 import android.app.LocaleManager;
 import android.content.Context;
 import android.os.Build.VERSION_CODES;
@@ -11,7 +12,9 @@ import androidx.test.core.app.ApplicationProvider;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
 
@@ -90,5 +93,29 @@ public final class ShadowLocaleManagerTest {
     LocaleList localeList = localeManager.getSystemLocales();
     assertThat(localeList.size()).isEqualTo(1);
     assertThat(localeList.get(0).getLanguage()).isEqualTo("zh");
+  }
+
+  @Test
+  public void localeManager_activityContextEnabled_differentInstancesRetrieveLocales() {
+    String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
+    System.setProperty("robolectric.createActivityContexts", "true");
+    try (ActivityController<Activity> controller =
+        Robolectric.buildActivity(Activity.class).setup()) {
+      LocaleManager applicationLocaleManager =
+          (LocaleManager)
+              ApplicationProvider.getApplicationContext().getSystemService(Context.LOCALE_SERVICE);
+      Activity activity = controller.get();
+      LocaleManager activityLocaleManager =
+          (LocaleManager) activity.getSystemService(Context.LOCALE_SERVICE);
+
+      assertThat(applicationLocaleManager).isNotSameInstanceAs(activityLocaleManager);
+
+      LocaleList applicationLocales = applicationLocaleManager.getApplicationLocales();
+      LocaleList activityLocales = activityLocaleManager.getApplicationLocales();
+
+      assertThat(activityLocales).isEqualTo(applicationLocales);
+    } finally {
+      System.setProperty("robolectric.createActivityContexts", originalProperty);
+    }
   }
 }

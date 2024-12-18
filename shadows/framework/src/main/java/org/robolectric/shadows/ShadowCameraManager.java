@@ -1,8 +1,8 @@
 package org.robolectric.shadows;
 
+import static org.robolectric.Shadows.shadowOf;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
-import android.annotation.NonNull;
 import android.content.Context;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCharacteristics;
@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.Executor;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Implementation;
@@ -35,42 +36,68 @@ import org.robolectric.util.reflector.Accessor;
 import org.robolectric.util.reflector.Constructor;
 import org.robolectric.util.reflector.ForType;
 import org.robolectric.util.reflector.WithType;
+import org.robolectric.versioning.AndroidVersions.Baklava;
 import org.robolectric.versioning.AndroidVersions.U;
 import org.robolectric.versioning.AndroidVersions.V;
 
 /** Shadow class for {@link CameraManager} */
 @Implements(value = CameraManager.class)
 public class ShadowCameraManager {
-  @RealObject private CameraManager realObject;
-
-  // LinkedHashMap used to ensure getCameraIdList returns ids in the order in which they were added
-  private final Map<String, CameraCharacteristics> cameraIdToCharacteristics =
-      new LinkedHashMap<>();
-  private final Map<String, Boolean> cameraTorches = new HashMap<>();
-  private final Set<CameraManager.AvailabilityCallback> registeredCallbacks = new HashSet<>();
-  // Cannot reference the torch callback in < Android M
-  private final Set<Object> torchCallbacks = new HashSet<>();
-  // Most recent camera device opened with openCamera
-  private CameraDevice lastDevice;
-  // Most recent callback passed to openCamera
-  private CameraDevice.StateCallback lastCallback;
-  @Nullable private Executor lastCallbackExecutor;
-  @Nullable private Handler lastCallbackHandler;
-
   // Keep references to cameras so they can be closed after each test
   protected static final Set<CameraDeviceImpl> createdCameras =
       Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
+  // LinkedHashMap used to ensure getCameraIdList returns ids in the order in which they were added
+  private static final Map<String, CameraCharacteristics> cameraIdToCharacteristics =
+      new LinkedHashMap<>();
+  private static final Map<String, Boolean> cameraTorches = new HashMap<>();
+  private static final Set<CameraManager.AvailabilityCallback> registeredCallbacks =
+      new HashSet<>();
+  // Cannot reference the torch callback in < Android M
+  private static final Set<Object> torchCallbacks = new HashSet<>();
+  // Most recent camera device opened with openCamera
+  private static CameraDevice lastDevice;
+  // Most recent callback passed to openCamera
+  private static CameraDevice.StateCallback lastCallback;
+  @Nullable private static Executor lastCallbackExecutor;
+  @Nullable private static Handler lastCallbackHandler;
+  @RealObject private CameraManager realObject;
+
+  @Resetter
+  public static void reset() {
+    for (CameraDeviceImpl cameraDevice : createdCameras) {
+      if (cameraDevice != null) {
+        cameraDevice.close();
+      }
+    }
+    createdCameras.clear();
+    cameraIdToCharacteristics.clear();
+    cameraTorches.clear();
+    registeredCallbacks.clear();
+    torchCallbacks.clear();
+    if (lastDevice != null) {
+      lastDevice.close();
+    }
+    lastDevice = null;
+    lastCallback = null;
+    lastCallbackExecutor = null;
+    if (lastCallbackHandler != null) {
+      // Flush existing handler tasks to ensure camera related callbacks are called properly.
+      shadowOf(lastCallbackHandler.getLooper()).idle();
+      lastCallbackHandler.removeCallbacksAndMessages(null);
+    }
+    lastCallbackHandler = null;
+  }
 
   @Implementation
-  @NonNull
+  @Nonnull
   protected String[] getCameraIdList() throws CameraAccessException {
     Set<String> cameraIds = cameraIdToCharacteristics.keySet();
     return cameraIds.toArray(new String[0]);
   }
 
   @Implementation
-  @NonNull
-  protected CameraCharacteristics getCameraCharacteristics(@NonNull String cameraId) {
+  @Nonnull
+  protected CameraCharacteristics getCameraCharacteristics(@Nonnull String cameraId) {
     Preconditions.checkNotNull(cameraId);
     CameraCharacteristics characteristics = cameraIdToCharacteristics.get(cameraId);
     Preconditions.checkArgument(characteristics != null);
@@ -78,7 +105,7 @@ public class ShadowCameraManager {
   }
 
   @Implementation(minSdk = VERSION_CODES.M)
-  protected void setTorchMode(@NonNull String cameraId, boolean enabled) {
+  protected void setTorchMode(@Nonnull String cameraId, boolean enabled) {
     Preconditions.checkNotNull(cameraId);
     Preconditions.checkArgument(cameraIdToCharacteristics.keySet().contains(cameraId));
     cameraTorches.put(cameraId, enabled);
@@ -98,8 +125,7 @@ public class ShadowCameraManager {
     return openCameraDeviceUserAsync(cameraId, callback, executor, uid, oomScoreOffset);
   }
 
-  @Implementation(minSdk = V.SDK_INT)
-  @InDevelopment
+  @Implementation(minSdk = V.SDK_INT, maxSdk = V.SDK_INT)
   protected CameraDevice openCameraDeviceUserAsync(
       String cameraId,
       CameraDevice.StateCallback callback,
@@ -108,6 +134,22 @@ public class ShadowCameraManager {
       final int oomScoreOffset,
       int rotationOverride) {
     return openCameraDeviceUserAsync(cameraId, callback, executor, uid, oomScoreOffset);
+  }
+
+  // in development API has reverted back to the T signature. Just use a different method name
+  // to avoid conflicts.
+  // TODO: increment this to  minSdk next-SDK-after-V once V is fully released
+  @Implementation(methodName = "openCameraDeviceUserAsync", minSdk = Baklava.SDK_INT)
+  @InDevelopment
+  protected CameraDevice openCameraDeviceUserAsyncPostV(
+      String cameraId,
+      CameraDevice.StateCallback callback,
+      Executor executor,
+      int unusedClientUid,
+      int unusedOomScoreOffset,
+      boolean unused) {
+    return openCameraDeviceUserAsync(
+        cameraId, callback, executor, unusedClientUid, unusedOomScoreOffset);
   }
 
   @Implementation(minSdk = Build.VERSION_CODES.S, maxSdk = Build.VERSION_CODES.TIRAMISU)
@@ -245,7 +287,20 @@ public class ShadowCameraManager {
       CameraCharacteristics characteristics,
       Context context) {
     Map<String, CameraCharacteristics> cameraCharacteristicsMap = Collections.emptyMap();
-    if (RuntimeEnvironment.getApiLevel() >= V.SDK_INT) {
+    if (RuntimeEnvironment.getApiLevel() >= Baklava.SDK_INT) {
+      return reflector(ReflectorCameraDeviceImpl.class)
+          .newCameraDeviceImplPostV(
+              cameraId,
+              callback,
+              executor,
+              characteristics,
+              realObject,
+              context.getApplicationInfo().targetSdkVersion,
+              context,
+              null,
+              false);
+
+    } else if (RuntimeEnvironment.getApiLevel() == V.SDK_INT) {
       return reflector(ReflectorCameraDeviceImpl.class)
           .newCameraDeviceImplV(
               cameraId,
@@ -273,7 +328,7 @@ public class ShadowCameraManager {
    * Calls all registered callbacks's onCameraAvailable method. This is a no-op if no callbacks are
    * registered.
    */
-  private void triggerOnCameraAvailable(@NonNull String cameraId) {
+  private void triggerOnCameraAvailable(@Nonnull String cameraId) {
     Preconditions.checkNotNull(cameraId);
     for (CameraManager.AvailabilityCallback callback : registeredCallbacks) {
       callback.onCameraAvailable(cameraId);
@@ -284,7 +339,7 @@ public class ShadowCameraManager {
    * Calls all registered callbacks's onCameraUnavailable method. This is a no-op if no callbacks
    * are registered.
    */
-  private void triggerOnCameraUnavailable(@NonNull String cameraId) {
+  private void triggerOnCameraUnavailable(@Nonnull String cameraId) {
     Preconditions.checkNotNull(cameraId);
     for (CameraManager.AvailabilityCallback callback : registeredCallbacks) {
       callback.onCameraUnavailable(cameraId);
@@ -298,7 +353,7 @@ public class ShadowCameraManager {
    *
    * @throws IllegalArgumentException if there's already an existing camera with the given id.
    */
-  public void addCamera(@NonNull String cameraId, @NonNull CameraCharacteristics characteristics) {
+  public void addCamera(@Nonnull String cameraId, @Nonnull CameraCharacteristics characteristics) {
     Preconditions.checkNotNull(cameraId);
     Preconditions.checkNotNull(characteristics);
     Preconditions.checkArgument(!cameraIdToCharacteristics.containsKey(cameraId));
@@ -312,7 +367,7 @@ public class ShadowCameraManager {
    *
    * @throws IllegalArgumentException if there is not an existing camera with the given id.
    */
-  public void removeCamera(@NonNull String cameraId) {
+  public void removeCamera(@Nonnull String cameraId) {
     Preconditions.checkNotNull(cameraId);
     Preconditions.checkArgument(cameraIdToCharacteristics.containsKey(cameraId));
 
@@ -321,7 +376,7 @@ public class ShadowCameraManager {
   }
 
   /** Returns what the supplied camera's torch is set to. */
-  public boolean getTorchMode(@NonNull String cameraId) {
+  public boolean getTorchMode(@Nonnull String cameraId) {
     Preconditions.checkNotNull(cameraId);
     Preconditions.checkArgument(cameraIdToCharacteristics.keySet().contains(cameraId));
     Boolean torchState = cameraTorches.get(cameraId);
@@ -351,14 +406,6 @@ public class ShadowCameraManager {
     lastCallbackExecutor = executor;
   }
 
-  @Resetter
-  public static void reset() {
-    for (CameraDeviceImpl cameraDevice : createdCameras) {
-      cameraDevice.close();
-    }
-    createdCameras.clear();
-  }
-
   @ForType(CameraDeviceImpl.class)
   interface ReflectorCameraDeviceImpl {
     @Constructor
@@ -382,6 +429,19 @@ public class ShadowCameraManager {
         Context context,
         @WithType("android.hardware.camera2.CameraDevice$CameraDeviceSetup")
             Object cameraDeviceSetup);
+
+    @Constructor
+    CameraDeviceImpl newCameraDeviceImplPostV(
+        String cameraId,
+        CameraDevice.StateCallback callback,
+        Executor executor,
+        CameraCharacteristics characteristics,
+        CameraManager cameraManager,
+        int targetSdkVersion,
+        Context context,
+        @WithType("android.hardware.camera2.CameraDevice$CameraDeviceSetup")
+            Object cameraDeviceSetup,
+        boolean unused);
   }
 
   /** Accessor interface for {@link CameraManager}'s internals. */

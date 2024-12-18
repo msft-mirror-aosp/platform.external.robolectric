@@ -2,12 +2,15 @@ package org.robolectric.shadows;
 
 import static android.os.Build.VERSION_CODES.TIRAMISU;
 
+import android.companion.AssociatedDevice;
 import android.companion.AssociationInfo;
 import android.net.MacAddress;
+import com.google.common.base.Preconditions;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.ReflectionHelpers.ClassParameter;
 import org.robolectric.versioning.AndroidVersions.U;
+import org.robolectric.versioning.AndroidVersions.V;
 
 /** Builder for {@link AssociationInfo}. */
 public class AssociationInfoBuilder {
@@ -51,6 +54,8 @@ public class AssociationInfoBuilder {
   }
 
   public AssociationInfoBuilder setTag(String tag) {
+    Preconditions.checkState(
+        RuntimeEnvironment.getApiLevel() <= V.SDK_INT, "tag was removed in post-V SDKs");
     this.tag = tag;
     return this;
   }
@@ -109,82 +114,27 @@ public class AssociationInfoBuilder {
     try {
       MacAddress macAddress =
           deviceMacAddress == null ? null : MacAddress.fromString(deviceMacAddress);
+
       if (RuntimeEnvironment.getApiLevel() <= TIRAMISU) {
-        // We have two different constructors for AssociationInfo across
-        // T branches. aosp has the constructor that takes a new "revoked" parameter.
-        // Since there is not deterministic way to know which branch we are running in,
-        // we will reflect on the class to see if it has the mRevoked member.
-        // Based on the result we will either invoke the constructor with "revoked" or the
-        // one without this parameter.
-        if (ReflectionHelpers.hasField(AssociationInfo.class, "mRevoked")) {
-          return ReflectionHelpers.callConstructor(
-              AssociationInfo.class,
-              ClassParameter.from(int.class, id),
-              ClassParameter.from(int.class, userId),
-              ClassParameter.from(String.class, packageName),
-              ClassParameter.from(MacAddress.class, macAddress),
-              ClassParameter.from(CharSequence.class, displayName),
-              ClassParameter.from(String.class, deviceProfile),
-              ClassParameter.from(boolean.class, selfManaged),
-              ClassParameter.from(boolean.class, notifyOnDeviceNearby),
-              ClassParameter.from(boolean.class, revoked /*revoked only supported in aosp*/),
-              ClassParameter.from(long.class, approvedMs),
-              ClassParameter.from(long.class, lastTimeConnectedMs));
-        } else {
-          return ReflectionHelpers.callConstructor(
-              AssociationInfo.class,
-              ClassParameter.from(int.class, id),
-              ClassParameter.from(int.class, userId),
-              ClassParameter.from(String.class, packageName),
-              ClassParameter.from(MacAddress.class, macAddress),
-              ClassParameter.from(CharSequence.class, displayName),
-              ClassParameter.from(String.class, deviceProfile),
-              ClassParameter.from(boolean.class, selfManaged),
-              ClassParameter.from(boolean.class, notifyOnDeviceNearby),
-              ClassParameter.from(long.class, approvedMs),
-              ClassParameter.from(long.class, lastTimeConnectedMs));
-        }
-      } else if (RuntimeEnvironment.getApiLevel() <= U.SDK_INT) {
-        // AOSP does not yet contains the new fields - mAssociatedDevice & mSystemDataSyncFlags yet
-        if (ReflectionHelpers.hasField(AssociationInfo.class, "mAssociatedDevice")) {
-          return ReflectionHelpers.callConstructor(
-              AssociationInfo.class,
-              ClassParameter.from(int.class, id),
-              ClassParameter.from(int.class, userId),
-              ClassParameter.from(String.class, packageName),
-              ClassParameter.from(MacAddress.class, macAddress),
-              ClassParameter.from(CharSequence.class, displayName),
-              ClassParameter.from(String.class, deviceProfile),
-              ClassParameter.from(
-                  Class.forName("android.companion.AssociatedDevice"), associatedDevice),
-              ClassParameter.from(boolean.class, selfManaged),
-              ClassParameter.from(boolean.class, notifyOnDeviceNearby),
-              ClassParameter.from(boolean.class, revoked),
-              ClassParameter.from(long.class, approvedMs),
-              ClassParameter.from(long.class, lastTimeConnectedMs),
-              ClassParameter.from(int.class, systemDataSyncFlags));
-        } else {
-          return ReflectionHelpers.callConstructor(
-              AssociationInfo.class,
-              ClassParameter.from(int.class, id),
-              ClassParameter.from(int.class, userId),
-              ClassParameter.from(String.class, packageName),
-              ClassParameter.from(MacAddress.class, macAddress),
-              ClassParameter.from(CharSequence.class, displayName),
-              ClassParameter.from(String.class, deviceProfile),
-              ClassParameter.from(boolean.class, selfManaged),
-              ClassParameter.from(boolean.class, notifyOnDeviceNearby),
-              ClassParameter.from(boolean.class, revoked),
-              ClassParameter.from(long.class, approvedMs),
-              ClassParameter.from(long.class, lastTimeConnectedMs));
-        }
-      } else {
         return ReflectionHelpers.callConstructor(
             AssociationInfo.class,
             ClassParameter.from(int.class, id),
             ClassParameter.from(int.class, userId),
             ClassParameter.from(String.class, packageName),
-            ClassParameter.from(String.class, tag),
+            ClassParameter.from(MacAddress.class, macAddress),
+            ClassParameter.from(CharSequence.class, displayName),
+            ClassParameter.from(String.class, deviceProfile),
+            ClassParameter.from(boolean.class, selfManaged),
+            ClassParameter.from(boolean.class, notifyOnDeviceNearby),
+            ClassParameter.from(long.class, approvedMs),
+            ClassParameter.from(long.class, lastTimeConnectedMs));
+
+      } else if (RuntimeEnvironment.getApiLevel() == U.SDK_INT) {
+        return ReflectionHelpers.callConstructor(
+            AssociationInfo.class,
+            ClassParameter.from(int.class, id),
+            ClassParameter.from(int.class, userId),
+            ClassParameter.from(String.class, packageName),
             ClassParameter.from(MacAddress.class, macAddress),
             ClassParameter.from(CharSequence.class, displayName),
             ClassParameter.from(String.class, deviceProfile),
@@ -193,10 +143,32 @@ public class AssociationInfoBuilder {
             ClassParameter.from(boolean.class, selfManaged),
             ClassParameter.from(boolean.class, notifyOnDeviceNearby),
             ClassParameter.from(boolean.class, revoked),
-            ClassParameter.from(boolean.class, pending),
             ClassParameter.from(long.class, approvedMs),
             ClassParameter.from(long.class, lastTimeConnectedMs),
             ClassParameter.from(int.class, systemDataSyncFlags));
+      } else {
+        // delegate to platform builder
+        AssociationInfo.Builder builder =
+            new AssociationInfo.Builder(id, userId, packageName)
+                .setDeviceMacAddress(macAddress)
+                .setDisplayName(displayName)
+                .setDeviceProfile(deviceProfile)
+                .setAssociatedDevice((AssociatedDevice) associatedDevice)
+                .setSelfManaged(selfManaged)
+                .setNotifyOnDeviceNearby(notifyOnDeviceNearby)
+                .setTimeApproved(approvedMs)
+                .setRevoked(revoked)
+                .setLastTimeConnected(lastTimeConnectedMs)
+                .setSystemDataSyncFlags(systemDataSyncFlags);
+        // tag was removed in Baklava
+        if (ReflectionHelpers.hasMethod(AssociationInfo.Builder.class, "setTag", String.class)) {
+          ReflectionHelpers.callInstanceMethod(
+              AssociationInfo.Builder.class,
+              builder,
+              "setTag",
+              ClassParameter.from(String.class, tag));
+        }
+        return builder.build();
       }
     } catch (ClassNotFoundException e) {
       throw new RuntimeException(e);

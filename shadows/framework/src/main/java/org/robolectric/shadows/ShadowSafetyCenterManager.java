@@ -1,7 +1,5 @@
 package org.robolectric.shadows;
 
-import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.os.Build.VERSION_CODES;
 import android.safetycenter.SafetyCenterManager;
 import android.safetycenter.SafetyEvent;
@@ -12,8 +10,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
+import org.robolectric.annotation.Resetter;
 
 /** Shadow for {@link SafetyCenterManager}. */
 @Implements(
@@ -22,22 +23,22 @@ import org.robolectric.annotation.Implements;
     isInAndroidSdk = false)
 public class ShadowSafetyCenterManager {
 
-  private final Object lock = new Object();
+  private static final Object lock = new Object();
 
   @GuardedBy("lock")
-  private final Map<String, SafetySourceData> dataById = new HashMap<>();
+  private static final Map<String, SafetySourceData> dataById = new HashMap<>();
 
   @GuardedBy("lock")
-  private final Map<String, SafetyEvent> eventsById = new HashMap<>();
+  private static final Map<String, SafetyEvent> eventsById = new HashMap<>();
 
   @GuardedBy("lock")
-  private final Map<String, SafetySourceErrorDetails> errorsById = new HashMap<>();
+  private static final Map<String, SafetySourceErrorDetails> errorsById = new HashMap<>();
 
   @GuardedBy("lock")
-  private final Set<String> throwForId = new HashSet<>();
+  private static final Set<String> throwForId = new HashSet<>();
 
   @GuardedBy("lock")
-  private boolean enabled = false;
+  private static boolean enabled = false;
 
   @Implementation
   protected boolean isSafetyCenterEnabled() {
@@ -48,9 +49,9 @@ public class ShadowSafetyCenterManager {
 
   @Implementation
   protected void setSafetySourceData(
-      @NonNull String safetySourceId,
+      @Nonnull String safetySourceId,
       @Nullable SafetySourceData safetySourceData,
-      @NonNull SafetyEvent safetyEvent) {
+      @Nonnull SafetyEvent safetyEvent) {
     synchronized (lock) {
       if (!isSafetyCenterEnabled()) {
         return;
@@ -62,7 +63,7 @@ public class ShadowSafetyCenterManager {
   }
 
   @Implementation
-  protected SafetySourceData getSafetySourceData(@NonNull String safetySourceId) {
+  protected SafetySourceData getSafetySourceData(@Nonnull String safetySourceId) {
     synchronized (lock) {
       if (!isSafetyCenterEnabled()) {
         return null;
@@ -74,7 +75,7 @@ public class ShadowSafetyCenterManager {
 
   @Implementation
   protected void reportSafetySourceError(
-      @NonNull String safetySourceId, @NonNull SafetySourceErrorDetails safetySourceErrorDetails) {
+      @Nonnull String safetySourceId, @Nonnull SafetySourceErrorDetails safetySourceErrorDetails) {
     synchronized (lock) {
       if (!isSafetyCenterEnabled()) {
         return;
@@ -85,7 +86,7 @@ public class ShadowSafetyCenterManager {
   }
 
   @GuardedBy("lock")
-  private void maybeThrowForId(String safetySourceId) {
+  private static void maybeThrowForId(String safetySourceId) {
     if (throwForId.contains(safetySourceId)) {
       throw new IllegalArgumentException(String.format("%s is invalid", safetySourceId));
     }
@@ -97,14 +98,14 @@ public class ShadowSafetyCenterManager {
    */
   public void setSafetyCenterEnabled(boolean enabled) {
     synchronized (lock) {
-      this.enabled = enabled;
+      ShadowSafetyCenterManager.enabled = enabled;
     }
   }
 
   /**
    * Makes the APIs throw an {@link IllegalArgumentException} for the given {@code safetySourceId}.
    */
-  public void throwOnSafetySourceId(@NonNull String safetySourceId) {
+  public void throwOnSafetySourceId(@Nonnull String safetySourceId) {
     synchronized (lock) {
       throwForId.add(safetySourceId);
     }
@@ -114,7 +115,7 @@ public class ShadowSafetyCenterManager {
    * Returns the {@link SafetyEvent} that was given to {@link SafetyCenterManager} the last time
    * {@link #setSafetySourceData} was called with this {@code safetySourceId}.
    */
-  public SafetyEvent getLastSafetyEvent(@NonNull String safetySourceId) {
+  public SafetyEvent getLastSafetyEvent(@Nonnull String safetySourceId) {
     synchronized (lock) {
       return eventsById.get(safetySourceId);
     }
@@ -124,9 +125,20 @@ public class ShadowSafetyCenterManager {
    * Returns the {@link SafetySourceErrorDetails} that was given to {@link SafetyCenterManager} the
    * last time {@link #reportSafetySourceError} was called with this {@code safetySourceId}.
    */
-  public SafetySourceErrorDetails getLastSafetySourceError(@NonNull String safetySourceId) {
+  public SafetySourceErrorDetails getLastSafetySourceError(@Nonnull String safetySourceId) {
     synchronized (lock) {
       return errorsById.get(safetySourceId);
+    }
+  }
+
+  @Resetter
+  public static void reset() {
+    synchronized (lock) {
+      dataById.clear();
+      eventsById.clear();
+      errorsById.clear();
+      throwForId.clear();
+      enabled = false;
     }
   }
 }

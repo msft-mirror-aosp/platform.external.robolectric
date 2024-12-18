@@ -13,6 +13,7 @@ import static org.junit.Assert.fail;
 import static org.robolectric.Shadows.shadowOf;
 
 import android.Manifest.permission;
+import android.app.Activity;
 import android.app.Application;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -37,6 +38,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.Robolectric;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.shadows.ShadowUserManager.UserState;
@@ -59,6 +62,23 @@ public class ShadowUserManagerTest {
   public void setUp() {
     context = ApplicationProvider.getApplicationContext();
     userManager = (UserManager) context.getSystemService(Context.USER_SERVICE);
+  }
+
+  /**
+   * {@link ShadowUserManager} should support methods getting invoked when UserManager objects are
+   * returned from package contexts.
+   *
+   * <p>The root cause of this issue is that calling {@link Context#getApplicationContext()} returns
+   * null on a package context.
+   */
+  @Config(minSdk = R)
+  @Test
+  public void packageContextImpl_isUserOfType() throws Exception {
+    Context packageContext =
+        context.createPackageContextAsUser(
+            context.getPackageName(), 0, UserHandle.of(/* userId= */ 0));
+    UserManager packageUserManager = packageContext.getSystemService(UserManager.class);
+    assertThat(packageUserManager.isUserOfType("sdfasdfsadf")).isFalse();
   }
 
   @Test
@@ -694,7 +714,7 @@ public class ShadowUserManagerTest {
     shadowOf(userManager)
         .addProfile(TEST_USER_HANDLE, PROFILE_USER_HANDLE, PROFILE_USER_NAME, PROFILE_USER_FLAGS);
 
-    // getProfiles(userId) include user itself and asssociated profiles.
+    // getProfiles(userId) include user itself and associated profiles.
     assertThat(userManager.getProfiles(TEST_USER_HANDLE).get(0).id).isEqualTo(TEST_USER_HANDLE);
     assertThat(userManager.getProfiles(TEST_USER_HANDLE).get(1).id).isEqualTo(PROFILE_USER_HANDLE);
   }
@@ -1161,5 +1181,30 @@ public class ShadowUserManagerTest {
         shadowOf(context.getPackageManager())
             .getInternalMutablePackageInfo(context.getPackageName());
     packageInfo.requestedPermissions = permissions;
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void userManager_activityContextEnabled_consistentAcrossContexts() {
+    String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
+    System.setProperty("robolectric.createActivityContexts", "true");
+    try (ActivityController<Activity> controller =
+        Robolectric.buildActivity(Activity.class).setup()) {
+      UserManager applicationUserManager =
+          (UserManager)
+              ApplicationProvider.getApplicationContext().getSystemService(Context.USER_SERVICE);
+      Activity activity = controller.get();
+      UserManager activityUserManager =
+          (UserManager) activity.getSystemService(Context.USER_SERVICE);
+
+      assertThat(applicationUserManager).isNotSameInstanceAs(activityUserManager);
+
+      boolean isAdminApplication = applicationUserManager.isAdminUser();
+      boolean isAdminActivity = activityUserManager.isAdminUser();
+
+      assertThat(isAdminActivity).isEqualTo(isAdminApplication);
+    } finally {
+      System.setProperty("robolectric.createActivityContexts", originalProperty);
+    }
   }
 }

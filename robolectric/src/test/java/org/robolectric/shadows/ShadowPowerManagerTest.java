@@ -4,6 +4,7 @@ import static android.content.Intent.ACTION_SCREEN_OFF;
 import static android.content.Intent.ACTION_SCREEN_ON;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.N;
+import static android.os.Build.VERSION_CODES.O;
 import static android.os.Build.VERSION_CODES.P;
 import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.R;
@@ -17,6 +18,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.junit.Assert.fail;
 import static org.robolectric.Shadows.shadowOf;
 
+import android.app.Activity;
 import android.app.Application;
 import android.content.Context;
 import android.content.Intent;
@@ -32,7 +34,9 @@ import java.time.Duration;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.Robolectric;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.shadows.ShadowPowerManager.ShadowLowPowerStandbyPortsLock;
@@ -52,7 +56,7 @@ public class ShadowPowerManagerTest {
 
   @Test
   public void acquire_shouldAcquireAndReleaseReferenceCountedLock() {
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TAG");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TAG");
     assertThat(lock.isHeld()).isFalse();
     lock.acquire();
     assertThat(lock.isHeld()).isTrue();
@@ -84,7 +88,7 @@ public class ShadowPowerManagerTest {
     ShadowPowerManager.reset();
     assertThat(ShadowPowerManager.getLatestWakeLock()).isNull();
 
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TAG");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TAG");
     lock.acquire();
 
     assertThat(ShadowPowerManager.getLatestWakeLock()).isNotNull();
@@ -103,18 +107,18 @@ public class ShadowPowerManagerTest {
 
   @Test
   public void newWakeLock_shouldCreateWakeLock() {
-    assertThat(powerManager.newWakeLock(0, "TAG")).isNotNull();
+    assertThat(powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TAG")).isNotNull();
   }
 
   @Test
   public void newWakeLock_shouldSetWakeLockTag() {
-    PowerManager.WakeLock wakeLock = powerManager.newWakeLock(0, "FOO");
+    PowerManager.WakeLock wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "FOO");
     assertThat(shadowOf(wakeLock).getTag()).isEqualTo("FOO");
   }
 
   @Test
   public void newWakeLock_shouldAcquireAndReleaseNonReferenceCountedLock() {
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TAG");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TAG");
     lock.setReferenceCounted(false);
 
     assertThat(lock.isHeld()).isFalse();
@@ -130,7 +134,7 @@ public class ShadowPowerManagerTest {
 
   @Test
   public void newWakeLock_shouldThrowRuntimeExceptionIfLockIsUnderlocked() {
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TAG");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TAG");
     try {
       lock.release();
       fail();
@@ -152,7 +156,7 @@ public class ShadowPowerManagerTest {
 
   @Test
   public void isReferenceCounted_shouldGetAndSet() {
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TAG");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TAG");
     assertThat(shadowOf(lock).isReferenceCounted()).isTrue();
     lock.setReferenceCounted(false);
     assertThat(shadowOf(lock).isReferenceCounted()).isFalse();
@@ -225,7 +229,7 @@ public class ShadowPowerManagerTest {
 
   @Test
   public void workSource_shouldGetAndSet() {
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TAG");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TAG");
     WorkSource workSource = new WorkSource();
     assertThat(shadowOf(lock).getWorkSource()).isNull();
     lock.setWorkSource(workSource);
@@ -251,6 +255,16 @@ public class ShadowPowerManagerTest {
     assertThat(powerManager.isDeviceIdleMode()).isTrue();
     shadowOf(powerManager).setIsDeviceIdleMode(false);
     assertThat(powerManager.isDeviceIdleMode()).isFalse();
+  }
+
+  @Test
+  @Config(minSdk = M)
+  public void setIsDeviceIdleMode_broadcastsChange() {
+    shadowOf(powerManager).setIsDeviceIdleMode(true);
+    assertThat(shadowOf(context).getBroadcastIntents())
+        .comparingElementsUsing(Correspondence.from(Intent::filterEquals, "is filterEqual to"))
+        .contains(new Intent(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED));
+    shadowOf(context).clearBroadcastIntents();
   }
 
   @Test
@@ -280,7 +294,7 @@ public class ShadowPowerManagerTest {
 
   @Test
   public void acquire_shouldIncreaseTimesHeld() {
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TAG");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TAG");
 
     assertThat(shadowOf(lock).getTimesHeld()).isEqualTo(0);
 
@@ -293,7 +307,7 @@ public class ShadowPowerManagerTest {
 
   @Test
   public void release_shouldNotDecreaseTimesHeld() {
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TAG");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TAG");
     lock.acquire();
     lock.acquire();
 
@@ -460,7 +474,7 @@ public class ShadowPowerManagerTest {
 
   @Test
   public void releaseWithFlags() {
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TAG");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TAG");
     lock.acquire();
 
     lock.release(PowerManager.RELEASE_FLAG_WAIT_FOR_NO_PROXIMITY);
@@ -470,7 +484,7 @@ public class ShadowPowerManagerTest {
 
   @Test
   public void release() {
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TAG");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TAG");
     lock.acquire();
 
     lock.release();
@@ -524,7 +538,7 @@ public class ShadowPowerManagerTest {
 
   @Test
   public void isHeld_neverAcquired_returnsFalse() {
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TIMEOUT");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TIMEOUT");
     lock.setReferenceCounted(false);
 
     assertThat(lock.isHeld()).isFalse();
@@ -532,7 +546,7 @@ public class ShadowPowerManagerTest {
 
   @Test
   public void isHeld_wakeLockTimeout_returnsFalse() {
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TIMEOUT");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TIMEOUT");
     lock.setReferenceCounted(false);
 
     lock.acquire(100);
@@ -543,7 +557,7 @@ public class ShadowPowerManagerTest {
 
   @Test
   public void isHeld_wakeLockJustTimeout_returnsTrue() {
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TIMEOUT");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TIMEOUT");
     lock.setReferenceCounted(false);
 
     lock.acquire(100);
@@ -554,7 +568,7 @@ public class ShadowPowerManagerTest {
 
   @Test
   public void isHeld_wakeLockNotTimeout_returnsTrue() {
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TIMEOUT");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TIMEOUT");
     lock.setReferenceCounted(false);
 
     lock.acquire(100);
@@ -565,7 +579,7 @@ public class ShadowPowerManagerTest {
 
   @Test
   public void isHeld_unlimitedWakeLockAcquired_returnsTrue() {
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TIMEOUT");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TIMEOUT");
     lock.setReferenceCounted(false);
 
     lock.acquire();
@@ -576,7 +590,7 @@ public class ShadowPowerManagerTest {
 
   @Test
   public void release_isRefCounted_dequeueTheSmallestTimeoutLock() {
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TIMEOUT");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TIMEOUT");
 
     // There are 2 wake lock acquires when calling release(). The wake lock with the smallest
     // timeout timestamp is release first.
@@ -590,7 +604,7 @@ public class ShadowPowerManagerTest {
 
   @Test
   public void release_isRefCounted_dequeueTimeoutLockBeforeUnlimited() {
-    PowerManager.WakeLock lock = powerManager.newWakeLock(0, "TIMEOUT");
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TIMEOUT");
 
     // There are 2 wake lock acquires when calling release(). The lock with timeout 100ms will be
     // released first.
@@ -729,5 +743,40 @@ public class ShadowPowerManagerTest {
     lock.acquire();
     lock.release();
     assertThat(shadowLock.isAcquired()).isFalse();
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void powerManager_activityContextEnabled_checkIsInteractive() {
+    String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
+    System.setProperty("robolectric.createActivityContexts", "true");
+    try (ActivityController<Activity> controller =
+        Robolectric.buildActivity(Activity.class).setup()) {
+      PowerManager applicationPowerManager =
+          (PowerManager)
+              ApplicationProvider.getApplicationContext().getSystemService(Context.POWER_SERVICE);
+      Activity activity = controller.get();
+      PowerManager activityPowerManager =
+          (PowerManager) activity.getSystemService(Context.POWER_SERVICE);
+
+      assertThat(applicationPowerManager).isNotSameInstanceAs(activityPowerManager);
+
+      boolean applicationIsInteractive = applicationPowerManager.isInteractive();
+      boolean activityIsInteractive = activityPowerManager.isInteractive();
+
+      assertThat(activityIsInteractive).isEqualTo(applicationIsInteractive);
+    } finally {
+      System.setProperty("robolectric.createActivityContexts", originalProperty);
+    }
+  }
+
+  @Test
+  public void toString_shouldWork() {
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TAG");
+    assertThat(lock.toString()).contains("held=false");
+    lock.acquire();
+    assertThat(lock.toString()).contains("held=true");
+    lock.release();
+    assertThat(lock.toString()).contains("held=false");
   }
 }

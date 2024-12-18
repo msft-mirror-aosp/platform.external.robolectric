@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.jar.JarFile;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import javax.annotation.Nullable;
 
@@ -53,6 +54,7 @@ import javax.annotation.Nullable;
  */
 public final class AndroidVersions {
 
+  @SuppressWarnings("FieldMayBeFinal") // The value is changed via reflection in tests
   private static boolean warnOnly;
 
   private AndroidVersions() {}
@@ -88,17 +90,10 @@ public final class AndroidVersions {
      *
      * @param other the object to be compared.
      * @return 1 if this is greater than other, 0 if equal, -1 if less
-     * @throws IllegalStateException if other is not an instance of AndroidRelease.
+     * @throws NullPointerException if other is null.
      */
     @Override
     public int compareTo(AndroidRelease other) {
-      if (other == null) {
-        throw new IllegalStateException(
-            "Only "
-                + AndroidVersions.class.getName()
-                + " should define Releases, illegal class "
-                + other.getClass());
-      }
       return Integer.compare(this.getSdkInt(), other.getSdkInt());
     }
 
@@ -405,9 +400,9 @@ public final class AndroidVersions {
   }
 
   /**
-   * Release: 7.1 <br>
+   * Version: 7.1 <br>
    * ShortCode: NMR1 <br>
-   * SDK Framework: 25 <br>
+   * SDK API Level: 25 <br>
    * release: true <br>
    */
   public static final class NMR1 extends AndroidReleased {
@@ -435,7 +430,7 @@ public final class AndroidVersions {
   }
 
   /**
-   * Release: 8.0 <br>
+   * Version: 8.0 <br>
    * ShortCode: O <br>
    * SDK API Level: 26 <br>
    * release: true <br>
@@ -465,7 +460,7 @@ public final class AndroidVersions {
   }
 
   /**
-   * Release: 8.1 <br>
+   * Version: 8.1 <br>
    * ShortCode: OMR1 <br>
    * SDK API Level: 27 <br>
    * release: true <br>
@@ -495,7 +490,7 @@ public final class AndroidVersions {
   }
 
   /**
-   * Release: 9.0 <br>
+   * Version: 9 <br>
    * ShortCode: P <br>
    * SDK API Level: 28 <br>
    * release: true <br>
@@ -506,7 +501,7 @@ public final class AndroidVersions {
 
     public static final String SHORT_CODE = "P";
 
-    public static final String VERSION = "9.0";
+    public static final String VERSION = "9";
 
     @Override
     public int getSdkInt() {
@@ -525,7 +520,7 @@ public final class AndroidVersions {
   }
 
   /**
-   * Release: 10.0 <br>
+   * Version: 10 <br>
    * ShortCode: Q <br>
    * SDK API Level: 29 <br>
    * release: true <br>
@@ -536,7 +531,7 @@ public final class AndroidVersions {
 
     public static final String SHORT_CODE = "Q";
 
-    public static final String VERSION = "10.0";
+    public static final String VERSION = "10";
 
     @Override
     public int getSdkInt() {
@@ -555,7 +550,7 @@ public final class AndroidVersions {
   }
 
   /**
-   * Release: 11.0 <br>
+   * Version: 11 <br>
    * ShortCode: R <br>
    * SDK API Level: 30 <br>
    * release: true <br>
@@ -566,7 +561,7 @@ public final class AndroidVersions {
 
     public static final String SHORT_CODE = "R";
 
-    public static final String VERSION = "11.0";
+    public static final String VERSION = "11";
 
     @Override
     public int getSdkInt() {
@@ -585,7 +580,7 @@ public final class AndroidVersions {
   }
 
   /**
-   * Release: 12.0 <br>
+   * Version: 12 <br>
    * ShortCode: S <br>
    * SDK API Level: 31 <br>
    * release: true <br>
@@ -596,7 +591,7 @@ public final class AndroidVersions {
 
     public static final String SHORT_CODE = "S";
 
-    public static final String VERSION = "12.0";
+    public static final String VERSION = "12";
 
     @Override
     public int getSdkInt() {
@@ -615,7 +610,7 @@ public final class AndroidVersions {
   }
 
   /**
-   * Release: 12.1 <br>
+   * Version: 12.1 <br>
    * ShortCode: Sv2 <br>
    * SDK API Level: 32 <br>
    * release: true <br>
@@ -646,7 +641,7 @@ public final class AndroidVersions {
   }
 
   /**
-   * Release: 13.0 <br>
+   * Version: 13 <br>
    * ShortCode: T <br>
    * SDK API Level: 33 <br>
    * release: true <br>
@@ -657,7 +652,7 @@ public final class AndroidVersions {
 
     public static final String SHORT_CODE = "T";
 
-    public static final String VERSION = "13.0";
+    public static final String VERSION = "13";
 
     @Override
     public int getSdkInt() {
@@ -676,7 +671,7 @@ public final class AndroidVersions {
   }
 
   /**
-   * Potential Release: 14.0 <br>
+   * Version: 14 <br>
    * ShortCode: U <br>
    * SDK API Level: 34 <br>
    * release: false <br>
@@ -687,7 +682,7 @@ public final class AndroidVersions {
 
     public static final String SHORT_CODE = "U";
 
-    public static final String VERSION = "14.0";
+    public static final String VERSION = "14";
 
     @Override
     public int getSdkInt() {
@@ -706,18 +701,47 @@ public final class AndroidVersions {
   }
 
   /**
-   * Potential Release: 15.0 <br>
+   * Version: 15 <br>
    * ShortCode: V <br>
-   * SDK API Level: 34+ <br>
-   * release: false <br>
+   * SDK API Level: 35 <br>
+   * release: true <br>
    */
-  public static final class V extends AndroidUnreleased {
+  public static final class V extends AndroidReleased {
 
     public static final int SDK_INT = 35;
 
     public static final String SHORT_CODE = "V";
 
     public static final String VERSION = "15";
+
+    @Override
+    public int getSdkInt() {
+      return SDK_INT;
+    }
+
+    @Override
+    public String getShortCode() {
+      return SHORT_CODE;
+    }
+
+    @Override
+    public String getVersion() {
+      return VERSION;
+    }
+  }
+
+  /**
+   * Baklava is an InDevelopment SDK after V, the name scheme has wrapped the alphabet.
+   *
+   * <p>All values here subject to change.
+   */
+  public static final class Baklava extends AndroidUnreleased {
+
+    public static final int SDK_INT = 36;
+
+    public static final String SHORT_CODE = "Baklava";
+
+    public static final String VERSION = "16";
 
     @Override
     public int getSdkInt() {
@@ -748,23 +772,11 @@ public final class AndroidVersions {
   }
 
   public static List<AndroidRelease> getReleases() {
-    List<AndroidRelease> output = new ArrayList<>();
-    for (AndroidRelease release : information.allReleases) {
-      if (release.isReleased()) {
-        output.add(release);
-      }
-    }
-    return output;
+    return information.released;
   }
 
   public static List<AndroidRelease> getUnreleased() {
-    List<AndroidRelease> output = new ArrayList<>();
-    for (AndroidRelease release : information.allReleases) {
-      if (!release.isReleased()) {
-        output.add(release);
-      }
-    }
-    return output;
+    return information.unreleased;
   }
 
   /**
@@ -776,6 +788,8 @@ public final class AndroidVersions {
     final List<Class<? extends AndroidRelease>> classesWithIllegalNames;
     final AndroidRelease latestRelease;
     final AndroidRelease earliestUnreleased;
+    final List<AndroidRelease> unreleased;
+    final List<AndroidRelease> released;
 
     // In the future we may need a multimap for sdkInts should they stay static across releases.
     final Map<Integer, AndroidRelease> sdkIntToAllReleases = new HashMap<>();
@@ -794,17 +808,27 @@ public final class AndroidVersions {
       AndroidRelease earliestUnreleased = null;
       for (AndroidRelease release : allReleases) {
         if (release.isReleased()) {
-          if (latestRelease == null || latestRelease.compareTo(release) > 0) {
+          if (latestRelease == null || release.compareTo(latestRelease) > 0) {
             latestRelease = release;
           }
         } else {
-          if (earliestUnreleased == null || earliestUnreleased.compareTo(release) < 0) {
+          if (earliestUnreleased == null || release.compareTo(earliestUnreleased) < 0) {
             earliestUnreleased = release;
           }
         }
       }
       this.latestRelease = latestRelease;
       this.earliestUnreleased = earliestUnreleased;
+      this.unreleased =
+          allReleases.stream()
+              .filter(r -> !r.isReleased())
+              .sorted()
+              .collect(Collectors.toUnmodifiableList());
+      this.released =
+          allReleases.stream()
+              .filter(AndroidRelease::isReleased)
+              .sorted()
+              .collect(Collectors.toUnmodifiableList());
       verifyStaticInformation();
     }
 
@@ -922,7 +946,7 @@ public final class AndroidVersions {
             current = shortCodeToAllReleases.get(codename);
             // else, assume the fullname is the first letter is correct.
             if (current == null) {
-              current = shortCodeToAllReleases.get(String.valueOf(foundCode));
+              current = shortCodeToAllReleases.get(foundCode);
             }
           }
           if (current == null) {
@@ -933,11 +957,23 @@ public final class AndroidVersions {
                 .append(codename)
                 .append("\"\n");
           } else if (current.isReleased()) {
-            detectedProblems
+            StringBuilder problem = new StringBuilder();
+            problem
                 .append("The current sdk ")
                 .append(current.getShortCode())
                 .append(" has been been marked as released. Please update the ")
                 .append("contents of current sdk jar to the released version.\n");
+            if (current.getSdkInt() < latestRelease.getSdkInt()) {
+              // If the current sdk is lower than the latest release it should never be reported as
+              // unreleased.
+              detectedProblems.append(problem);
+            } else {
+              // If the current sdk is the latest release and it is reporting itself as unreleased
+              //  we simply log as this will occur when android build devs have not yet updated the
+              // branch's build definitions.  (git/main and aosp/main still claim to be the
+              // unreleased version of the latest release)
+              System.err.println(problem);
+            }
           }
           if (detectedProblems.length() > 0) {
             errorMessage(detectedProblems.toString(), null);
@@ -1038,7 +1074,7 @@ public final class AndroidVersions {
 
   private static final SdkInformation information;
 
-  private static final void errorMessage(String errorMessage, @Nullable Exception ex) {
+  private static void errorMessage(String errorMessage, @Nullable Exception ex) {
     if (warnOnly) {
       System.err.println(errorMessage);
     } else {

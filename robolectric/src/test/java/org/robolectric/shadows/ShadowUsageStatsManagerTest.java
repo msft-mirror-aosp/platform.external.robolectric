@@ -9,15 +9,19 @@ import static com.google.common.truth.Truth.assertThat;
 import static java.util.concurrent.TimeUnit.HOURS;
 import static org.robolectric.Shadows.shadowOf;
 
+import android.app.Activity;
 import android.app.Application;
 import android.app.PendingIntent;
 import android.app.usage.BroadcastResponseStats;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageEvents.Event;
+import android.app.usage.UsageEventsQuery;
 import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.os.PersistableBundle;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import com.google.common.collect.ImmutableList;
@@ -29,11 +33,14 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.Robolectric;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowUsageStatsManager.AppUsageLimitObserver;
 import org.robolectric.shadows.ShadowUsageStatsManager.AppUsageObserver;
 import org.robolectric.shadows.ShadowUsageStatsManager.UsageSessionObserver;
 import org.robolectric.shadows.ShadowUsageStatsManager.UsageStatsBuilder;
+import org.robolectric.versioning.AndroidVersions.V;
 
 /** Test for {@link ShadowUsageStatsManager}. */
 @RunWith(AndroidJUnit4.class)
@@ -1029,5 +1036,108 @@ public class ShadowUsageStatsManagerTest {
 
     assertThat(usageStatsManager.queryBroadcastResponseStats(null, BUCKET_ID_1))
         .containsExactly(app1Stats, app2Stats);
+  }
+
+  @Test
+  @Config(minSdk = 28)
+  public void usageStatsManager_activityContextEnabled_differentInstancesRetrieveBuckets() {
+    String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
+    System.setProperty("robolectric.createActivityContexts", "true");
+    try (ActivityController<Activity> controller =
+        Robolectric.buildActivity(Activity.class).setup()) {
+      UsageStatsManager applicationUsageStatsManager =
+          (UsageStatsManager)
+              ApplicationProvider.getApplicationContext()
+                  .getSystemService(Context.USAGE_STATS_SERVICE);
+
+      Activity activity = controller.get();
+      UsageStatsManager activityUsageStatsManager =
+          (UsageStatsManager) activity.getSystemService(Context.USAGE_STATS_SERVICE);
+
+      assertThat(applicationUsageStatsManager).isNotSameInstanceAs(activityUsageStatsManager);
+
+      int applicationBucket = applicationUsageStatsManager.getAppStandbyBucket();
+      int activityBucket = activityUsageStatsManager.getAppStandbyBucket();
+
+      assertThat(applicationBucket).isEqualTo(activityBucket);
+    } finally {
+      System.setProperty("robolectric.createActivityContexts", originalProperty);
+    }
+  }
+
+  @Test
+  @Config(minSdk = V.SDK_INT)
+  public void testQueryEvents_newApiV_shouldReturn() throws Exception {
+    // These events should be returned.
+    shadowOf(usageStatsManager)
+        .addEvent(
+            ShadowUsageStatsManager.EventBuilder.buildEvent()
+                .setTimeStamp(1000L)
+                .setPackage(TEST_PACKAGE_NAME1)
+                .setEventType(Event.MOVE_TO_BACKGROUND)
+                .build());
+    shadowOf(usageStatsManager)
+        .addEvent(
+            ShadowUsageStatsManager.EventBuilder.buildEvent()
+                .setTimeStamp(1001L)
+                .setPackage(TEST_PACKAGE_NAME1)
+                .setEventType(Event.MOVE_TO_FOREGROUND)
+                .build());
+    PersistableBundle extras = new PersistableBundle();
+    extras.putString("fakekey", "fakevalue");
+    shadowOf(usageStatsManager)
+        .addEvent(
+            ShadowUsageStatsManager.EventBuilder.buildEvent()
+                .setTimeStamp(1500L)
+                .setPackage(TEST_PACKAGE_NAME2)
+                .setEventType(Event.USER_INTERACTION)
+                .setExtras(extras)
+                .build());
+
+    // These events should be filtered out.
+    // Timestamp too late.
+    shadowOf(usageStatsManager)
+        .addEvent(
+            ShadowUsageStatsManager.EventBuilder.buildEvent()
+                .setTimeStamp(3000L)
+                .setPackage(TEST_PACKAGE_NAME1)
+                .setEventType(Event.USER_INTERACTION)
+                .build());
+    // Wrong type.
+    shadowOf(usageStatsManager)
+        .addEvent(
+            ShadowUsageStatsManager.EventBuilder.buildEvent()
+                .setTimeStamp(1000L)
+                .setEventType(Event.SYSTEM_INTERACTION)
+                .build());
+
+    UsageEventsQuery.Builder queryBuilder = new UsageEventsQuery.Builder(1000L, 2000L);
+    queryBuilder.setEventTypes(
+        Event.MOVE_TO_BACKGROUND, Event.MOVE_TO_FOREGROUND, Event.USER_INTERACTION);
+    UsageEvents events = usageStatsManager.queryEvents(queryBuilder.build());
+
+    Event event = new Event();
+
+    assertThat(events.hasNextEvent()).isTrue();
+    assertThat(events.getNextEvent(event)).isTrue();
+    assertThat(event.getPackageName()).isEqualTo(TEST_PACKAGE_NAME1);
+    assertThat(event.getTimeStamp()).isEqualTo(1000L);
+    assertThat(event.getEventType()).isEqualTo(Event.MOVE_TO_BACKGROUND);
+
+    assertThat(events.hasNextEvent()).isTrue();
+    assertThat(events.getNextEvent(event)).isTrue();
+    assertThat(event.getPackageName()).isEqualTo(TEST_PACKAGE_NAME1);
+    assertThat(event.getTimeStamp()).isEqualTo(1001L);
+    assertThat(event.getEventType()).isEqualTo(Event.MOVE_TO_FOREGROUND);
+
+    assertThat(events.hasNextEvent()).isTrue();
+    assertThat(events.getNextEvent(event)).isTrue();
+    assertThat(event.getPackageName()).isEqualTo(TEST_PACKAGE_NAME2);
+    assertThat(event.getTimeStamp()).isEqualTo(1500L);
+    assertThat(event.getEventType()).isEqualTo(Event.USER_INTERACTION);
+    extras = event.getExtras();
+    assertThat(extras.getString("fakekey")).isEqualTo("fakevalue");
+
+    assertThat(events.hasNextEvent()).isFalse();
   }
 }

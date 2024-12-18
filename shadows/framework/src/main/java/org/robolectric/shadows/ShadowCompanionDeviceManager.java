@@ -5,7 +5,6 @@ import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toList;
 
 import android.Manifest.permission;
-import android.annotation.Nullable;
 import android.app.ActivityThread;
 import android.companion.AssociationInfo;
 import android.companion.AssociationRequest;
@@ -23,6 +22,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Executor;
+import javax.annotation.Nullable;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
@@ -34,13 +34,13 @@ import org.robolectric.util.ReflectionHelpers.ClassParameter;
 @Implements(value = CompanionDeviceManager.class, minSdk = VERSION_CODES.O)
 public class ShadowCompanionDeviceManager {
 
-  protected final Set<RoboAssociationInfo> associations = new HashSet<>();
-  protected final Set<ComponentName> hasNotificationAccess = new HashSet<>();
-  protected ComponentName lastRequestedNotificationAccess;
-  protected AssociationRequest lastAssociationRequest;
-  protected MacAddress lastSystemApiAssociationMacAddress;
-  protected CompanionDeviceManager.Callback lastAssociationCallback;
-  protected String lastObservingDevicePresenceDeviceAddress;
+  private final Set<RoboAssociationInfo> associations = new HashSet<>();
+  private final Set<ComponentName> hasNotificationAccess = new HashSet<>();
+  private ComponentName lastRequestedNotificationAccess;
+  private AssociationRequest lastAssociationRequest;
+  private MacAddress lastSystemApiAssociationMacAddress;
+  private CompanionDeviceManager.Callback lastAssociationCallback;
+  private String lastObservingDevicePresenceDeviceAddress;
 
   private static final int DEFAULT_SYSTEMDATASYNCFLAGS = -1;
 

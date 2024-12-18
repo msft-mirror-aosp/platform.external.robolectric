@@ -17,6 +17,25 @@ import org.robolectric.util.ReflectionHelpers.ClassParameter;
 public class ReflectionHelpersTest {
 
   @Test
+  public void hasConstructor() {
+    assertThat(ReflectionHelpers.hasConstructor(ExampleClass.class, String.class)).isTrue();
+    assertThat(ReflectionHelpers.hasConstructor(ExampleClass.class, int.class)).isTrue();
+    assertThat(ReflectionHelpers.hasConstructor(ExampleClass.class, int.class, int.class))
+        .isFalse();
+    assertThat(ReflectionHelpers.hasConstructor(ExampleClass.class, double.class)).isFalse();
+    assertThat(ReflectionHelpers.hasConstructor(ExampleClass.class, Object.class)).isFalse();
+  }
+
+  @Test
+  public void hasMethod() {
+    assertThat(ReflectionHelpers.hasMethod(ExampleClass.class, "setName", String.class)).isTrue();
+    assertThat(ReflectionHelpers.hasMethod(ExampleClass.class, "setName", Integer.class)).isFalse();
+    assertThat(ReflectionHelpers.hasMethod(ExampleClass.class, "setFoo", String.class)).isFalse();
+    assertThat(ReflectionHelpers.hasMethod(ExampleClass.class, "getName")).isTrue();
+    assertThat(ReflectionHelpers.hasMethod(ExampleClass.class, "getName", Integer.class)).isFalse();
+  }
+
+  @Test
   public void getFieldReflectively_getsPrivateFields() {
     ExampleDescendant example = new ExampleDescendant();
     example.overridden = 5;
@@ -469,6 +488,14 @@ public class ReflectionHelpersTest {
 
     private ExampleClass(int index) {
       this.index = index;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
     }
   }
 

@@ -8,6 +8,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.robolectric.Shadows.shadowOf;
 
 import android.accessibilityservice.AccessibilityServiceInfo;
+import android.app.Activity;
 import android.content.Context;
 import android.content.pm.ServiceInfo;
 import android.view.accessibility.AccessibilityEvent;
@@ -21,6 +22,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.Robolectric;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.util.ReflectionHelpers;
 
@@ -265,5 +268,33 @@ public class ShadowAccessibilityManagerTest {
             accessibilityManager.getEnabledAccessibilityServiceList(
                 AccessibilityServiceInfo.FEEDBACK_SPOKEN))
         .isEmpty();
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void accessibilityManager_activityContextEnabled_differentInstancesHaveSameServices() {
+    String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
+    System.setProperty("robolectric.createActivityContexts", "true");
+    try (ActivityController<Activity> controller =
+        Robolectric.buildActivity(Activity.class).setup()) {
+      AccessibilityManager applicationAccessibilityManager =
+          (AccessibilityManager)
+              ApplicationProvider.getApplicationContext()
+                  .getSystemService(Context.ACCESSIBILITY_SERVICE);
+      Activity activity = controller.get();
+      AccessibilityManager activityAccessibilityManager =
+          (AccessibilityManager) activity.getSystemService(Context.ACCESSIBILITY_SERVICE);
+
+      assertThat(applicationAccessibilityManager).isSameInstanceAs(activityAccessibilityManager);
+
+      List<AccessibilityServiceInfo> applicationServices =
+          applicationAccessibilityManager.getInstalledAccessibilityServiceList();
+      List<AccessibilityServiceInfo> activityServices =
+          activityAccessibilityManager.getInstalledAccessibilityServiceList();
+
+      assertThat(activityServices).isEqualTo(applicationServices);
+    } finally {
+      System.setProperty("robolectric.createActivityContexts", originalProperty);
+    }
   }
 }
