@@ -2,7 +2,6 @@ package org.robolectric.shadows;
 
 import static android.os.Build.VERSION_CODES.P;
 
-import android.annotation.NonNull;
 import android.app.slice.SliceManager;
 import android.app.slice.SliceSpec;
 import android.content.Context;
@@ -17,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nonnull;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.Resetter;
@@ -27,7 +27,7 @@ public class ShadowSliceManager {
 
   private static final Map<Integer, Collection<Uri>> packageUidsToPermissionGrantedSliceUris =
       new HashMap<>();
-  private final Map<Uri, Set<SliceSpec>> pinnedUriMap = new HashMap<>();
+  private static final Map<Uri, Set<SliceSpec>> pinnedUriMap = new HashMap<>();
   private Context context;
 
   @Implementation
@@ -76,17 +76,17 @@ public class ShadowSliceManager {
   }
 
   @Implementation
-  protected void pinSlice(@NonNull Uri uri, @NonNull Set<SliceSpec> specs) {
+  protected void pinSlice(@Nonnull Uri uri, @Nonnull Set<SliceSpec> specs) {
     pinnedUriMap.put(uri, specs);
   }
 
   @Implementation
-  protected void unpinSlice(@NonNull Uri uri) {
+  protected void unpinSlice(@Nonnull Uri uri) {
     pinnedUriMap.remove(uri);
   }
 
   @Implementation
-  @NonNull
+  @Nonnull
   protected Set<SliceSpec> getPinnedSpecs(Uri uri) {
     if (pinnedUriMap.containsKey(uri)) {
       return pinnedUriMap.get(uri);
@@ -107,5 +107,6 @@ public class ShadowSliceManager {
   @Resetter
   public static synchronized void reset() {
     packageUidsToPermissionGrantedSliceUris.clear();
+    pinnedUriMap.clear();
   }
 }

@@ -2,6 +2,7 @@ package org.robolectric;
 
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,8 +15,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.ServiceLoader;
 import javax.annotation.Nonnull;
 import javax.annotation.Priority;
+import org.junit.runner.notification.RunListener;
+import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.InitializationError;
 import org.junit.runners.model.Statement;
@@ -62,8 +66,10 @@ import org.robolectric.util.inject.Injector;
 public class RobolectricTestRunner extends SandboxTestRunner {
 
   public static final String CONFIG_PROPERTIES = "robolectric.properties";
+  private static final int MAX_DATA_DIR_NAME_LENGTH = 120;
   private static final Injector DEFAULT_INJECTOR = defaultInjector().build();
   private static final Map<ManifestIdentifier, AndroidManifest> appManifestsCache = new HashMap<>();
+  private static final ImmutableList<RunListener> RUN_LISTENERS = loadRunListeners();
 
   static {
     // This starts up the Poller SunPKCS11-Darwin thread early, outside of any Robolectric
@@ -75,6 +81,22 @@ public class RobolectricTestRunner extends SandboxTestRunner {
     // validation introduced in Bouncy Castle 1.71.
     // https://github.com/bcgit/bc-java/issues/1144
     System.setProperty("org.bouncycastle.rsa.max_mr_tests", "0");
+  }
+
+  protected static ImmutableList<RunListener> loadRunListeners() {
+    ServiceLoader<RunListener> sl =
+        ServiceLoader.load(RunListener.class, Thread.currentThread().getContextClassLoader());
+    List<RunListener> runListeners = sl.stream().map(ServiceLoader.Provider::get).toList();
+    for (RunListener listener : runListeners) {
+      if (!listener.getClass().getPackageName().startsWith("org.robolectric")) {
+        Logger.warn(
+            "Adding a non-robolectric maintained RunListener"
+                + " (via Plugins/ServiceLoader) can lead to instability, use at your own risk.\n"
+                + "Listener is question : "
+                + listener.getClass().getName());
+      }
+    }
+    return ImmutableList.copyOf(runListeners);
   }
 
   protected static Injector.Builder defaultInjector() {
@@ -112,6 +134,14 @@ public class RobolectricTestRunner extends SandboxTestRunner {
     this.sdkPicker = injector.getInstance(SdkPicker.class);
     this.configurationStrategy = injector.getInstance(ConfigurationStrategy.class);
     this.androidConfigurer = injector.getInstance(AndroidConfigurer.class);
+  }
+
+  @Override
+  public void run(RunNotifier notifier) {
+    for (RunListener listener : RobolectricTestRunner.RUN_LISTENERS) {
+      notifier.addListener(listener);
+    }
+    super.run(notifier);
   }
 
   /**
@@ -277,11 +307,24 @@ public class RobolectricTestRunner extends SandboxTestRunner {
 
     AndroidManifest appManifest = roboMethod.getAppManifest();
 
+    String tmpDirName = getTempDirName(bootstrappedMethod);
     roboMethod
         .getTestEnvironment()
-        .setUpApplicationState(bootstrappedMethod, roboMethod.getConfiguration(), appManifest);
+        .setUpApplicationState(tmpDirName, roboMethod.getConfiguration(), appManifest);
 
     roboMethod.testLifecycle.beforeTest(bootstrappedMethod);
+  }
+
+  /** Returns a filesystem-safe directory path name for the current test. */
+  private String getTempDirName(Method method) {
+    // Cap the size to 120 to avoid unnecessarily long directory names.
+    String directoryName =
+        (method.getDeclaringClass().getSimpleName() + "_" + method.getName())
+            .replaceAll("[^a-zA-Z0-9.-]", "_");
+    if (directoryName.length() > MAX_DATA_DIR_NAME_LENGTH) {
+      directoryName = directoryName.substring(0, MAX_DATA_DIR_NAME_LENGTH);
+    }
+    return directoryName;
   }
 
   @Override

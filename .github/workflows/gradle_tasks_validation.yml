@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   run_aggregateDocs:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
           distribution: 'adopt'
           java-version: 17
 
-      - uses: gradle/actions/setup-gradle@v3
+      - uses: gradle/actions/setup-gradle@v4
 
       - name: Run aggregateDocs
         run: ./gradlew clean aggregateDocs
@@ -43,7 +43,7 @@ jobs:
           path: build/docs
 
   run_javadocJar:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -54,14 +54,14 @@ jobs:
           distribution: 'adopt'
           java-version: 17
 
-      - uses: gradle/actions/setup-gradle@v3
+      - uses: gradle/actions/setup-gradle@v4
 
       - name: Run javadocJar
         run: ./gradlew clean javadocJar
 
 
   run_instrumentAll:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -72,7 +72,7 @@ jobs:
           distribution: 'adopt'
           java-version: 17
 
-      - uses: gradle/actions/setup-gradle@v3
+      - uses: gradle/actions/setup-gradle@v4
 
       - name: Run :preinstrumented:instrumentAll
         run: ./gradlew :preinstrumented:instrumentAll
@@ -84,7 +84,7 @@ jobs:
         run: PREINSTRUMENTED_SDK_VERSIONS=33 PUBLISH_PREINSTRUMENTED_JARS=true ./gradlew :preinstrumented:publishToMavenLocal
 
   run_publishToMavenLocal:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -95,7 +95,7 @@ jobs:
           distribution: 'adopt'
           java-version: 17
 
-      - uses: gradle/actions/setup-gradle@v3
+      - uses: gradle/actions/setup-gradle@v4
 
       - name: Publish to Maven local
-        run: ./gradlew publishToMavenLocal --no-watch-fs
+        run: ./gradlew publishToMavenLocal

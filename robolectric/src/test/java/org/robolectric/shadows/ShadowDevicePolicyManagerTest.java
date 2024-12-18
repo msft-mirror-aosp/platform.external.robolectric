@@ -34,9 +34,12 @@ import static org.junit.Assert.fail;
 import static org.robolectric.Shadows.shadowOf;
 
 import android.accounts.Account;
+import android.app.Activity;
 import android.app.Application;
 import android.app.KeyguardManager;
+import android.app.admin.DeviceAdminReceiver;
 import android.app.admin.DevicePolicyManager;
+import android.app.admin.SystemUpdateInfo;
 import android.app.admin.SystemUpdatePolicy;
 import android.content.ComponentName;
 import android.content.Context;
@@ -65,6 +68,8 @@ import java.util.Set;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.Robolectric;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
 
@@ -98,7 +103,7 @@ public final class ShadowDevicePolicyManagerTest {
 
   @Test
   public void isDeviceOwnerAppShouldReturnFalseForNonDeviceOwnerApp() {
-    // GIVEN an test package which is not the device owner app of the device
+    // GIVEN a test package which is not the device owner app of the device
     String testPackage = testComponent.getPackageName();
 
     // WHEN DevicePolicyManager#isDeviceOwnerApp is called with it
@@ -108,7 +113,7 @@ public final class ShadowDevicePolicyManagerTest {
 
   @Test
   public void isDeviceOwnerShouldReturnFalseForProfileOwner() {
-    // GIVEN an test package which is the profile owner app of the device
+    // GIVEN a test package which is the profile owner app of the device
     String testPackage = testComponent.getPackageName();
     shadowOf(devicePolicyManager).setProfileOwner(testComponent);
 
@@ -119,7 +124,7 @@ public final class ShadowDevicePolicyManagerTest {
 
   @Test
   public void isDeviceOwnerShouldReturnTrueForDeviceOwner() {
-    // GIVEN an test package which is the device owner app of the device
+    // GIVEN a test package which is the device owner app of the device
     String testPackage = testComponent.getPackageName();
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
 
@@ -130,7 +135,7 @@ public final class ShadowDevicePolicyManagerTest {
 
   @Test
   public void getDeviceOwnerShouldReturnDeviceOwnerPackageName() {
-    // GIVEN an test package which is the device owner app of the device
+    // GIVEN a test package which is the device owner app of the device
     String testPackage = testComponent.getPackageName();
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
 
@@ -167,7 +172,7 @@ public final class ShadowDevicePolicyManagerTest {
 
   @Test
   public void isProfileOwnerAppShouldReturnFalseForNonProfileOwnerApp() {
-    // GIVEN an test package which is not the profile owner app of the device
+    // GIVEN a test package which is not the profile owner app of the device
     String testPackage = testComponent.getPackageName();
 
     // WHEN DevicePolicyManager#isProfileOwnerApp is called with it
@@ -177,7 +182,7 @@ public final class ShadowDevicePolicyManagerTest {
 
   @Test
   public void isProfileOwnerShouldReturnFalseForDeviceOwner() {
-    // GIVEN an test package which is the device owner app of the device
+    // GIVEN a test package which is the device owner app of the device
     String testPackage = testComponent.getPackageName();
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
 
@@ -188,7 +193,7 @@ public final class ShadowDevicePolicyManagerTest {
 
   @Test
   public void isProfileOwnerShouldReturnTrueForProfileOwner() {
-    // GIVEN an test package which is the profile owner app of the device
+    // GIVEN a test package which is the profile owner app of the device
     String testPackage = testComponent.getPackageName();
     shadowOf(devicePolicyManager).setProfileOwner(testComponent);
 
@@ -199,7 +204,7 @@ public final class ShadowDevicePolicyManagerTest {
 
   @Test
   public void getProfileOwnerShouldReturnDeviceOwnerComponentName() {
-    // GIVEN an test package which is the profile owner app of the device
+    // GIVEN a test package which is the profile owner app of the device
     shadowOf(devicePolicyManager).setProfileOwner(testComponent);
 
     // WHEN DevicePolicyManager#getProfileOwner is called
@@ -281,7 +286,7 @@ public final class ShadowDevicePolicyManagerTest {
 
   @Test
   public void getActiveAdminsShouldReturnDeviceOwner() {
-    // GIVEN an test package which is the device owner app of the device
+    // GIVEN a test package which is the device owner app of the device
     shadowOf(devicePolicyManager).setDeviceOwner(testComponent);
 
     // WHEN DevicePolicyManager#getActiveAdmins is called
@@ -291,7 +296,7 @@ public final class ShadowDevicePolicyManagerTest {
 
   @Test
   public void getActiveAdminsShouldReturnProfileOwner() {
-    // GIVEN an test package which is the profile owner app of the device
+    // GIVEN a test package which is the profile owner app of the device
     shadowOf(devicePolicyManager).setProfileOwner(testComponent);
 
     // WHEN DevicePolicyManager#getActiveAdmins is called
@@ -2728,5 +2733,83 @@ public final class ShadowDevicePolicyManagerTest {
       @Override
       public void onServiceDisconnected(ComponentName name) {}
     };
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void devicePolicyManager_instance_retrievesSameAdminStatus() {
+    String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
+    System.setProperty("robolectric.createActivityContexts", "true");
+    try (ActivityController<Activity> controller =
+        Robolectric.buildActivity(Activity.class).setup()) {
+      DevicePolicyManager applicationDpm =
+          (DevicePolicyManager)
+              ApplicationProvider.getApplicationContext()
+                  .getSystemService(Context.DEVICE_POLICY_SERVICE);
+
+      Activity activity = controller.get();
+
+      DevicePolicyManager activityDpm =
+          (DevicePolicyManager) activity.getSystemService(Context.DEVICE_POLICY_SERVICE);
+
+      ComponentName testAdminComponent =
+          new ComponentName(ApplicationProvider.getApplicationContext(), DeviceAdminReceiver.class);
+
+      boolean applicationAdminActive = applicationDpm.isAdminActive(testAdminComponent);
+      boolean activityAdminActive = activityDpm.isAdminActive(testAdminComponent);
+
+      assertThat(activityAdminActive).isEqualTo(applicationAdminActive);
+    } finally {
+      System.setProperty("robolectric.createActivityContexts", originalProperty);
+    }
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void notifyPendingSystemUpdate_unknownSecurityStatus_setsPendingSystemUpdate() {
+    long updateTime = 123456L;
+
+    devicePolicyManager.notifyPendingSystemUpdate(updateTime);
+
+    SystemUpdateInfo systemUpdateInfo = devicePolicyManager.getPendingSystemUpdate(null);
+    assertThat(systemUpdateInfo.getReceivedTime()).isEqualTo(updateTime);
+    assertThat(systemUpdateInfo.getSecurityPatchState())
+        .isEqualTo(SystemUpdateInfo.SECURITY_PATCH_STATE_UNKNOWN);
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void notifyPendingSystemUpdate_securityPatch_setsPendingSystemUpdate() {
+    long updateTime = 123456L;
+
+    devicePolicyManager.notifyPendingSystemUpdate(updateTime, /* isSecurityPatch= */ true);
+
+    SystemUpdateInfo systemUpdateInfo = devicePolicyManager.getPendingSystemUpdate(null);
+    assertThat(systemUpdateInfo.getReceivedTime()).isEqualTo(updateTime);
+    assertThat(systemUpdateInfo.getSecurityPatchState())
+        .isEqualTo(SystemUpdateInfo.SECURITY_PATCH_STATE_TRUE);
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void notifyPendingSystemUpdate_notSecurityPatch_setsPendingSystemUpdate() {
+    long updateTime = 123456L;
+
+    devicePolicyManager.notifyPendingSystemUpdate(updateTime, /* isSecurityPatch= */ false);
+
+    SystemUpdateInfo systemUpdateInfo = devicePolicyManager.getPendingSystemUpdate(null);
+    assertThat(systemUpdateInfo.getReceivedTime()).isEqualTo(updateTime);
+    assertThat(systemUpdateInfo.getSecurityPatchState())
+        .isEqualTo(SystemUpdateInfo.SECURITY_PATCH_STATE_FALSE);
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void setPendingSystemUpdate_null_clearsPendingSystemUpdate() {
+    devicePolicyManager.notifyPendingSystemUpdate(123456L);
+
+    shadowOf(devicePolicyManager).setPendingSystemUpdate(null);
+
+    assertThat(devicePolicyManager.getPendingSystemUpdate(null)).isNull();
   }
 }

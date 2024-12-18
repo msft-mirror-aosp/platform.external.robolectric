@@ -2,8 +2,6 @@ package org.robolectric.shadows;
 
 import static org.robolectric.util.reflector.Reflector.reflector;
 
-import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.annotation.RequiresApi;
 import android.content.ComponentName;
 import android.content.Context;
@@ -22,6 +20,9 @@ import android.speech.SpeechRecognizer;
 import com.google.common.base.Preconditions;
 import java.util.Queue;
 import java.util.concurrent.Executor;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.robolectric.annotation.ClassName;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.InDevelopment;
@@ -35,7 +36,7 @@ import org.robolectric.util.reflector.Static;
 import org.robolectric.versioning.AndroidVersions.U;
 
 /** Robolectric shadow for SpeechRecognizer. */
-@Implements(value = SpeechRecognizer.class, looseSignatures = true)
+@Implements(value = SpeechRecognizer.class)
 public class ShadowSpeechRecognizer {
 
   @SuppressWarnings("NonFinalStaticField")
@@ -187,11 +188,9 @@ public class ShadowSpeechRecognizer {
   @RequiresApi(api = VERSION_CODES.TIRAMISU)
   @Implementation(minSdk = VERSION_CODES.TIRAMISU, maxSdk = U.SDK_INT)
   protected void checkRecognitionSupport(
-      @NonNull /*Intent*/ Object recognizerIntent,
-      @NonNull /*Executor*/ Object executor,
-      @NonNull /*RecognitionSupportCallback*/ Object supportListener) {
-    Preconditions.checkArgument(recognizerIntent instanceof Intent);
-    Preconditions.checkArgument(executor instanceof Executor);
+      @Nonnull Intent recognizerIntent,
+      @Nonnull Executor executor,
+      @Nonnull @ClassName("android.speech.RecognitionSupportCallback") Object supportListener) {
     Preconditions.checkArgument(supportListener instanceof RecognitionSupportCallback);
 
     ShadowSpeechRecognizerState shadowState = getState();

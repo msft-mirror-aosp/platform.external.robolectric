@@ -33,16 +33,16 @@ public class InstrumentationConfiguration {
 
   static final ImmutableSet<String> PACKAGES_TO_NEVER_ACQUIRE =
       ImmutableSet.of(
-          "com.sun",
-          "java",
-          "javax",
-          "jdk.internal",
-          "org.junit",
+          "com.sun.",
+          "java.",
+          "javax.",
+          "jdk.internal.",
+          "org.junit.",
           "org.robolectric.annotation.",
           "org.robolectric.internal.",
           "org.robolectric.pluginapi.",
           "org.robolectric.util.",
-          "sun");
+          "sun.");
 
   // Must always acquire these as they change from API level to API level
   static final ImmutableSet<String> RESOURCES_TO_ALWAYS_ACQUIRE =
@@ -148,10 +148,7 @@ public class InstrumentationConfiguration {
         return false;
       }
     }
-
-    // R classes must be loaded from system CP
-    boolean isRClass = name.matches(".*\\.R(|\\$[a-z]+)$");
-    return !isRClass && !classesToNotAcquire.contains(name);
+    return !classesToNotAcquire.contains(name);
   }
 
   /**
@@ -161,6 +158,12 @@ public class InstrumentationConfiguration {
    * @return True if the resource should be loaded.
    */
   public boolean shouldAcquireResource(String name) {
+    if (name.contains("android_runtime")) {
+      return true;
+    }
+    if (name.contains("icudt75l.dat")) {
+      return true;
+    }
     return RESOURCES_TO_ALWAYS_ACQUIRE.contains(name);
   }
 
@@ -333,7 +336,6 @@ public class InstrumentationConfiguration {
       return this;
     }
 
-    @SuppressWarnings("AndroidJdkLibsChecker")
     public InstrumentationConfiguration build() {
       // Remove redundant packages, e.g. remove 'android.os' if 'android.' is present.
       List<String> minimalPackages = new ArrayList<>(instrumentedPackages);

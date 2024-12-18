@@ -3,12 +3,14 @@ package org.robolectric.shadows;
 import static android.os.Build.VERSION_CODES.Q;
 import static java.time.ZoneOffset.UTC;
 import static org.robolectric.shadows.ShadowLooper.assertLooperMode;
+import static org.robolectric.shadows.ShadowLooper.looperMode;
 
 import android.os.SimpleClock;
 import android.os.SystemClock;
 import java.time.DateTimeException;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
+import org.robolectric.annotation.ClassName;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.LooperMode;
@@ -21,10 +23,7 @@ import org.robolectric.annotation.LooperMode.Mode;
  * LooperMode}. See {@link ShadowLegacySystemClock} and {@link ShadowPausedSystemClock} for more
  * details.
  */
-@Implements(
-    value = SystemClock.class,
-    shadowPicker = ShadowSystemClock.Picker.class,
-    looseSignatures = true)
+@Implements(value = SystemClock.class, shadowPicker = ShadowSystemClock.Picker.class)
 public abstract class ShadowSystemClock {
   protected static boolean networkTimeAvailable = true;
   private static boolean gnssTimeAvailable = true;
@@ -73,7 +72,7 @@ public abstract class ShadowSystemClock {
    * available.
    */
   public static void advanceBy(long time, TimeUnit unit) {
-    SystemClock.setCurrentTimeMillis(SystemClock.uptimeMillis() + unit.toMillis(time));
+    advanceBy(Duration.of(time, unit.toChronoUnit()));
   }
 
   /**
@@ -82,7 +81,11 @@ public abstract class ShadowSystemClock {
    * @param duration The interval by which to advance.
    */
   public static void advanceBy(Duration duration) {
-    SystemClock.setCurrentTimeMillis(SystemClock.uptimeMillis() + duration.toMillis());
+    if (looperMode() == Mode.LEGACY) {
+      SystemClock.setCurrentTimeMillis(SystemClock.uptimeMillis() + duration.toMillis());
+    } else {
+      ShadowPausedSystemClock.internalAdvanceBy(duration);
+    }
   }
 
   /**
@@ -98,7 +101,7 @@ public abstract class ShadowSystemClock {
   }
 
   @Implementation(minSdk = Q)
-  protected static Object currentGnssTimeClock() {
+  protected static @ClassName("java.time.Clock") Object currentGnssTimeClock() {
     if (gnssTimeAvailable) {
       return new SimpleClock(UTC) {
         @Override

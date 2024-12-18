@@ -5,6 +5,7 @@ import static android.os.Build.VERSION_CODES.TIRAMISU;
 import static com.google.common.truth.Truth.assertThat;
 import static org.robolectric.Shadows.shadowOf;
 
+import android.app.Activity;
 import android.content.Context;
 import android.os.Looper;
 import android.provider.Settings;
@@ -12,16 +13,18 @@ import android.provider.Settings.Secure;
 import android.view.accessibility.CaptioningManager;
 import android.view.accessibility.CaptioningManager.CaptionStyle;
 import android.view.accessibility.CaptioningManager.CaptioningChangeListener;
-import androidx.annotation.NonNull;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import java.util.Locale;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.MockitoAnnotations;
+import org.robolectric.Robolectric;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 
 /** Tests for the ShadowCaptioningManager. */
@@ -52,7 +55,7 @@ public final class ShadowCaptioningManagerTest {
     }
 
     @Override
-    public void onUserStyleChanged(@NonNull CaptionStyle userStyle) {
+    public void onUserStyleChanged(@Nonnull CaptionStyle userStyle) {
       captionStyle = userStyle;
     }
 
@@ -185,5 +188,37 @@ public final class ShadowCaptioningManagerTest {
 
     shadowOf(Looper.getMainLooper()).idle();
     assertThat(captioningChangeListener.systemAudioCaptioningUiEnabled).isEqualTo(false);
+  }
+
+  @Test
+  @Config(minSdk = TIRAMISU)
+  public void captioningManager_activityContextEnabled_differentInstancesRetrieveValues() {
+    String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
+    System.setProperty("robolectric.createActivityContexts", "true");
+    try (ActivityController<Activity> controller =
+        Robolectric.buildActivity(Activity.class).setup()) {
+      CaptioningManager applicationCaptioningManager =
+          (CaptioningManager)
+              ApplicationProvider.getApplicationContext()
+                  .getSystemService(Context.CAPTIONING_SERVICE);
+      Activity activity = controller.get();
+      CaptioningManager activityCaptioningManager =
+          (CaptioningManager) activity.getSystemService(Context.CAPTIONING_SERVICE);
+
+      boolean applicationCaptioningEnabled =
+          applicationCaptioningManager.isSystemAudioCaptioningEnabled();
+      boolean activityCaptioningEnabled =
+          activityCaptioningManager.isSystemAudioCaptioningEnabled();
+
+      boolean applicationCaptioningUiEnabled =
+          applicationCaptioningManager.isSystemAudioCaptioningUiEnabled();
+      boolean activityCaptioningUiEnabled =
+          activityCaptioningManager.isSystemAudioCaptioningUiEnabled();
+
+      assertThat(applicationCaptioningEnabled).isEqualTo(activityCaptioningEnabled);
+      assertThat(applicationCaptioningUiEnabled).isEqualTo(activityCaptioningUiEnabled);
+    } finally {
+      System.setProperty("robolectric.createActivityContexts", originalProperty);
+    }
   }
 }

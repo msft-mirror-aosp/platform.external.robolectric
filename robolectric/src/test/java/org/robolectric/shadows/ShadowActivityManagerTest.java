@@ -13,6 +13,7 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.robolectric.Shadows.shadowOf;
 
+import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.ActivityManager.AppTask;
 import android.app.ActivityManager.RecentTaskInfo;
@@ -34,6 +35,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InOrder;
+import org.robolectric.Robolectric;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
 
@@ -478,5 +481,30 @@ public class ShadowActivityManagerTest {
     final ActivityManager.RunningAppProcessInfo info = new ActivityManager.RunningAppProcessInfo();
     info.importanceReasonComponent = name;
     return info;
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void activityManager_activityContextEnabled_retrievesConsistentLowRamDeviceStatus() {
+    String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
+    System.setProperty("robolectric.createActivityContexts", "true");
+    try (ActivityController<Activity> controller =
+        Robolectric.buildActivity(Activity.class).setup()) {
+      ActivityManager applicationActivityManager =
+          (ActivityManager)
+              ApplicationProvider.getApplicationContext()
+                  .getSystemService(Context.ACTIVITY_SERVICE);
+
+      Activity activity = controller.get();
+      ActivityManager activityActivityManager =
+          (ActivityManager) activity.getSystemService(Context.ACTIVITY_SERVICE);
+
+      boolean applicationLowRamStatus = applicationActivityManager.isLowRamDevice();
+      boolean activityLowRamStatus = activityActivityManager.isLowRamDevice();
+
+      assertThat(activityLowRamStatus).isEqualTo(applicationLowRamStatus);
+    } finally {
+      System.setProperty("robolectric.createActivityContexts", originalProperty);
+    }
   }
 }

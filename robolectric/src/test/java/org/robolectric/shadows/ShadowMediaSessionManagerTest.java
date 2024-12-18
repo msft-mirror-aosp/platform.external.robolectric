@@ -1,7 +1,9 @@
 package org.robolectric.shadows;
 
+import static android.os.Build.VERSION_CODES.O;
 import static com.google.common.truth.Truth.assertThat;
 
+import android.app.Activity;
 import android.content.Context;
 import android.media.session.MediaController;
 import android.media.session.MediaSession;
@@ -13,7 +15,11 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.Robolectric;
+import org.robolectric.RuntimeEnvironment;
 import org.robolectric.Shadows;
+import org.robolectric.android.controller.ActivityController;
+import org.robolectric.annotation.Config;
 
 /** Tests for {@link ShadowMediaSessionManager} */
 @RunWith(AndroidJUnit4.class)
@@ -57,5 +63,31 @@ public class ShadowMediaSessionManagerTest {
         .addOnActiveSessionsChangedListener(changedMediaControllers::addAll, null, null);
     Shadows.shadowOf(mediaSessionManager).addController(mediaController);
     assertThat(changedMediaControllers).containsExactly(mediaController);
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void mediaSessionManager_activityContextEnabled_differentInstancesRetrieveSessions() {
+    String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
+    System.setProperty("robolectric.createActivityContexts", "true");
+    try (ActivityController<Activity> controller =
+        Robolectric.buildActivity(Activity.class).setup()) {
+      MediaSessionManager applicationMediaSessionManager =
+          RuntimeEnvironment.getApplication().getSystemService(MediaSessionManager.class);
+      Activity activity = controller.get();
+      MediaSessionManager activityMediaSessionManager =
+          activity.getSystemService(MediaSessionManager.class);
+
+      assertThat(applicationMediaSessionManager).isNotSameInstanceAs(activityMediaSessionManager);
+
+      List<MediaController> applicationControllers =
+          applicationMediaSessionManager.getActiveSessions(null);
+      List<MediaController> activityControllers =
+          activityMediaSessionManager.getActiveSessions(null);
+
+      assertThat(activityControllers).isEqualTo(applicationControllers);
+    } finally {
+      System.setProperty("robolectric.createActivityContexts", originalProperty);
+    }
   }
 }

@@ -6,12 +6,14 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import android.app.Activity;
 import android.app.wearable.WearableSensingManager;
 import android.content.Context;
 import android.os.ParcelFileDescriptor;
 import android.os.PersistableBundle;
 import android.os.SharedMemory;
 import com.google.common.util.concurrent.MoreExecutors;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import org.junit.Rule;
 import org.junit.Test;
@@ -19,7 +21,10 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
+import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
 
@@ -101,5 +106,42 @@ public class ShadowWearableSensingManagerTest {
         Shadow.extract(wearableSensingManager);
 
     shadowWearableSensingManager.getLastSharedMemory();
+  }
+
+  @Test
+  public void wearableSensingManager_activityContextEnabled_differentInstancesProvideDataStream() {
+    String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
+    System.setProperty("robolectric.createActivityContexts", "true");
+    try (ActivityController<Activity> controller =
+        Robolectric.buildActivity(Activity.class).setup()) {
+      WearableSensingManager applicationWearableSensingManager =
+          RuntimeEnvironment.getApplication().getSystemService(WearableSensingManager.class);
+      Activity activity = controller.get();
+      WearableSensingManager activityWearableSensingManager =
+          activity.getSystemService(WearableSensingManager.class);
+
+      assertThat(applicationWearableSensingManager)
+          .isNotSameInstanceAs(activityWearableSensingManager);
+
+      ParcelFileDescriptor applicationPfd =
+          ParcelFileDescriptor.adoptFd(-1); // Placeholder descriptor
+      ParcelFileDescriptor activityPfd = ParcelFileDescriptor.adoptFd(-1); // Placeholder descriptor
+      Executor executor = Runnable::run; // Simple executor for test purposes
+
+      final int[] applicationStatus = new int[1];
+      final int[] activityStatus = new int[1];
+
+      Consumer<Integer> applicationStatusConsumer = status -> applicationStatus[0] = status;
+      Consumer<Integer> activityStatusConsumer = status -> activityStatus[0] = status;
+
+      applicationWearableSensingManager.provideDataStream(
+          applicationPfd, executor, applicationStatusConsumer);
+      activityWearableSensingManager.provideDataStream(
+          activityPfd, executor, activityStatusConsumer);
+
+      assertThat(activityStatus[0]).isEqualTo(applicationStatus[0]);
+    } finally {
+      System.setProperty("robolectric.createActivityContexts", originalProperty);
+    }
   }
 }

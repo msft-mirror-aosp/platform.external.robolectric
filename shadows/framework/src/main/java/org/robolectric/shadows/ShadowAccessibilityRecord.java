@@ -23,7 +23,6 @@ public class ShadowAccessibilityRecord {
   private View sourceRoot;
   private int virtualDescendantId;
   private AccessibilityNodeInfo sourceNode;
-  private int windowId = -1;
 
   @Implementation
   protected void init(AccessibilityRecord model) {
@@ -32,7 +31,6 @@ public class ShadowAccessibilityRecord {
     sourceRoot = modelShadow.sourceRoot;
     virtualDescendantId = modelShadow.virtualDescendantId;
     sourceNode = modelShadow.sourceNode;
-    windowId = modelShadow.windowId;
 
     // Copy realRecord fields.
     reflector(AccessibilityRecordReflector.class, realRecord).init(model);
@@ -79,13 +77,7 @@ public class ShadowAccessibilityRecord {
    */
   @Implementation
   public void setWindowId(int id) {
-    windowId = id;
-  }
-
-  /** Returns the id of the window from which the event comes. */
-  @Implementation
-  protected int getWindowId() {
-    return windowId;
+    reflector(AccessibilityRecordReflector.class, realRecord).setWindowId(id);
   }
 
   public View getSourceRoot() {
@@ -107,5 +99,8 @@ public class ShadowAccessibilityRecord {
 
     @Direct
     void init(AccessibilityRecord model);
+
+    @Direct
+    void setWindowId(int id);
   }
 }

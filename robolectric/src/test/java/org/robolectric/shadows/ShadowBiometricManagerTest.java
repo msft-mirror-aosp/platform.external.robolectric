@@ -9,12 +9,15 @@ import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.R;
 import static com.google.common.truth.Truth.assertThat;
 
+import android.app.Activity;
 import android.hardware.biometrics.BiometricManager;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.Robolectric;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
 
@@ -100,5 +103,28 @@ public class ShadowBiometricManagerTest {
     shadowBiometricManager.setAuthenticatorType(authenticators);
 
     assertThat(biometricManager.canAuthenticate(authenticators)).isEqualTo(BIOMETRIC_SUCCESS);
+  }
+
+  @Test
+  public void biometricManager_activityContextEnabled_differentInstancesRetrieveSameResult() {
+    String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
+    System.setProperty("robolectric.createActivityContexts", "true");
+    try (ActivityController<Activity> controller =
+        Robolectric.buildActivity(Activity.class).setup()) {
+      BiometricManager applicationBiometricManager =
+          ApplicationProvider.getApplicationContext().getSystemService(BiometricManager.class);
+
+      Activity activity = controller.get();
+      BiometricManager activityBiometricManager = activity.getSystemService(BiometricManager.class);
+
+      assertThat(applicationBiometricManager).isNotSameInstanceAs(activityBiometricManager);
+
+      int applicationCanAuthenticate = applicationBiometricManager.canAuthenticate();
+      int activityCanAuthenticate = activityBiometricManager.canAuthenticate();
+
+      assertThat(activityCanAuthenticate).isEqualTo(applicationCanAuthenticate);
+    } finally {
+      System.setProperty("robolectric.createActivityContexts", originalProperty);
+    }
   }
 }

@@ -4,8 +4,6 @@ import static android.os.Build.VERSION_CODES.O;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
-import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
@@ -20,7 +18,11 @@ import android.view.View;
 import android.view.ViewRootImpl;
 import android.view.Window;
 import android.view.WindowManagerGlobal;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.robolectric.annotation.ClassName;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.shadow.api.Shadow;
@@ -39,26 +41,26 @@ import org.robolectric.versioning.AndroidVersions.U;
  * <p>If listenerThread is backed by a paused looper, make sure to call ShadowLooper.idle() to
  * ensure the screenshot finishes.
  */
-@Implements(value = PixelCopy.class, minSdk = O, looseSignatures = true)
+@Implements(value = PixelCopy.class, minSdk = O)
 public class ShadowPixelCopy {
 
   @Implementation
   protected static void request(
       SurfaceView source,
-      @NonNull Bitmap dest,
-      @NonNull OnPixelCopyFinishedListener listener,
-      @NonNull Handler listenerThread) {
+      @Nonnull Bitmap dest,
+      @Nonnull OnPixelCopyFinishedListener listener,
+      @Nonnull Handler listenerThread) {
     takeScreenshot(source, dest, null);
     alertFinished(listener, listenerThread, PixelCopy.SUCCESS);
   }
 
   @Implementation
   protected static void request(
-      @NonNull SurfaceView source,
+      @Nonnull SurfaceView source,
       @Nullable Rect srcRect,
-      @NonNull Bitmap dest,
-      @NonNull OnPixelCopyFinishedListener listener,
-      @NonNull Handler listenerThread) {
+      @Nonnull Bitmap dest,
+      @Nonnull OnPixelCopyFinishedListener listener,
+      @Nonnull Handler listenerThread) {
     if (srcRect != null && srcRect.isEmpty()) {
       throw new IllegalArgumentException("sourceRect is empty");
     }
@@ -68,20 +70,20 @@ public class ShadowPixelCopy {
 
   @Implementation
   protected static void request(
-      @NonNull Window source,
-      @NonNull Bitmap dest,
-      @NonNull OnPixelCopyFinishedListener listener,
-      @NonNull Handler listenerThread) {
+      @Nonnull Window source,
+      @Nonnull Bitmap dest,
+      @Nonnull OnPixelCopyFinishedListener listener,
+      @Nonnull Handler listenerThread) {
     request(source, null, dest, listener, listenerThread);
   }
 
   @Implementation
   protected static void request(
-      @NonNull Window source,
+      @Nonnull Window source,
       @Nullable Rect srcRect,
-      @NonNull Bitmap dest,
-      @NonNull OnPixelCopyFinishedListener listener,
-      @NonNull Handler listenerThread) {
+      @Nonnull Bitmap dest,
+      @Nonnull OnPixelCopyFinishedListener listener,
+      @Nonnull Handler listenerThread) {
     if (srcRect != null && srcRect.isEmpty()) {
       throw new IllegalArgumentException("sourceRect is empty");
     }
@@ -91,11 +93,11 @@ public class ShadowPixelCopy {
 
   @Implementation
   protected static void request(
-      @NonNull Surface source,
+      @Nonnull Surface source,
       @Nullable Rect srcRect,
-      @NonNull Bitmap dest,
-      @NonNull OnPixelCopyFinishedListener listener,
-      @NonNull Handler listenerThread) {
+      @Nonnull Bitmap dest,
+      @Nonnull OnPixelCopyFinishedListener listener,
+      @Nonnull Handler listenerThread) {
     if (srcRect != null && srcRect.isEmpty()) {
       throw new IllegalArgumentException("sourceRect is empty");
     }
@@ -114,9 +116,9 @@ public class ShadowPixelCopy {
 
   @Implementation(minSdk = U.SDK_INT)
   protected static void request(
-      /* PixelCopy.Request */ Object requestObject, /* Executor */
-      Object callbackExecutor, /* Consumer<Result> */
-      Object listener) {
+      @ClassName("android.view.PixelCopy$Request") Object requestObject,
+      Executor callbackExecutor,
+      Consumer</*android.view.PixelCopy$Result*/ ?> listener) {
     PixelCopy.Request request = (PixelCopy.Request) requestObject;
     RequestReflector requestReflector = reflector(RequestReflector.class, request);
     OnPixelCopyFinishedListener legacyListener =
