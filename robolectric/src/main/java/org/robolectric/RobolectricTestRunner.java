@@ -69,7 +69,6 @@ public class RobolectricTestRunner extends SandboxTestRunner {
   private static final int MAX_DATA_DIR_NAME_LENGTH = 120;
   private static final Injector DEFAULT_INJECTOR = defaultInjector().build();
   private static final Map<ManifestIdentifier, AndroidManifest> appManifestsCache = new HashMap<>();
-
   private static final ImmutableList<RunListener> RUN_LISTENERS = loadRunListeners();
 
   static {
@@ -86,15 +85,15 @@ public class RobolectricTestRunner extends SandboxTestRunner {
 
   protected static ImmutableList<RunListener> loadRunListeners() {
     ServiceLoader<RunListener> sl =
-            ServiceLoader.load(RunListener.class, Thread.currentThread().getContextClassLoader());
+        ServiceLoader.load(RunListener.class, Thread.currentThread().getContextClassLoader());
     List<RunListener> runListeners = sl.stream().map(ServiceLoader.Provider::get).toList();
     for (RunListener listener : runListeners) {
       if (!listener.getClass().getPackageName().startsWith("org.robolectric")) {
         Logger.warn(
-                "Adding a non-robolectric maintained RunListener"
-                        + " (via Plugins/ServiceLoader) can lead to instability, use at your own risk.\n"
-                        + "Listener is question : "
-                        + listener.getClass().getName());
+            "Adding a non-robolectric maintained RunListener"
+                + " (via Plugins/ServiceLoader) can lead to instability, use at your own risk.\n"
+                + "Listener is question : "
+                + listener.getClass().getName());
       }
     }
     return ImmutableList.copyOf(runListeners);
