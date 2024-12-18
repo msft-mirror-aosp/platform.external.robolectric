@@ -15,6 +15,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.R;
 import org.robolectric.Robolectric;
+import org.robolectric.annotation.ResourcesMode;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -97,6 +98,7 @@ public class XmlPullParserTest {
   }
 
   @Test
+  @ResourcesMode(ResourcesMode.Mode.BINARY)
   public void buildAttrSet() {
     XmlResourceParser parser =
         (XmlResourceParser)

@@ -2,14 +2,13 @@ package org.robolectric.shadows;
 
 import static android.os.Build.VERSION_CODES.N_MR1;
 import static android.os.Build.VERSION_CODES.O;
+import static android.os.Build.VERSION_CODES.O_MR1;
 import static android.os.Build.VERSION_CODES.TIRAMISU;
 import static com.google.common.base.Preconditions.checkState;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static org.robolectric.shadow.api.Shadow.invokeConstructor;
 import static org.robolectric.util.ReflectionHelpers.callConstructor;
 
-import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.media.MediaCodec;
 import android.media.MediaCodec.BufferInfo;
 import android.media.MediaCodec.CodecException;
@@ -17,6 +16,7 @@ import android.media.MediaCodecInfo;
 import android.media.MediaCodecList;
 import android.media.MediaCrypto;
 import android.media.MediaFormat;
+import android.os.IBinder;
 import android.view.Surface;
 import com.google.common.annotations.VisibleForTesting;
 import java.nio.Buffer;
@@ -29,6 +29,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import org.robolectric.annotation.ClassName;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.RealObject;
@@ -52,7 +55,7 @@ import org.robolectric.versioning.AndroidVersions.U;
  * implementation will present an input buffer, which will be copied to an output buffer once
  * queued, which will be subsequently presented to the callback handler.
  */
-@Implements(value = MediaCodec.class, looseSignatures = true)
+@Implements(value = MediaCodec.class)
 public class ShadowMediaCodec {
   private static final int DEFAULT_BUFFER_SIZE = 512;
   @VisibleForTesting static final int BUFFER_COUNT = 10;
@@ -164,16 +167,26 @@ public class ShadowMediaCodec {
     innerConfigure(keys, values, surface, crypto, flags);
   }
 
-  @Implementation(minSdk = O)
+  @Implementation(minSdk = O, maxSdk = O)
   protected void native_configure(
-      Object keys,
-      Object values,
-      Object surface,
-      Object crypto,
-      Object descramblerBinder,
-      Object flags) {
-    innerConfigure(
-        (String[]) keys, (Object[]) values, (Surface) surface, (MediaCrypto) crypto, (int) flags);
+      String[] keys,
+      Object[] values,
+      Surface surface,
+      MediaCrypto crypto,
+      IBinder descramblerBinder,
+      int flags) {
+    innerConfigure(keys, values, surface, crypto, flags);
+  }
+
+  @Implementation(minSdk = O_MR1)
+  protected void native_configure(
+      String[] keys,
+      Object[] values,
+      Surface surface,
+      MediaCrypto crypto,
+      @ClassName("android.os.IHwBinder") Object descramblerBinder,
+      int flags) {
+    innerConfigure(keys, values, surface, crypto, flags);
   }
 
   private void innerConfigure(
@@ -448,7 +461,7 @@ public class ShadowMediaCodec {
    */
   @Implementation(maxSdk = TIRAMISU)
   protected void validateOutputByteBuffer(
-      @Nullable ByteBuffer[] buffers, int index, @NonNull BufferInfo info) {
+      @Nullable ByteBuffer[] buffers, int index, @Nonnull BufferInfo info) {
     if (buffers != null && index >= 0 && index < buffers.length) {
       Buffer buffer = (Buffer) buffers[index];
       if (buffer != null) {
@@ -459,7 +472,7 @@ public class ShadowMediaCodec {
 
   @Implementation(minSdk = U.SDK_INT)
   protected void validateOutputByteBufferLocked(
-      @Nullable ByteBuffer[] buffers, int index, @NonNull BufferInfo info) {
+      @Nullable ByteBuffer[] buffers, int index, @Nonnull BufferInfo info) {
     validateOutputByteBuffer(buffers, index, info);
   }
 

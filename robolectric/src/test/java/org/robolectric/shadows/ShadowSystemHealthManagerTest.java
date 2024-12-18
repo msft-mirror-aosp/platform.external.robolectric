@@ -1,8 +1,10 @@
 package org.robolectric.shadows;
 
 import static android.os.Build.VERSION_CODES.N;
+import static android.os.Build.VERSION_CODES.O;
 import static com.google.common.truth.Truth.assertThat;
 
+import android.app.Activity;
 import android.content.Context;
 import android.os.Process;
 import android.os.health.HealthStats;
@@ -12,6 +14,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.Robolectric;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
 
@@ -71,5 +75,30 @@ public final class ShadowSystemHealthManagerTest {
     assertThat(stats[0]).isEqualTo(OTHER_UID_1_HEALTH_STATS);
     assertThat(stats[1]).isEqualTo(MY_UID_HEALTH_STATS);
     assertThat(stats[2]).isEqualTo(OTHER_UID_2_HEALTH_STATS);
+  }
+
+  @Test
+  @Config(minSdk = O)
+  public void
+      systemHealthManager_activityContextEnabled_differentInstancesRetrieveSameUidSnapshot() {
+    String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
+    System.setProperty("robolectric.createActivityContexts", "true");
+    try (ActivityController<Activity> controller =
+        Robolectric.buildActivity(Activity.class).setup()) {
+      SystemHealthManager applicationSystemHealthManager =
+          ApplicationProvider.getApplicationContext().getSystemService(SystemHealthManager.class);
+      Activity activity = controller.get();
+      SystemHealthManager activitySystemHealthManager =
+          activity.getSystemService(SystemHealthManager.class);
+
+      assertThat(applicationSystemHealthManager).isNotSameInstanceAs(activitySystemHealthManager);
+
+      HealthStats applicationHealthStats = applicationSystemHealthManager.takeMyUidSnapshot();
+      HealthStats activityHealthStats = activitySystemHealthManager.takeMyUidSnapshot();
+
+      assertThat(activityHealthStats).isEqualTo(applicationHealthStats);
+    } finally {
+      System.setProperty("robolectric.createActivityContexts", originalProperty);
+    }
   }
 }

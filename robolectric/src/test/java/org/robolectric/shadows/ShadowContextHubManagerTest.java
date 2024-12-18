@@ -2,7 +2,14 @@ package org.robolectric.shadows;
 
 import static com.google.common.truth.Truth.assertThat;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
+import android.app.Activity;
 import android.content.Context;
 import android.hardware.location.ContextHubClient;
 import android.hardware.location.ContextHubClientCallback;
@@ -19,6 +26,9 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.Robolectric;
+import org.robolectric.RuntimeEnvironment;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
 
@@ -159,123 +169,125 @@ public class ShadowContextHubManagerTest {
   }
 
   @Test
+  @Config(minSdk = 30)
+  public void contextHubManager_instance_retrievesSameContextHubInfo() {
+    String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
+    System.setProperty("robolectric.createActivityContexts", "true");
+
+    try (ActivityController<Activity> controller =
+        Robolectric.buildActivity(Activity.class).setup()) {
+      ContextHubManager applicationContextHubManager =
+          context.getSystemService(ContextHubManager.class);
+
+      Activity activity = controller.get();
+      ContextHubManager activityContextHubManager =
+          activity.getSystemService(ContextHubManager.class);
+
+      assertThat(applicationContextHubManager).isNotSameInstanceAs(activityContextHubManager);
+
+      List<ContextHubInfo> applicationContextHubs = applicationContextHubManager.getContextHubs();
+      List<ContextHubInfo> activityContextHubs = activityContextHubManager.getContextHubs();
+
+      assertThat(applicationContextHubs).isNotEmpty();
+      assertThat(activityContextHubs).isNotEmpty();
+
+      assertThat(activityContextHubs).isEqualTo(applicationContextHubs);
+    } finally {
+      System.setProperty("robolectric.createActivityContexts", originalProperty);
+    }
+  }
+
+  @Test
   @Config(minSdk = Build.VERSION_CODES.P)
   public void broadcastsFromContextHub_notifiesClient() {
     ContextHubManager contextHubManager = context.getSystemService(ContextHubManager.class);
-    TestContextHubClientCallback callback = new TestContextHubClientCallback();
+    ContextHubClientCallback callback = mock(ContextHubClientCallback.class);
+
     contextHubManager.createClient(null, callback);
 
-    assertThat(callback.onNanoAppLoadedCount).isEqualTo(0);
+    verify(callback, never()).onNanoAppLoaded(any(), anyLong());
 
     ShadowContextHubManager shadowManager = Shadow.extract(contextHubManager);
     shadowManager.broadcastNanoAppLoaded(1);
 
-    assertThat(callback.onNanoAppLoadedCount).isEqualTo(1);
-    assertThat(callback.onMessageFromNanoAppCount).isEqualTo(0);
+    verify(callback).onNanoAppLoaded(any(), anyLong());
+    verify(callback, never()).onMessageFromNanoApp(any(), any());
 
     shadowManager.broadcastMessageFromNanoApp(
         NanoAppMessage.createMessageToNanoApp(1, 1, new byte[0]));
 
-    assertThat(callback.onMessageFromNanoAppCount).isEqualTo(1);
-    assertThat(callback.onHubResetCount).isEqualTo(0);
+    verify(callback).onMessageFromNanoApp(any(), any());
+    verify(callback, never()).onHubReset(any());
 
     shadowManager.resetContextHub();
 
-    assertThat(callback.onHubResetCount).isEqualTo(1);
-    assertThat(callback.onNanoAppAbortedCount).isEqualTo(0);
+    verify(callback).onHubReset(any());
+    verify(callback, never()).onNanoAppAborted(any(), anyLong(), anyInt());
 
     shadowManager.broadcastNanoAppAborted(1, 0);
 
-    assertThat(callback.onNanoAppAbortedCount).isEqualTo(1);
-    assertThat(callback.onNanoAppUnloadedCount).isEqualTo(0);
+    verify(callback).onNanoAppAborted(any(), anyLong(), anyInt());
+    verify(callback, never()).onNanoAppUnloaded(any(), anyLong());
 
     shadowManager.broadcastNanoAppUnloaded(1);
 
-    assertThat(callback.onNanoAppUnloadedCount).isEqualTo(1);
-    assertThat(callback.onNanoAppEnabledCount).isEqualTo(0);
+    verify(callback).onNanoAppUnloaded(any(), anyLong());
+    verify(callback, never()).onNanoAppEnabled(any(), anyLong());
 
     shadowManager.broadcastNanoAppEnabled(1);
 
-    assertThat(callback.onNanoAppEnabledCount).isEqualTo(1);
-    assertThat(callback.onNanoAppDisabledCount).isEqualTo(0);
+    verify(callback).onNanoAppEnabled(any(), anyLong());
+    verify(callback, never()).onNanoAppDisabled(any(), anyLong());
 
     shadowManager.broadcastNanoAppDisabled(1);
 
-    assertThat(callback.onNanoAppDisabledCount).isEqualTo(1);
-    assertThat(callback.onClientAuthorizationChangedCount).isEqualTo(0);
+    verify(callback).onNanoAppDisabled(any(), anyLong());
+    if (RuntimeEnvironment.getApiLevel() >= Build.VERSION_CODES.S) {
+      // onClientAuthorizationChanged was added in S
+      verify(callback, never()).onClientAuthorizationChanged(any(), anyLong(), anyInt());
+    }
   }
 
   @Test
   @Config(minSdk = Build.VERSION_CODES.S)
   public void broadcastsClientAuthorizationChanged_notifiesClient() {
     ContextHubManager contextHubManager = context.getSystemService(ContextHubManager.class);
-    TestContextHubClientCallback callback = new TestContextHubClientCallback();
+    ContextHubClientCallback callback = mock(ContextHubClientCallback.class);
     contextHubManager.createClient(null, callback);
 
-    assertThat(callback.onClientAuthorizationChangedCount).isEqualTo(0);
+    verify(callback, never()).onClientAuthorizationChanged(any(), anyLong(), anyInt());
 
     ShadowContextHubManager shadowManager = Shadow.extract(contextHubManager);
     shadowManager.broadcastClientAuthorizationChanged(1, 2);
 
-    assertThat(callback.onClientAuthorizationChangedCount).isEqualTo(1);
-    assertThat(callback.onNanoAppLoadedCount).isEqualTo(0);
-    assertThat(callback.onMessageFromNanoAppCount).isEqualTo(0);
-    assertThat(callback.onHubResetCount).isEqualTo(0);
-    assertThat(callback.onNanoAppAbortedCount).isEqualTo(0);
-    assertThat(callback.onNanoAppUnloadedCount).isEqualTo(0);
-    assertThat(callback.onNanoAppEnabledCount).isEqualTo(0);
-    assertThat(callback.onNanoAppDisabledCount).isEqualTo(0);
+    verify(callback).onClientAuthorizationChanged(any(), anyLong(), anyInt());
+    verify(callback, never()).onNanoAppLoaded(any(), anyLong());
+    verify(callback, never()).onMessageFromNanoApp(any(), any());
+    verify(callback, never()).onHubReset(any());
+    verify(callback, never()).onNanoAppAborted(any(), anyLong(), anyInt());
+    verify(callback, never()).onNanoAppUnloaded(any(), anyLong());
+    verify(callback, never()).onNanoAppEnabled(any(), anyLong());
+    verify(callback, never()).onNanoAppDisabled(any(), anyLong());
   }
 
-  private static class TestContextHubClientCallback extends ContextHubClientCallback {
-    public int onMessageFromNanoAppCount = 0;
-    public int onHubResetCount = 0;
-    public int onNanoAppAbortedCount = 0;
-    public int onNanoAppLoadedCount = 0;
-    public int onNanoAppUnloadedCount = 0;
-    public int onNanoAppEnabledCount = 0;
-    public int onNanoAppDisabledCount = 0;
-    public int onClientAuthorizationChangedCount = 0;
+  @Test
+  @Config(minSdk = Build.VERSION_CODES.S)
+  public void checkNanoAppLoadedState() {
+    ContextHubManager contextHubManager = context.getSystemService(ContextHubManager.class);
+    ContextHubClientCallback callback = mock(ContextHubClientCallback.class);
+    contextHubManager.createClient(null, callback);
+    List<ContextHubInfo> contextHubInfoList = contextHubManager.getContextHubs();
 
-    @Override
-    public void onMessageFromNanoApp(ContextHubClient client, NanoAppMessage message) {
-      onMessageFromNanoAppCount++;
-    }
+    ShadowContextHubManager shadowManager = Shadow.extract(contextHubManager);
+    shadowManager.broadcastClientAuthorizationChanged(1, 2);
 
-    @Override
-    public void onHubReset(ContextHubClient client) {
-      onHubResetCount++;
-    }
+    long nanoAppId = 5;
+    int nanoAppVersion = 1;
+    shadowManager.addNanoApp(
+        contextHubInfoList.get(0), /* nanoAppUid= */ 0, nanoAppId, nanoAppVersion);
+    assertThat(shadowManager.nanoAppIsLoaded(nanoAppId)).isTrue();
 
-    @Override
-    public void onNanoAppAborted(ContextHubClient client, long nanoAppId, int abortCode) {
-      onNanoAppAbortedCount++;
-    }
-
-    @Override
-    public void onNanoAppLoaded(ContextHubClient client, long nanoAppId) {
-      onNanoAppLoadedCount++;
-    }
-
-    @Override
-    public void onNanoAppUnloaded(ContextHubClient client, long nanoAppId) {
-      onNanoAppUnloadedCount++;
-    }
-
-    @Override
-    public void onNanoAppEnabled(ContextHubClient client, long nanoAppId) {
-      onNanoAppEnabledCount++;
-    }
-
-    @Override
-    public void onNanoAppDisabled(ContextHubClient client, long nanoAppId) {
-      onNanoAppDisabledCount++;
-    }
-
-    @Override
-    public void onClientAuthorizationChanged(
-        ContextHubClient client, long nanoAppId, int authorization) {
-      onClientAuthorizationChangedCount++;
-    }
+    shadowManager.unloadNanoApp(contextHubInfoList.get(0), nanoAppId);
+    assertThat(shadowManager.nanoAppIsLoaded(nanoAppId)).isFalse();
   }
 }

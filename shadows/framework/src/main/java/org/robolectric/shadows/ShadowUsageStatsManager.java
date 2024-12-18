@@ -3,14 +3,13 @@ package org.robolectric.shadows;
 import static android.os.Build.VERSION_CODES.TIRAMISU;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.annotation.TargetApi;
 import android.app.PendingIntent;
 import android.app.PendingIntent.CanceledException;
 import android.app.usage.BroadcastResponseStats;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageEvents.Event;
+import android.app.usage.UsageEventsQuery;
 import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
 import android.app.usage.UsageStatsManager.StandbyBuckets;
@@ -19,15 +18,18 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Parcel;
+import android.os.PersistableBundle;
 import android.util.ArraySet;
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.Range;
 import com.google.common.collect.SetMultimap;
+import com.google.common.primitives.Ints;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,6 +40,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.HiddenApi;
 import org.robolectric.annotation.Implementation;
@@ -45,7 +49,7 @@ import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.Resetter;
 
 /** Shadow of {@link UsageStatsManager}. */
-@Implements(value = UsageStatsManager.class, looseSignatures = true)
+@Implements(value = UsageStatsManager.class)
 public class ShadowUsageStatsManager {
   private static @StandbyBuckets int currentAppStandbyBucket =
       UsageStatsManager.STANDBY_BUCKET_ACTIVE;
@@ -61,14 +65,14 @@ public class ShadowUsageStatsManager {
    * Keys {@link UsageStats} objects by intervalType (e.g. {@link
    * UsageStatsManager#INTERVAL_WEEKLY}).
    */
-  private SetMultimap<Integer, UsageStats> usageStatsByIntervalType =
+  private static SetMultimap<Integer, UsageStats> usageStatsByIntervalType =
       Multimaps.synchronizedSetMultimap(HashMultimap.create());
 
   private static final Map<String, Integer> appStandbyBuckets = Maps.newConcurrentMap();
 
   /** Used with T APIs for {@link BroadcastResponseStats}. */
-  private final Map<String, Map<Long, Object /*BroadcastResponseStats */>> appBroadcastStats =
-      Maps.newConcurrentMap();
+  private static final Map<String, Map<Long, Object /*BroadcastResponseStats */>>
+      appBroadcastStats = Maps.newConcurrentMap();
 
   /**
    * App usage observer registered via {@link UsageStatsManager#registerAppUsageObserver(int,
@@ -79,25 +83,25 @@ public class ShadowUsageStatsManager {
 
     public static AppUsageObserver build(
         int observerId,
-        @NonNull Collection<String> packageNames,
+        @Nonnull Collection<String> packageNames,
         long timeLimit,
-        @NonNull TimeUnit timeUnit,
-        @NonNull PendingIntent callbackIntent) {
+        @Nonnull TimeUnit timeUnit,
+        @Nonnull PendingIntent callbackIntent) {
       return new AutoValue_ShadowUsageStatsManager_AppUsageObserver(
           observerId, ImmutableList.copyOf(packageNames), timeLimit, timeUnit, callbackIntent);
     }
 
     public abstract int getObserverId();
 
-    @NonNull
+    @Nonnull
     public abstract ImmutableList<String> getPackageNames();
 
     public abstract long getTimeLimit();
 
-    @NonNull
+    @Nonnull
     public abstract TimeUnit getTimeUnit();
 
-    @NonNull
+    @Nonnull
     public abstract PendingIntent getCallbackIntent();
   }
 
@@ -113,11 +117,11 @@ public class ShadowUsageStatsManager {
   public abstract static class UsageSessionObserver {
     public static UsageSessionObserver build(
         int observerId,
-        @NonNull List<String> packageNames,
+        @Nonnull List<String> packageNames,
         Duration sessionStepDuration,
         Duration thresholdDuration,
-        @NonNull PendingIntent sessionStepTriggeredIntent,
-        @NonNull PendingIntent sessionEndedIntent) {
+        @Nonnull PendingIntent sessionStepTriggeredIntent,
+        @Nonnull PendingIntent sessionEndedIntent) {
       return new AutoValue_ShadowUsageStatsManager_UsageSessionObserver(
           observerId,
           ImmutableList.copyOf(packageNames),
@@ -129,7 +133,7 @@ public class ShadowUsageStatsManager {
 
     public abstract int getObserverId();
 
-    @NonNull
+    @Nonnull
     public abstract ImmutableList<String> getPackageNames();
 
     @Nullable
@@ -138,10 +142,10 @@ public class ShadowUsageStatsManager {
     @Nullable
     public abstract Duration getThresholdDuration();
 
-    @NonNull
+    @Nonnull
     public abstract PendingIntent getSessionStepTriggeredIntent();
 
-    @NonNull
+    @Nonnull
     public abstract PendingIntent getSessionEndedIntent();
   }
 
@@ -162,10 +166,10 @@ public class ShadowUsageStatsManager {
 
     public AppUsageLimitObserver(
         int observerId,
-        @NonNull List<String> packageNames,
-        @NonNull Duration timeLimit,
-        @NonNull Duration timeUsed,
-        @NonNull PendingIntent callbackIntent) {
+        @Nonnull List<String> packageNames,
+        @Nonnull Duration timeLimit,
+        @Nonnull Duration timeUsed,
+        @Nonnull PendingIntent callbackIntent) {
       this.observerId = observerId;
       this.packageNames = ImmutableList.copyOf(packageNames);
       this.timeLimit = checkNotNull(timeLimit);
@@ -177,22 +181,22 @@ public class ShadowUsageStatsManager {
       return observerId;
     }
 
-    @NonNull
+    @Nonnull
     public ImmutableList<String> getPackageNames() {
       return packageNames;
     }
 
-    @NonNull
+    @Nonnull
     public Duration getTimeLimit() {
       return timeLimit;
     }
 
-    @NonNull
+    @Nonnull
     public Duration getTimeUsed() {
       return timeUsed;
     }
 
-    @NonNull
+    @Nonnull
     public PendingIntent getCallbackIntent() {
       return callbackIntent;
     }
@@ -232,6 +236,21 @@ public class ShadowUsageStatsManager {
     List<Event> results =
         ImmutableList.copyOf(
             Iterables.concat(eventsByTimeStamp.subMap(beginTime, endTime).values()));
+    return createUsageEvents(results);
+  }
+
+  @Implementation(minSdk = Build.VERSION_CODES.VANILLA_ICE_CREAM)
+  protected UsageEvents queryEvents(UsageEventsQuery query) {
+    long beginTime = query.getBeginTimeMillis();
+    long endTime = query.getEndTimeMillis();
+    int[] eventTypes = query.getEventTypes();
+    ImmutableSet<Integer> eventTypesSet = ImmutableSet.copyOf(Ints.asList(eventTypes));
+    List<Event> results = new ArrayList<>();
+    for (Event event : Iterables.concat(eventsByTimeStamp.subMap(beginTime, endTime).values())) {
+      if (eventTypesSet.contains(event.getEventType())) {
+        results.add(event);
+      }
+    }
     return createUsageEvents(results);
   }
 
@@ -586,21 +605,16 @@ public class ShadowUsageStatsManager {
     currentUsageSource = usageSource;
   }
 
-  /**
-   * Requires loose signatures because return value is a list of {@link BroadcastResponseStats},
-   * which is a hidden class introduced in Android T.
-   */
   @SuppressWarnings("unchecked")
   @Implementation(minSdk = TIRAMISU)
-  protected Object /* List<BroadcastResponseStats> */ queryBroadcastResponseStats(
-      @Nullable Object packageName, Object id) {
+  protected List</*android.app.usage.BroadcastResponseStats*/ ?> queryBroadcastResponseStats(
+      @Nullable String packageName, long id) {
     List<BroadcastResponseStats> result = new ArrayList<>();
     for (Map.Entry<String, Map<Long, Object /*BroadcastResponseStats*/>> entry :
         appBroadcastStats.entrySet()) {
       if (packageName == null || entry.getKey().equals(packageName)) {
         result.addAll(
-            (List<BroadcastResponseStats>)
-                queryBroadcastResponseStatsForId(entry.getValue(), (long) id));
+            (List<BroadcastResponseStats>) queryBroadcastResponseStatsForId(entry.getValue(), id));
       }
     }
     return result;
@@ -652,6 +666,9 @@ public class ShadowUsageStatsManager {
     appUsageObserversById.clear();
     usageSessionObserversById.clear();
     appUsageLimitObserversById.clear();
+
+    usageStatsByIntervalType.clear();
+    appBroadcastStats.clear();
   }
 
   /**
@@ -781,6 +798,12 @@ public class ShadowUsageStatsManager {
     public EventBuilder setAppStandbyBucket(int bucket) {
       event.mBucketAndReason &= 0xFFFF;
       event.mBucketAndReason |= bucket << 16;
+      return this;
+    }
+
+    @TargetApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+    public EventBuilder setExtras(PersistableBundle extras) {
+      event.mExtras = extras;
       return this;
     }
   }

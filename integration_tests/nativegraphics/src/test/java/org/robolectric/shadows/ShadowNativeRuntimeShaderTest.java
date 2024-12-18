@@ -3,16 +3,15 @@ package org.robolectric.shadows;
 import static android.os.Build.VERSION_CODES.S;
 import static android.os.Build.VERSION_CODES.S_V2;
 import static android.os.Build.VERSION_CODES.TIRAMISU;
-import static com.google.common.base.StandardSystemProperty.OS_NAME;
 import static com.google.common.truth.TruthJUnit.assume;
 
 import android.graphics.RuntimeShader;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
-import java.util.Locale;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.annotation.Config;
+import org.robolectric.util.OsUtil;
 import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.ReflectionHelpers.ClassParameter;
 import org.robolectric.versioning.AndroidVersions.U;
@@ -56,24 +55,24 @@ public class ShadowNativeRuntimeShaderTest {
   @Before
   public void setup() {
     // The native code behind RuntimeShader is currently not supported on Mac.
-    assume().that(OS_NAME.value().toLowerCase(Locale.US)).doesNotContain("mac");
+    assume().that(OsUtil.isMac()).isFalse();
   }
 
   @Config(minSdk = S, maxSdk = S_V2)
   @Test
   public void testConstructor() {
-    var unused =
-        ReflectionHelpers.callConstructor(
-            RuntimeShader.class,
-            ClassParameter.from(String.class, SKSL),
-            ClassParameter.from(boolean.class, false));
+    ReflectionHelpers.callConstructor(
+        RuntimeShader.class,
+        ClassParameter.from(String.class, SKSL),
+        ClassParameter.from(boolean.class, false));
   }
 
   /** {@link #SKSL} does not compile on V and above. */
+  @SuppressWarnings("CheckReturnValue")
   @Config(minSdk = TIRAMISU, maxSdk = U.SDK_INT)
   @Test
   public void testConstructorT() {
-    var unused = new RuntimeShader(SKSL);
+    new RuntimeShader(SKSL);
   }
 
   @Test
