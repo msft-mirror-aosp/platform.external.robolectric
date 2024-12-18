@@ -36,6 +36,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.shadows.ShadowPowerManager.ShadowLowPowerStandbyPortsLock;
@@ -749,12 +750,12 @@ public class ShadowPowerManagerTest {
   public void powerManager_activityContextEnabled_checkIsInteractive() {
     String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
     System.setProperty("robolectric.createActivityContexts", "true");
-    Activity activity = null;
-    try {
+    try (ActivityController<Activity> controller =
+        Robolectric.buildActivity(Activity.class).setup()) {
       PowerManager applicationPowerManager =
           (PowerManager)
               ApplicationProvider.getApplicationContext().getSystemService(Context.POWER_SERVICE);
-      activity = Robolectric.setupActivity(Activity.class);
+      Activity activity = controller.get();
       PowerManager activityPowerManager =
           (PowerManager) activity.getSystemService(Context.POWER_SERVICE);
 
@@ -765,10 +766,17 @@ public class ShadowPowerManagerTest {
 
       assertThat(activityIsInteractive).isEqualTo(applicationIsInteractive);
     } finally {
-      if (activity != null) {
-        activity.finish();
-      }
       System.setProperty("robolectric.createActivityContexts", originalProperty);
     }
+  }
+
+  @Test
+  public void toString_shouldWork() {
+    PowerManager.WakeLock lock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "TAG");
+    assertThat(lock.toString()).contains("held=false");
+    lock.acquire();
+    assertThat(lock.toString()).contains("held=true");
+    lock.release();
+    assertThat(lock.toString()).contains("held=false");
   }
 }
