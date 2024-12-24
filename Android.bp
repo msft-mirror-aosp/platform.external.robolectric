@@ -160,7 +160,6 @@ java_library_host {
         "Robolectric_utils_upstream",
         "Robolectric_utils_reflector_upstream",
         "Robolectric_nativeruntime_upstream",
-        "ClearcutJunitListener",
         "asm-9.6",
         "junit",
         "asm-tree-9.6",
@@ -174,11 +173,7 @@ java_library_host {
         "robolectric-host-androidx-test-runner_upstream",
         "robolectric-host-org_apache_http_legacy_upstream", //TODO: remove
     ],
-    visibility: [
-        ":__subpackages__",
-        // The library below is debt and should be be removed.
-        "//platform_testing/libraries/runner",
-    ],
+
     java_resource_dirs: [
         "shadows/framework/src/main/resources",
         "src/main/resources",
