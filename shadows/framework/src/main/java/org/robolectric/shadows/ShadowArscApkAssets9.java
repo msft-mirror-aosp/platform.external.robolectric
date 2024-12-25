@@ -242,11 +242,9 @@ public class ShadowArscApkAssets9 extends ShadowApkAssets {
     return apk_assets.GetLoadedArsc().GetStringPool().getNativePtr();
   }
 
-  // static jboolean NativeIsUpToDate(JNIEnv* /*env*/, jclass /*clazz*/, jlong ptr) {
   @Implementation
-  protected static boolean nativeIsUpToDate(long ptr) {
-    // (void)apk_assets;
-    return JNI_TRUE;
+  protected boolean isUpToDate() {
+    return true;
   }
 
   // static jlong NativeOpenXml(JNIEnv* env, jclass /*clazz*/, jlong ptr, jstring file_name) {
