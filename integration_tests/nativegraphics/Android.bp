@@ -62,7 +62,6 @@ android_robolectric_test {
         "truth",
         "guava-android-testlib",
     ],
-    upstream: true,
     java_resource_dirs: ["config"],
     instrumentation_for: "NativeGraphicsPseudoApp",
 
