@@ -226,6 +226,12 @@ java_library {
     ],
 }
 
+java_host_for_device {
+    name: "ClearcutJunitListenerAar",
+    libs: ["ClearcutJunitListener"],
+    visibility: ["//visibility:public"],
+}
+
 // Make Robolectric_all available as a target jar, but treated as an aar
 java_host_for_device {
     name: "Robolectric_all-target_upstream",
