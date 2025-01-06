@@ -12,7 +12,7 @@ package {
 }
 
 java_library {
-    name: "Robolectric_shadows_framework_upstream",
+    name: "Robolectric_shadows_framework",
     host_supported: true,
     device_supported: false,
     srcs: [
@@ -32,15 +32,15 @@ java_library {
         //"-J-verbose",
     ],
     libs: [
-        "Robolectric_annotations_upstream",
-        "Robolectric_nativeruntime_upstream",
-        "Robolectric_resources_upstream",
-        "Robolectric_pluginapi_upstream",
-        "Robolectric_sandbox_upstream",
-        "Robolectric_shadowapi_upstream",
-        "Robolectric_shadows_versioning_upstream",
-        "Robolectric_utils_upstream",
-        "Robolectric_utils_reflector_upstream",
+        "Robolectric_annotations",
+        "Robolectric_nativeruntime",
+        "Robolectric_resources",
+        "Robolectric_pluginapi",
+        "Robolectric_sandbox",
+        "Robolectric_shadowapi",
+        "Robolectric_shadows_versioning",
+        "Robolectric_utils",
+        "Robolectric_utils_reflector",
         "auto_value_annotations",
         "jsr305",
         "icu4j",
@@ -55,13 +55,13 @@ java_library {
         "error_prone_annotations",
         // aar files that make up android and jetpack
         "robolectric-host-android_all",
-        "robolectric-host-androidx-test-core_upstream",
-        "robolectric-host-androidx-test-monitor_upstream",
+        "robolectric-host-androidx-test-core",
+        "robolectric-host-androidx-test-monitor",
     ],
     plugins: [
         "auto_value_plugin_1.9",
         "auto_value_builder_plugin_1.9",
-        "Robolectric_processor_upstream",
+        "Robolectric_processor",
     ],
     errorprone: {
         javacflags: [
