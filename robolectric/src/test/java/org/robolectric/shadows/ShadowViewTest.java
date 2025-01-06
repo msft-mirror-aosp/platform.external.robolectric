@@ -25,7 +25,6 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Looper;
-import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.ContextMenu;
 import android.view.HapticFeedbackConstants;
@@ -60,9 +59,13 @@ import org.robolectric.R;
 import org.robolectric.Robolectric;
 import org.robolectric.android.DeviceConfig;
 import org.robolectric.android.controller.ActivityController;
+import org.robolectric.annotation.GraphicsMode;
+import org.robolectric.annotation.GraphicsMode.Mode;
+import org.robolectric.annotation.ResourcesMode;
 import org.robolectric.util.TestRunnable;
 
 @RunWith(AndroidJUnit4.class)
+@GraphicsMode(Mode.LEGACY)
 public class ShadowViewTest {
   private View view;
   private List<String> transcript;
@@ -356,6 +359,7 @@ public class ShadowViewTest {
   }
 
   @Test
+  @ResourcesMode(ResourcesMode.Mode.BINARY)
   public void shouldAddOnClickListenerFromAttribute() throws Exception {
     AttributeSet attrs =
         Robolectric.buildAttributeSet().addAttribute(android.R.attr.onClick, "clickMe").build();
@@ -365,6 +369,7 @@ public class ShadowViewTest {
   }
 
   @Test
+  @ResourcesMode(ResourcesMode.Mode.BINARY)
   public void shouldCallOnClickWithAttribute() throws Exception {
     MyActivity myActivity = buildActivity(MyActivity.class).create().get();
 
@@ -529,7 +534,7 @@ public class ShadowViewTest {
 
     verifyNoMoreInteractions(listener);
 
-    SystemClock.setCurrentTimeMillis(1000);
+    ShadowSystemClock.advanceBy(Duration.ofMillis(1000));
     shadowMainLooper().idle();
 
     verify(listener).onAnimationStart(animation);

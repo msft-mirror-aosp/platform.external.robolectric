@@ -8,7 +8,6 @@ import static android.os.Build.VERSION_CODES.TIRAMISU;
 import static com.google.common.truth.Truth.assertThat;
 import static java.util.concurrent.TimeUnit.HOURS;
 import static org.robolectric.Shadows.shadowOf;
-import static org.robolectric.util.reflector.Reflector.reflector;
 
 import android.app.Activity;
 import android.app.Application;
@@ -16,6 +15,7 @@ import android.app.PendingIntent;
 import android.app.usage.BroadcastResponseStats;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageEvents.Event;
+import android.app.usage.UsageEventsQuery;
 import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
 import android.content.Context;
@@ -34,15 +34,12 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowUsageStatsManager.AppUsageLimitObserver;
 import org.robolectric.shadows.ShadowUsageStatsManager.AppUsageObserver;
-import org.robolectric.shadows.ShadowUsageStatsManager.EventReflector;
 import org.robolectric.shadows.ShadowUsageStatsManager.UsageSessionObserver;
 import org.robolectric.shadows.ShadowUsageStatsManager.UsageStatsBuilder;
-import org.robolectric.util.reflector.Constructor;
-import org.robolectric.util.reflector.ForType;
-import org.robolectric.util.reflector.WithType;
 import org.robolectric.versioning.AndroidVersions.V;
 
 /** Test for {@link ShadowUsageStatsManager}. */
@@ -1046,14 +1043,14 @@ public class ShadowUsageStatsManagerTest {
   public void usageStatsManager_activityContextEnabled_differentInstancesRetrieveBuckets() {
     String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
     System.setProperty("robolectric.createActivityContexts", "true");
-    Activity activity = null;
-    try {
+    try (ActivityController<Activity> controller =
+        Robolectric.buildActivity(Activity.class).setup()) {
       UsageStatsManager applicationUsageStatsManager =
           (UsageStatsManager)
               ApplicationProvider.getApplicationContext()
                   .getSystemService(Context.USAGE_STATS_SERVICE);
 
-      activity = Robolectric.setupActivity(Activity.class);
+      Activity activity = controller.get();
       UsageStatsManager activityUsageStatsManager =
           (UsageStatsManager) activity.getSystemService(Context.USAGE_STATS_SERVICE);
 
@@ -1064,9 +1061,6 @@ public class ShadowUsageStatsManagerTest {
 
       assertThat(applicationBucket).isEqualTo(activityBucket);
     } finally {
-      if (activity != null) {
-        activity.finish();
-      }
       System.setProperty("robolectric.createActivityContexts", originalProperty);
     }
   }
@@ -1117,15 +1111,10 @@ public class ShadowUsageStatsManagerTest {
                 .setEventType(Event.SYSTEM_INTERACTION)
                 .build());
 
-    Object queryBuilder =
-        reflector(UsageEventsQueryBuilderReflector.class).newBuilder(1000L, 2000L);
-    UsageEventsQueryBuilderReflector queryBuilderReflector =
-        reflector(UsageEventsQueryBuilderReflector.class, queryBuilder);
-    queryBuilderReflector.setEventTypes(
+    UsageEventsQuery.Builder queryBuilder = new UsageEventsQuery.Builder(1000L, 2000L);
+    queryBuilder.setEventTypes(
         Event.MOVE_TO_BACKGROUND, Event.MOVE_TO_FOREGROUND, Event.USER_INTERACTION);
-    UsageEvents events =
-        reflector(UsageStatsManagerReflector.class, usageStatsManager)
-            .queryEvents(queryBuilderReflector.build());
+    UsageEvents events = usageStatsManager.queryEvents(queryBuilder.build());
 
     Event event = new Event();
 
@@ -1146,26 +1135,9 @@ public class ShadowUsageStatsManagerTest {
     assertThat(event.getPackageName()).isEqualTo(TEST_PACKAGE_NAME2);
     assertThat(event.getTimeStamp()).isEqualTo(1500L);
     assertThat(event.getEventType()).isEqualTo(Event.USER_INTERACTION);
-    EventReflector eventReflector = reflector(EventReflector.class, event);
-    extras = eventReflector.getExtras();
+    extras = event.getExtras();
     assertThat(extras.getString("fakekey")).isEqualTo("fakevalue");
 
     assertThat(events.hasNextEvent()).isFalse();
-  }
-
-  // TODO: remove reflection calls once Android V is fully supported.
-  @ForType(UsageStatsManager.class)
-  interface UsageStatsManagerReflector {
-    UsageEvents queryEvents(@WithType("android.app.usage.UsageEventsQuery") Object query);
-  }
-
-  @ForType(className = "android.app.usage.UsageEventsQuery$Builder")
-  interface UsageEventsQueryBuilderReflector {
-    @Constructor
-    Object newBuilder(long beginTimeMillis, long endTimeMillis);
-
-    Object setEventTypes(int... eventTypes);
-
-    Object build();
   }
 }

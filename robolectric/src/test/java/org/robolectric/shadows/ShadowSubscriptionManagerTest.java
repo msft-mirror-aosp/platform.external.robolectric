@@ -8,6 +8,7 @@ import static android.os.Build.VERSION_CODES.P;
 import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.R;
 import static android.os.Build.VERSION_CODES.TIRAMISU;
+import static android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
 import static androidx.test.core.app.ApplicationProvider.getApplicationContext;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
@@ -25,9 +26,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowSubscriptionManager.SubscriptionInfoBuilder;
-import org.robolectric.shadows.testing.TestActivity;
 
 /** Test for {@link ShadowSubscriptionManager}. */
 @RunWith(AndroidJUnit4.class)
@@ -405,6 +406,80 @@ public class ShadowSubscriptionManagerTest {
   }
 
   @Test
+  public void getSubId() {
+    // Explicitly callable without any permissions.
+    shadowOf(subscriptionManager).setReadPhoneStatePermission(false);
+
+    assertThat(SubscriptionManager.getSubId(/* slotIndex= */ 0)).isNull();
+
+    shadowOf(subscriptionManager)
+        .setActiveSubscriptionInfos(
+            SubscriptionInfoBuilder.newBuilder()
+                .setId(123)
+                .setSimSlotIndex(0)
+                .buildSubscriptionInfo(),
+            SubscriptionInfoBuilder.newBuilder()
+                .setId(456)
+                .setSimSlotIndex(1)
+                .buildSubscriptionInfo());
+    int[] subId = SubscriptionManager.getSubId(/* slotIndex= */ 0);
+    assertThat(subId).hasLength(1);
+    assertThat(subId[0]).isEqualTo(123);
+
+    assertThat(SubscriptionManager.getSubId(/* slotIndex= */ 2)).isNull();
+  }
+
+  @Test
+  @Config(minSdk = Q)
+  public void getSubscriptionIds() {
+    // Explicitly callable without any permissions.
+    shadowOf(subscriptionManager).setReadPhoneStatePermission(false);
+
+    assertThat(subscriptionManager.getSubscriptionIds(/* slotIndex= */ 0)).isNull();
+
+    shadowOf(subscriptionManager)
+        .setActiveSubscriptionInfos(
+            SubscriptionInfoBuilder.newBuilder()
+                .setId(123)
+                .setSimSlotIndex(0)
+                .buildSubscriptionInfo(),
+            SubscriptionInfoBuilder.newBuilder()
+                .setId(456)
+                .setSimSlotIndex(1)
+                .buildSubscriptionInfo());
+    int[] subId = subscriptionManager.getSubscriptionIds(/* slotIndex= */ 0);
+    assertThat(subId).hasLength(1);
+    assertThat(subId[0]).isEqualTo(123);
+
+    assertThat(subscriptionManager.getSubscriptionIds(/* slotIndex= */ 2)).isNull();
+  }
+
+  @Test
+  @Config(minSdk = UPSIDE_DOWN_CAKE)
+  public void getSubscriptionId() {
+    // Explicitly callable without any permissions.
+    shadowOf(subscriptionManager).setReadPhoneStatePermission(false);
+
+    assertThat(SubscriptionManager.getSubscriptionId(/* slotIndex= */ 0))
+        .isEqualTo(SubscriptionManager.INVALID_SUBSCRIPTION_ID);
+
+    shadowOf(subscriptionManager)
+        .setActiveSubscriptionInfos(
+            SubscriptionInfoBuilder.newBuilder()
+                .setId(123)
+                .setSimSlotIndex(0)
+                .buildSubscriptionInfo(),
+            SubscriptionInfoBuilder.newBuilder()
+                .setId(456)
+                .setSimSlotIndex(1)
+                .buildSubscriptionInfo());
+    assertThat(SubscriptionManager.getSubscriptionId(/* slotIndex= */ 0)).isEqualTo(123);
+
+    assertThat(SubscriptionManager.getSubscriptionId(/* slotIndex= */ 2))
+        .isEqualTo(SubscriptionManager.INVALID_SUBSCRIPTION_ID);
+  }
+
+  @Test
   public void setMcc() {
     assertThat(
             ShadowSubscriptionManager.SubscriptionInfoBuilder.newBuilder()
@@ -531,13 +606,13 @@ public class ShadowSubscriptionManagerTest {
       subscriptionManager_activityContextEnabled_differentInstancesRetrieveDefaultSubscriptionInfo() {
     String originalProperty = System.getProperty("robolectric.createActivityContexts", "");
     System.setProperty("robolectric.createActivityContexts", "true");
-    Activity activity = null;
-    try {
+    try (ActivityController<Activity> controller =
+        Robolectric.buildActivity(Activity.class).setup()) {
       SubscriptionManager applicationSubscriptionManager =
           (SubscriptionManager)
               RuntimeEnvironment.getApplication()
                   .getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-      activity = Robolectric.setupActivity(TestActivity.class);
+      Activity activity = controller.get();
       SubscriptionManager activitySubscriptionManager =
           (SubscriptionManager) activity.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
 
@@ -551,9 +626,6 @@ public class ShadowSubscriptionManagerTest {
 
       assertThat(applicationDefaultSubscriptionInfo).isEqualTo(activityDefaultSubscriptionInfo);
     } finally {
-      if (activity != null) {
-        activity.finish();
-      }
       System.setProperty("robolectric.createActivityContexts", originalProperty);
     }
   }
