@@ -12,14 +12,14 @@ package {
 }
 
 java_library_host {
-    name: "Robolectric_utils_upstream",
+    name: "Robolectric_utils",
     srcs: ["src/main/java/**/*.java"],
     common_srcs: ["src/main/java/**/*.kt"],
     plugins: ["auto_service_plugin"],
     static_libs: [
         "robolectric-javax.annotation-api-1.2",
-        "Robolectric_annotations_upstream",
-        "Robolectric_pluginapi_upstream",
+        "Robolectric_annotations",
+        "Robolectric_pluginapi",
         "error_prone_annotations",
         "guava",
         "jsr330",
@@ -34,7 +34,7 @@ java_library_host {
 //#############################################
 
 java_test_host {
-    name: "Robolectric_utils_tests_upstream",
+    name: "Robolectric_utils_tests",
     srcs: [
         "src/test/java/**/*.java",
         "src/test/java/**/*.kt",
@@ -43,7 +43,7 @@ java_test_host {
         "auto_service_plugin",
     ],
     static_libs: [
-        "Robolectric_utils_upstream",
+        "Robolectric_utils",
         "hamcrest",
         "guava",
         "junit",

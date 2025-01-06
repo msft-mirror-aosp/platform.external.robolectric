@@ -12,15 +12,15 @@ package {
 }
 
 java_library_host {
-    name: "Robolectric_nativeruntime_upstream",
+    name: "Robolectric_nativeruntime",
     libs: [
-        "Robolectric_annotations_upstream",
-        "Robolectric_shadowapi_upstream",
-        "Robolectric_sandbox_upstream",
-        "Robolectric_resources_upstream",
-        "Robolectric_pluginapi_upstream",
-        "Robolectric_utils_upstream",
-        "Robolectric_utils_reflector_upstream",
+        "Robolectric_annotations",
+        "Robolectric_shadowapi",
+        "Robolectric_sandbox",
+        "Robolectric_resources",
+        "Robolectric_pluginapi",
+        "Robolectric_utils",
+        "Robolectric_utils_reflector",
         "robolectric-accessibility-test-framework-2.1",
         "robolectric-javax.annotation-api-1.2",
         "hamcrest-library",
