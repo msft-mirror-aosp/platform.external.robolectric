@@ -28,7 +28,6 @@ android_robolectric_test {
         "truth",
         "guava",
     ],
-    upstream: true,
     java_resource_dirs: ["src/sharedTest/resources/android"],
     instrumentation_for: "GlobalRobolectricTestStub",
 
