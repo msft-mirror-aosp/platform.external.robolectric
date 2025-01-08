@@ -12,7 +12,7 @@ package {
 }
 
 java_library_host {
-    name: "Robolectric_annotations_upstream",
+    name: "Robolectric_annotations",
     static_libs: [
         "jsr305",
     ],

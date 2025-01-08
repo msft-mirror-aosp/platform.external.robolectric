@@ -53,7 +53,7 @@ license {
 
 // Empty library. Should be removed
 java_library {
-    name: "robolectric_android-all-stub_upstream",
+    name: "robolectric_android-all-stub",
     visibility: ["//visibility:public"],
 }
 
@@ -143,23 +143,23 @@ java_library {
 }
 
 java_library_host {
-    name: "Robolectric_all_upstream",
+    name: "Robolectric_all",
 
     static_libs: [
         "Robolectric-aosp-plugins",
-        "Robolectric_shadows_httpclient_upstream",
-        "Robolectric_shadows_framework_upstream",
-        "Robolectric_shadows_multidex_upstream",
-        "Robolectric_shadows_versioning_upstream",
-        "Robolectric_robolectric_upstream",
-        "Robolectric_annotations_upstream",
-        "Robolectric_resources_upstream",
-        "Robolectric_shadowapi_upstream",
-        "Robolectric_sandbox_upstream",
-        "Robolectric_junit_upstream",
-        "Robolectric_utils_upstream",
-        "Robolectric_utils_reflector_upstream",
-        "Robolectric_nativeruntime_upstream",
+        "Robolectric_shadows_httpclient",
+        "Robolectric_shadows_framework",
+        "Robolectric_shadows_multidex",
+        "Robolectric_shadows_versioning",
+        "Robolectric_robolectric",
+        "Robolectric_annotations",
+        "Robolectric_resources",
+        "Robolectric_shadowapi",
+        "Robolectric_sandbox",
+        "Robolectric_junit",
+        "Robolectric_utils",
+        "Robolectric_utils_reflector",
+        "Robolectric_nativeruntime",
         "asm-9.6",
         "junit",
         "asm-tree-9.6",
@@ -170,8 +170,8 @@ java_library_host {
         "robolectric-sqlite4java-0.282",
         "hamcrest",
         "hamcrest-library",
-        "robolectric-host-androidx-test-runner_upstream",
-        "robolectric-host-org_apache_http_legacy_upstream", //TODO: remove
+        "robolectric-host-androidx-test-runner",
+        "robolectric-host-org_apache_http_legacy", //TODO: remove
     ],
 
     java_resource_dirs: [
@@ -229,15 +229,22 @@ java_library {
 java_host_for_device {
     name: "ClearcutJunitListenerAar",
     libs: ["ClearcutJunitListener"],
-    visibility: ["//visibility:public"],
 }
 
 // Make Robolectric_all available as a target jar, but treated as an aar
+// used for strict mode tests, and doesn't need visibility - as it's added with visibility rules hidden.
+// when used via strict mode.
 java_host_for_device {
-    name: "Robolectric_all-target_upstream",
-    libs: ["Robolectric_all_upstream"],
+    name: "Robolectric_all-target",
+    libs: ["Robolectric_all"],
     visibility: [
         ":__subpackages__",
+        "//packages/apps/Settings/tests/robotests:__pkg__",
+        "//frameworks/base/packages/SettingsLib/tests/robotests:__subpackages__",
+        "//frameworks/base/packages/SettingsLib/DataStore/tests:__pkg__",
+        "//frameworks/base/packages/SettingsLib/Ipc:__pkg__",
+        "//frameworks/base/packages/SettingsLib/Spa/screenshot/robotests:__pkg__",
+
         //java references
         "//frameworks/opt/net/wifi/libs/WifiTrackerLib/tests:__pkg__",
         "//prebuilts/sdk/current/androidx:__pkg__",
@@ -254,7 +261,7 @@ java_host_for_device {
         "//frameworks/base/services/robotests:__pkg__",
         "//frameworks/base/services/robotests/backup:__pkg__",
         "//frameworks/base/packages/CredentialManager:__subpackages__",
-        "//frameworks/base/packages/SettingsLib:__subpackages__",
+
         "//frameworks/base/packages/SystemUI:__pkg__",
         "//frameworks/libs/systemui:__subpackages__",
         "//packages/apps/Launcher3/tests:__pkg__",
@@ -301,34 +308,108 @@ java_host_for_device {
     ],
 }
 
+// Make Robolectric_all available as a target jar, but treated as an aar
+// This has two use case, being added to a android_robolectric_test as either
+// runtime only, or as a compile variable -- as determined by strict_mode in the 
+// android_robolectric_test usage.   
+// Unfortunately developers have also directly depended on robolectric as an artifact
+// Those dependencies should be broken, and devs moved to strict_mode tests.
+java_host_for_device {
+    name: "Robolectric_all-target_upstream",
+    libs: ["Robolectric_all"],
+    visibility: [
+        //java references
+        "//frameworks/opt/net/wifi/libs/WifiTrackerLib/tests:__pkg__",
+        "//prebuilts/sdk/current/androidx:__pkg__",
+        "//prebuilts/sdk/current/androidx/m2repository/androidx/car/app/app-testing/1.4.0-alpha01:__pkg__",
+        "//prebuilts/sdk/current/aaos-libs:__pkg__",
+        "//packages/apps/TV/tests/common:__pkg__",
+        "//external/android_onboarding:__subpackages__",
+        //robolectric tests
+        "//platform_testing/libraries/runner:__pkg__",
+        "//platform_testing/libraries/screenshot/material_components:__pkg__",
+        "//vendor:__subpackages__",
+        "//platform_testing/robolab/roboStandaloneProj/tests:__pkg__",
+        "//external/mobile-data-download/javatests:__pkg__",
+        "//frameworks/base/services/robotests:__pkg__",
+        "//frameworks/base/services/robotests/backup:__pkg__",
+        "//frameworks/base/packages/CredentialManager:__subpackages__",
+
+        "//frameworks/base/packages/SystemUI:__pkg__",
+        "//frameworks/libs/systemui:__subpackages__",
+        "//packages/apps/Launcher3/tests:__pkg__",
+        "//frameworks/base/tests/InputScreenshotTest:__subpackages__",
+        "//frameworks/opt/car/setupwizard/library/main/tests/robotests:__pkg__",
+        "//frameworks/opt/localepicker/tests:__pkg__",
+        "//frameworks/opt/wear/signaldetector/robotests:__pkg__",
+        "//frameworks/opt/wear/robotests:__pkg__",
+        "//packages/modules/Bluetooth/service:__pkg__",
+        "//packages/modules/Connectivity/nearby/tests/multidevices/clients/test_support/snippet_helper/tests:__pkg__",
+        "//packages/modules/Connectivity/nearby/tests/robotests:__pkg__",
+        "//packages/modules/DeviceLock/DeviceLockController/tests/robolectric:__pkg__",
+        "//packages/modules/DeviceLock/tests/unittests:__pkg__",
+        "//packages/services/Car/tests/CarLibTests:__pkg__",
+        "//packages/services/Mms/tests/robotests:__pkg__",
+        "//packages/apps/QuickAccessWallet/tests/robolectric:__pkg__",
+        "//packages/apps/ManagedProvisioning/tests/robotests:__pkg__",
+        "//packages/apps/Car/libs/car-media-common/tests/robotests",
+        "//packages/apps/Car/libs/car-ui-lib",
+        "//packages/apps/Car/Notification/tests/robotests:__pkg__",
+        "//packages/apps/Car/Launcher/libs/appgrid/lib/robotests:__pkg__",
+        "//packages/apps/Car/Cluster/DirectRenderingCluster/tests/robotests:__pkg__",
+        "//packages/apps/Car/Settings/tests/deviceless:__subpackages__",
+        "//packages/apps/Car/Settings/tests/multivalent:__subpackages__",
+        "//packages/apps/Car/Settings/tests/robotests:__pkg__",
+        "//packages/apps/Car/SystemUI:__pkg__",
+        "//packages/apps/EmergencyInfo/tests/robolectric:__pkg__",
+        "//packages/apps/StorageManager/robotests:__pkg__",
+        "//packages/apps/Settings/tests/robotests:__pkg__",
+        "//packages/apps/ThemePicker/tests/robotests:__pkg__",
+        "//packages/apps/WallpaperPicker2/tests/robotests:__pkg__",
+        "//packages/apps/WallpaperPicker2/tests/robotests/common:__pkg__",
+        "//packages/apps/TvSettings/Settings/tests/robotests:__pkg__",
+        "//packages/apps/KeyChain/robotests:__pkg__",
+        "//packages/apps/CertInstaller/robotests:__pkg__",
+        "//packages/providers/MediaProvider:__subpackages__",
+        "//packages/apps/TV:__subpackages__",
+        "//frameworks/base/libs/WindowManager/Shell:__subpackages__",
+        //tm-dev additions
+        "//frameworks/base/packages/BackupEncryption/test/robolectric-integration:__pkg__",
+        "//frameworks/base/packages/BackupEncryption/test/robolectric:__pkg__",
+        "//frameworks/base/packages/SettingsLib/tests/robotests:__subpackages__",
+        "//packages/apps/Settings/tests/screenshot:__pkg__",
+        "//cts/tests:__subpackages__",
+    ],
+}
+
 // Make dependencies available as host jars
 java_device_for_host {
-    name: "robolectric-host-androidx-test-core_upstream",
+    name: "robolectric-host-androidx-test-core",
     libs: ["androidx.test.core"],
 }
 
 java_device_for_host {
-    name: "robolectric-host-androidx-test-ext-junit_upstream",
+    name: "robolectric-host-androidx-test-ext-junit",
     libs: ["androidx.test.ext.junit"],
 }
 
 java_device_for_host {
-    name: "robolectric-host-androidx-test-monitor_upstream",
+    name: "robolectric-host-androidx-test-monitor",
     libs: ["androidx.test.monitor"],
 }
 
 java_device_for_host {
-    name: "robolectric-host-androidx-test-ext-truth_upstream",
+    name: "robolectric-host-androidx-test-ext-truth",
     libs: ["androidx.test.ext.truth"],
 }
 
 java_device_for_host {
-    name: "robolectric-host-androidx-test-runner_upstream",
+    name: "robolectric-host-androidx-test-runner",
     libs: ["androidx.test.runner"],
 }
 
 java_device_for_host {
-    name: "robolectric-host-androidx_upstream",
+    name: "robolectric-host-androidx",
     libs: ["androidx.fragment_fragment"],
 }
 
@@ -338,7 +419,7 @@ java_device_for_host {
 }
 
 java_device_for_host {
-    name: "robolectric-host-android-support-multidex_upstream",
+    name: "robolectric-host-android-support-multidex",
     libs: [
         "android-support-multidex",
         "com.android.support.multidex_1.0.3",
@@ -346,6 +427,6 @@ java_device_for_host {
 }
 
 java_device_for_host {
-    name: "robolectric-host-org_apache_http_legacy_upstream",
+    name: "robolectric-host-org_apache_http_legacy",
     libs: ["org.apache.http.legacy.stubs"],
 }

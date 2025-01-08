@@ -12,13 +12,13 @@ package {
 }
 
 java_library_host {
-    name: "Robolectric_shadowapi_upstream",
+    name: "Robolectric_shadowapi",
     libs: [
         "jsr305",
     ],
     static_libs: [
-        "Robolectric_utils_upstream",
-        "Robolectric_annotations_upstream",
+        "Robolectric_utils",
+        "Robolectric_annotations",
     ],
     srcs: ["src/main/java/**/*.java"],
     openjdk9: {
@@ -32,10 +32,10 @@ java_library_host {
 // Compile Robolectric shadowapi tests
 //#############################################
 java_test_host {
-    name: "Robolectric_shadowapi_tests_upstream",
+    name: "Robolectric_shadowapi_tests",
     srcs: ["src/test/java/**/*.java"],
     static_libs: [
-        "Robolectric_shadowapi_upstream",
+        "Robolectric_shadowapi",
         "hamcrest",
         "guava",
         "junit",
