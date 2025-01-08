@@ -12,9 +12,9 @@ package {
 }
 
 java_library_host {
-    name: "Robolectric_utils_reflector_upstream",
+    name: "Robolectric_utils_reflector",
     static_libs: [
-        "Robolectric_utils_upstream",
+        "Robolectric_utils",
         "asm-9.6",
         "asm-commons-9.6",
         "asm-tree-9.6",
@@ -28,11 +28,11 @@ java_library_host {
 //#############################################
 
 java_test_host {
-    name: "Robolectric_utils_reflector_tests_upstream",
+    name: "Robolectric_utils_reflector_tests",
     srcs: ["src/test/java/**/*.java"],
     static_libs: [
-        "Robolectric_utils_reflector_upstream",
-        "Robolectric_shadowapi_upstream",
+        "Robolectric_utils_reflector",
+        "Robolectric_shadowapi",
         "hamcrest",
         "guava",
         "junit",
