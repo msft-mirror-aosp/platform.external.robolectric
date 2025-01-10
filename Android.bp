@@ -160,6 +160,7 @@ java_library_host {
         "Robolectric_utils",
         "Robolectric_utils_reflector",
         "Robolectric_nativeruntime",
+        "TestParameterInjector",
         "asm-9.6",
         "junit",
         "asm-tree-9.6",
@@ -310,8 +311,8 @@ java_host_for_device {
 
 // Make Robolectric_all available as a target jar, but treated as an aar
 // This has two use case, being added to a android_robolectric_test as either
-// runtime only, or as a compile variable -- as determined by strict_mode in the 
-// android_robolectric_test usage.   
+// runtime only, or as a compile variable -- as determined by strict_mode in the
+// android_robolectric_test usage.
 // Unfortunately developers have also directly depended on robolectric as an artifact
 // Those dependencies should be broken, and devs moved to strict_mode tests.
 java_host_for_device {
