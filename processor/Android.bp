@@ -13,7 +13,7 @@ package {
 }
 
 java_library {
-    name: "libRobolectric_processor_upstream",
+    name: "libRobolectric_processor",
     host_supported: true,
     device_supported: false,
     srcs: ["src/main/java/**/*.java"],
@@ -24,9 +24,9 @@ java_library {
         "auto_service_plugin",
     ],
     static_libs: [
-        "Robolectric_annotations_upstream",
-        "Robolectric_shadowapi_upstream",
-        "Robolectric_shadows_versioning_upstream",
+        "Robolectric_annotations",
+        "Robolectric_shadowapi",
+        "Robolectric_shadows_versioning",
         "asm-9.6",
         "asm-commons-9.6",
         "asm-tree-9.6",
@@ -48,23 +48,23 @@ java_library {
 }
 
 java_plugin {
-    name: "Robolectric_processor_upstream",
+    name: "Robolectric_processor",
     processor_class: "org.robolectric.annotation.processing.RobolectricProcessor",
-    static_libs: ["libRobolectric_processor_upstream"],
+    static_libs: ["libRobolectric_processor"],
 }
 
 //#############################################
 // Compile Robolectric processor tests
 //#############################################
 java_test_host {
-    name: "Robolectric_processor_tests_upstream",
+    name: "Robolectric_processor_tests",
     srcs: ["src/test/java/**/*.java"],
     java_resource_dirs: ["src/test/resources"],
-    java_resources: [":Robolectric_processor_tests_resources_upstream"],
+    java_resources: [":Robolectric_processor_tests_resources"],
     static_libs: [
-        "Robolectric_annotations_upstream",
-        "libRobolectric_processor_upstream",
-        "Robolectric_shadowapi_upstream",
+        "Robolectric_annotations",
+        "libRobolectric_processor",
+        "Robolectric_shadowapi",
         "robolectric-javax.annotation-api-1.2",
         "robolectric-compile-testing-0.19",
         "mockito",
@@ -85,7 +85,7 @@ java_test_host {
 
 // Workaround: java_resource_dirs ignores *.java files
 filegroup {
-    name: "Robolectric_processor_tests_resources_upstream",
+    name: "Robolectric_processor_tests_resources",
     path: "src/test/resources",
     srcs: ["src/test/resources/**/*.java"],
 }

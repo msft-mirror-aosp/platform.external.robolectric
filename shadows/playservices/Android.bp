@@ -3,11 +3,11 @@
 //#############################################
 
 //java_library_host {
-//    name: "Robolectric_shadows_playservices_upstream",
+//    name: "Robolectric_shadows_playservices",
 //    libs: [
-//        "Robolectric_shadows_framework_upstream",
-//        "Robolectric_annotations_upstream",
-//        "Robolectric_shadowapi_upstream",
+//        "Robolectric_shadows_framework",
+//        "Robolectric_annotations",
+//        "Robolectric_shadowapi",
 //        "robolectric-javax.annotation-api-1.2",
 //        "guava",
 //        "robolectric-host-android_all",
@@ -16,7 +16,7 @@
 //   compileOnly "com.google.android.gms:play-services-base:8.4.0"
 //   compileOnly "com.google.android.gms:play-services-basement:8.4.0"
 //    ],
-//    plugins: ["Robolectric_processor_upstream"],
+//    plugins: ["Robolectric_processor"],
 //    javacflags: ["-Aorg.robolectric.annotation.processing.shadowPackage=org.robolectric.shadows.gms"],
 //    srcs: ["src/main/java/**/*.java"],
 //}

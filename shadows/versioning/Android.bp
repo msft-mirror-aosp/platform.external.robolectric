@@ -12,12 +12,12 @@ package {
 }
 
 java_library_host {
-    name: "Robolectric_shadows_versioning_upstream",
+    name: "Robolectric_shadows_versioning",
     srcs: ["src/main/java/**/*.java"],
     static_libs: [
         "robolectric-javax.annotation-api-1.2",
-        "Robolectric_shadowapi_upstream",
-        "Robolectric_utils_upstream",
+        "Robolectric_shadowapi",
+        "Robolectric_utils",
         "jsr305",
     ],
     libs: ["robolectric-host-android_all"],
@@ -28,10 +28,10 @@ java_library_host {
 //#############################################
 
 java_test_host {
-    name: "Robolectric_shadows_versioning_tests_upstream",
+    name: "Robolectric_shadows_versioning_tests",
     srcs: ["src/test/java/**/AndroidVersionsEdgeCaseTest.java"],
     static_libs: [
-        "Robolectric_shadows_versioning_upstream",
+        "Robolectric_shadows_versioning",
         "hamcrest",
         "guava",
         "junit",
@@ -46,7 +46,7 @@ java_test_host {
 //android_robolectric_test {
 //    enabled: true,
 //
-//    name: "Robolectric_shadows_versioning_tests_e2e_upstream",
+//    name: "Robolectric_shadows_versioning_tests_e2e",
 //
 //    srcs: [
 //        "src/**/*.AndroidVersionsTest.java",
@@ -61,5 +61,4 @@ java_test_host {
 //
 //    instrumentation_for: "MyRoboApplication",
 //
-//    upstream: true,
 //}
