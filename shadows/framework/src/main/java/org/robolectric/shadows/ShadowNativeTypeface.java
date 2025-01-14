@@ -211,8 +211,8 @@ public class ShadowNativeTypeface extends ShadowTypeface {
   @InDevelopment
   protected static boolean nativeIsVariationInstance(long nativePtr) {
     return false;
-    //TODO: call the real impl when it's finally available in native binaries
-    //return TypefaceNatives.nativeIsVariationInstance(nativePtr);
+    // TODO: call the real impl when it's finally available in native binaries
+    // return TypefaceNatives.nativeIsVariationInstance(nativePtr);
   }
 
   @Implementation(minSdk = Q, maxSdk = U.SDK_INT)
