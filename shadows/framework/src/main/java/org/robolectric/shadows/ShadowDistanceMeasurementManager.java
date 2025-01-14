@@ -5,7 +5,6 @@ import static android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.IBluetoothGatt;
-import android.bluetooth.IDistanceMeasurement;
 import android.bluetooth.le.DistanceMeasurementManager;
 import android.bluetooth.le.DistanceMeasurementMethod;
 import android.bluetooth.le.DistanceMeasurementParams;
@@ -15,7 +14,6 @@ import android.content.AttributionSource;
 import android.os.CancellationSignal;
 import android.os.ParcelUuid;
 import com.google.common.collect.ImmutableList;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
