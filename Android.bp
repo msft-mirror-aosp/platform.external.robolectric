@@ -224,6 +224,7 @@ java_host_for_device {
         "//frameworks/opt/wear/signaldetector/robotests:__pkg__",
         "//packages/apps/Car/Cluster/DirectRenderingCluster/tests/robotests:__pkg__",
         "//packages/apps/Car/Launcher/libs/appgrid/lib/robotests:__pkg__",
+        "//packages/apps/Car/libs:__pkg__",
         "//packages/apps/Car/Notification/tests/robotests:__pkg__",
         "//packages/apps/Car/Settings/tests/deviceless:__pkg__",
         "//packages/apps/Car/Settings/tests/multivalent:__pkg__",
