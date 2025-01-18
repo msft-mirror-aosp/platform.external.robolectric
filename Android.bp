@@ -224,7 +224,7 @@ java_host_for_device {
         "//frameworks/opt/wear/signaldetector/robotests:__pkg__",
         "//packages/apps/Car/Cluster/DirectRenderingCluster/tests/robotests:__pkg__",
         "//packages/apps/Car/Launcher/libs/appgrid/lib/robotests:__pkg__",
-        "//packages/apps/Car/libs:__pkg__",
+        "//packages/apps/Car/libs/car-ui-lib:__pkg__",
         "//packages/apps/Car/Notification/tests/robotests:__pkg__",
         "//packages/apps/Car/Settings/tests/deviceless:__pkg__",
         "//packages/apps/Car/Settings/tests/multivalent:__pkg__",
@@ -250,8 +250,8 @@ java_host_for_device {
         "//packages/services/Mms/tests/robotests:__pkg__",
         "//platform_testing/libraries/runner:__pkg__",
         "//platform_testing/robolab/roboStandaloneProj/tests:__pkg__",
-        "//prebuilts/sdk/current/aaos-libs:__pkg__", 
-   ],
+        "//prebuilts/sdk/current/aaos-libs:__pkg__",
+    ],
 }
 
 // Make dependencies available as host jars
