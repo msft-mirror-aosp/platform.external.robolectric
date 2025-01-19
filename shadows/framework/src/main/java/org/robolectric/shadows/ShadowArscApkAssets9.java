@@ -5,7 +5,6 @@ import static android.os.Build.VERSION_CODES.Q;
 import static android.os.Build.VERSION_CODES.R;
 import static org.robolectric.res.android.Errors.NO_ERROR;
 import static org.robolectric.res.android.Util.ATRACE_NAME;
-import static org.robolectric.res.android.Util.JNI_TRUE;
 import static org.robolectric.util.reflector.Reflector.reflector;
 
 import android.content.res.ApkAssets;
