@@ -12,13 +12,13 @@ package {
 }
 
 java_library_host {
-    name: "Robolectric_sandbox_upstream",
+    name: "Robolectric_sandbox",
     srcs: ["src/main/java/**/*.java"],
     libs: [
-        "Robolectric_annotations_upstream",
-        "Robolectric_shadowapi_upstream",
-        "Robolectric_utils_reflector_upstream",
-        "Robolectric_utils_upstream",
+        "Robolectric_annotations",
+        "Robolectric_shadowapi",
+        "Robolectric_utils_reflector",
+        "Robolectric_utils",
         "asm-commons-9.6",
         "guava",
         "asm-tree-9.6",
@@ -41,16 +41,16 @@ java_library_host {
 //#############################################
 
 java_test_host {
-    name: "Robolectric_sandbox_tests_upstream",
+    name: "Robolectric_sandbox_tests",
     srcs: ["src/test/java/**/*.java"],
     static_libs: [
-        "Robolectric_annotations_upstream",
-        "Robolectric_shadowapi_upstream",
-        "Robolectric_sandbox_upstream",
-        "Robolectric_utils_reflector_upstream",
-        "Robolectric_utils_upstream",
-        "Robolectric_junit_upstream",
-        "mockito",
+        "Robolectric_annotations",
+        "Robolectric_shadowapi",
+        "Robolectric_sandbox",
+        "Robolectric_utils_reflector",
+        "Robolectric_utils",
+        "Robolectric_junit",
+        "mockito-robolectric-prebuilt",
         "hamcrest",
         "asm-commons-9.6",
         "guava",

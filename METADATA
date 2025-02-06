@@ -5,11 +5,11 @@ third_party {
     type: GIT
     value: "https://github.com/robolectric/robolectric"
   }
-  version: "68ec9953ea0ac7c47588db540145a728a1f00ba8"
+  version: "e20c1a2e0fa650910c04ac845d98f8046121cbd7"
   license_type: NOTICE
   last_upgrade_date {
-    year: 2023
-    month: 5
+    year: 2025
+    month: 1
     day: 24
   }
 }

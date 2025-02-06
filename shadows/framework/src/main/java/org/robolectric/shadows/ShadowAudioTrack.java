@@ -1,6 +1,7 @@
 package org.robolectric.shadows;
 
 import static android.media.AudioTrack.ERROR_DEAD_OBJECT;
+import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.P;
@@ -66,7 +67,7 @@ public class ShadowAudioTrack {
      * @param audioData The data that is written to the {@link ShadowAudioTrack}.
      * @param format The output format of the {@link ShadowAudioTrack}.
      */
-    void onAudioDataWritten(ShadowAudioTrack audioTrack, byte[] audioData, AudioFormat format);
+    void onAudioDataWritten(AudioTrack audioTrack, byte[] audioData, AudioFormat format);
   }
 
   protected static final int DEFAULT_MIN_BUFFER_SIZE = 1024;
@@ -97,6 +98,7 @@ public class ShadowAudioTrack {
 
   private int numBytesReceived;
   private PlaybackParams playbackParams;
+  private int latencyMs;
   @RealObject AudioTrack audioTrack;
 
   /**
@@ -351,7 +353,7 @@ public class ShadowAudioTrack {
 
     numBytesReceived += audioData.length;
     for (OnAudioDataWrittenListener listener : audioDataWrittenListeners) {
-      listener.onAudioDataWritten(this, audioData, audioTrack.getFormat());
+      listener.onAudioDataWritten(audioTrack, audioData, audioTrack.getFormat());
     }
 
     return audioData.length;
@@ -384,6 +386,21 @@ public class ShadowAudioTrack {
     playbackParams = checkNotNull(params, "Illegal null params");
   }
 
+  /**
+   * Sets the estimated latency of this {@link AudioTrack} that will be returned by {@code
+   * AudioTrack.getLatency()}, in milliseconds.
+   */
+  @RequiresApi(LOLLIPOP)
+  public void setLatency(int latencyMs) {
+    this.latencyMs = latencyMs;
+  }
+
+  /** Returns the estimated latency of this {@link AudioTrack}, in milliseconds. */
+  @Implementation(minSdk = LOLLIPOP)
+  protected int native_get_latency() {
+    return latencyMs;
+  }
+
   @Implementation(minSdk = M)
   @Nonnull
   protected PlaybackParams getPlaybackParams() {
@@ -392,7 +409,7 @@ public class ShadowAudioTrack {
 
   @Implementation
   protected int getPlaybackHeadPosition() {
-    return numBytesReceived / audioTrack.getFormat().getFrameSizeInBytes();
+    return numBytesReceived / getFrameSizeInBytes();
   }
 
   @Implementation
@@ -451,6 +468,72 @@ public class ShadowAudioTrack {
         return true;
       default:
         return false;
+    }
+  }
+
+  /**
+   * Return the frame size in bytes. See {@link AudioFormat#getFrameSizeInBytes()}.
+   *
+   * <p>As {@link AudioFormat#getFrameSizeInBytes()} is only available from API 29, this method
+   * manually calculates the frame size in bytes from encoding and channel count for APIs lower than
+   * 29, which further supports {@link #getPlaybackHeadPosition()} (available from API 3) for APIs
+   * lower than 29.
+   */
+  private int getFrameSizeInBytes() {
+    if (VERSION.SDK_INT >= Q) {
+      return audioTrack.getFormat().getFrameSizeInBytes();
+    }
+
+    int frameSizeInBytes;
+    int encoding = audioTrack.getAudioFormat();
+    if (isEncodingLinearPcm(encoding)) {
+      frameSizeInBytes = audioTrack.getChannelCount() * getBytesPerSample(encoding);
+    } else {
+      frameSizeInBytes = 1;
+    }
+    return frameSizeInBytes;
+  }
+
+  private static boolean isEncodingLinearPcm(int encoding) {
+    switch (encoding) {
+      case AudioFormat.ENCODING_PCM_8BIT:
+      case AudioFormat.ENCODING_PCM_16BIT:
+      case AudioFormat.ENCODING_PCM_FLOAT:
+      case AudioFormat.ENCODING_DEFAULT:
+        return true;
+      case AudioFormat.ENCODING_AC3:
+      case AudioFormat.ENCODING_E_AC3:
+      case AudioFormat.ENCODING_E_AC3_JOC:
+      case AudioFormat.ENCODING_DTS:
+      case AudioFormat.ENCODING_DTS_HD:
+      case AudioFormat.ENCODING_MP3:
+      case AudioFormat.ENCODING_AAC_LC:
+      case AudioFormat.ENCODING_AAC_HE_V1:
+      case AudioFormat.ENCODING_AAC_HE_V2:
+      case AudioFormat.ENCODING_IEC61937: // wrapped in PCM but compressed
+      case AudioFormat.ENCODING_AAC_ELD:
+      case AudioFormat.ENCODING_AAC_XHE:
+      case AudioFormat.ENCODING_AC4:
+        return false;
+      case AudioFormat.ENCODING_INVALID:
+      default:
+        throw new IllegalArgumentException("Bad encoding: " + encoding);
+    }
+  }
+
+  private static int getBytesPerSample(int encoding) {
+    switch (encoding) {
+      case AudioFormat.ENCODING_PCM_8BIT:
+        return 1;
+      case AudioFormat.ENCODING_PCM_16BIT:
+      case AudioFormat.ENCODING_IEC61937:
+      case AudioFormat.ENCODING_DEFAULT:
+        return 2;
+      case AudioFormat.ENCODING_PCM_FLOAT:
+        return 4;
+      case AudioFormat.ENCODING_INVALID:
+      default:
+        throw new IllegalArgumentException("Bad encoding: " + encoding);
     }
   }
 
