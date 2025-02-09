@@ -50,7 +50,7 @@ java_test_host {
         "Robolectric_utils_reflector",
         "Robolectric_utils",
         "Robolectric_junit",
-        "mockito",
+        "mockito-robolectric-prebuilt",
         "hamcrest",
         "asm-commons-9.6",
         "guava",
