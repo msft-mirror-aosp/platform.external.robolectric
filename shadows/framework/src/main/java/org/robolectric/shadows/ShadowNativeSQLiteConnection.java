@@ -8,11 +8,13 @@ import static android.os.Build.VERSION_CODES.S_V2;
 import android.database.sqlite.SQLiteConnection;
 import java.util.function.BinaryOperator;
 import java.util.function.UnaryOperator;
+import org.robolectric.annotation.InDevelopment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.nativeruntime.DefaultNativeRuntimeLoader;
 import org.robolectric.nativeruntime.SQLiteConnectionNatives;
 import org.robolectric.util.PerfStatsCollector;
+import org.robolectric.versioning.AndroidVersions.Baklava;
 import org.robolectric.versioning.AndroidVersions.T;
 import org.robolectric.versioning.AndroidVersions.U;
 
@@ -22,6 +24,16 @@ import org.robolectric.versioning.AndroidVersions.U;
     isInAndroidSdk = false,
     callNativeMethodsByDefault = true)
 public class ShadowNativeSQLiteConnection extends ShadowSQLiteConnection {
+  
+  /**
+   * TODO: rexhoffman@google.com delete when new .so is available.
+   */
+  @InDevelopment
+  @Implementation(minSdk=Baklava.SDK_INT)
+  protected static void nativeClose(long connectionPtr, boolean fast) {
+    nativeClose(connectionPtr);
+  }
+
   @Implementation(maxSdk = O)
   protected static long nativeOpen(
       String path, int openFlags, String label, boolean enableTrace, boolean enableProfile) {
