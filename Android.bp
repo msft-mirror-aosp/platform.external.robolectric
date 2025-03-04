@@ -208,6 +208,7 @@ java_host_for_device {
         "//frameworks/base/packages/SettingsLib/DataStore/tests:__pkg__",
         "//frameworks/base/packages/SettingsLib/Ipc:__pkg__",
         "//frameworks/base/packages/SettingsLib/Spa/screenshot/robotests:__pkg__",
+        "//frameworks/base/packages/SettingsLib/SpaPrivileged/tests/robotests:__pkg__",
         "//frameworks/base/packages/SettingsLib/tests/robotests:__pkg__",
         "//frameworks/base/packages/SettingsLib/tests/robotests/fragment:__pkg__",
         "//frameworks/base/packages/SystemUI:__pkg__",
