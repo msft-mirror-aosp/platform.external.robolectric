@@ -14,6 +14,7 @@ import org.robolectric.annotation.Implements;
 import org.robolectric.nativeruntime.DefaultNativeRuntimeLoader;
 import org.robolectric.nativeruntime.SQLiteConnectionNatives;
 import org.robolectric.util.PerfStatsCollector;
+import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.versioning.AndroidVersions.Baklava;
 import org.robolectric.versioning.AndroidVersions.T;
 import org.robolectric.versioning.AndroidVersions.U;
@@ -28,10 +29,10 @@ public class ShadowNativeSQLiteConnection extends ShadowSQLiteConnection {
   /**
    * TODO: rexhoffman@google.com delete when new .so is available.
    */
-  @InDevelopment
-  @Implementation(minSdk=Baklava.SDK_INT)
+  @Implementation(maxSdk=U.SDK_INT)
   protected static void nativeClose(long connectionPtr, boolean fast) {
-    nativeClose(connectionPtr);
+    PerfStatsCollector.getInstance()
+            .measure("androidsqlite", () -> SQLiteConnectionNatives.nativeClose(connectionPtr));
   }
 
   @Implementation(maxSdk = O)
