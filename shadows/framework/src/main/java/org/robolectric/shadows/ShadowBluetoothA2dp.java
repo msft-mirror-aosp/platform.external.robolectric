@@ -23,9 +23,11 @@ import javax.annotation.Nullable;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
+import org.robolectric.annotation.InDevelopment;
 import org.robolectric.annotation.RealObject;
 import org.robolectric.util.reflector.Direct;
 import org.robolectric.util.reflector.ForType;
+import org.robolectric.versioning.AndroidVersions;
 
 /** Shadow of {@link BluetoothA2dp}. */
 @Implements(BluetoothA2dp.class)
@@ -198,8 +200,15 @@ public class ShadowBluetoothA2dp {
     void verifyDeviceNotNull(BluetoothDevice device, String methodName);
   }
 
-  @Implementation(minSdk = R)
-  protected void verifyDeviceNotNull(BluetoothDevice device, String methodName) {
+  @InDevelopment
+  @Implementation(minSdk = R, maxSdk = AndroidVersions.V.SDK_INT, methodName = "verifyDeviceNotNull")
+  protected void verifyDeviceNotNullPreBaklava(BluetoothDevice device, String methodName) {
     reflector(BluetoothA2dpReflector.class, realObject).verifyDeviceNotNull(device, methodName);
+  }
+
+  @InDevelopment
+  @Implementation(minSdk = AndroidVersions.Baklava.SDK_INT)
+  protected static void verifyDeviceNotNull(BluetoothDevice device, String methodName) {
+    reflector(BluetoothA2dpReflector.class).verifyDeviceNotNull(device, methodName);
   }
 }
