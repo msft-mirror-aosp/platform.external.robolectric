@@ -72,14 +72,6 @@ public class ShadowNativeSQLiteConnection extends ShadowSQLiteConnection {
   }
 
   @Implementation(maxSdk = U.SDK_INT)
-  protected static long nativePrepareStatement(long connectionPtr, String sql) {
-    return PerfStatsCollector.getInstance()
-        .measure(
-            "androidsqlite",
-            () -> SQLiteConnectionNatives.nativePrepareStatement(connectionPtr, sql));
-  }
-
-  @Implementation(maxSdk = U.SDK_INT)
   protected static void nativeFinalizeStatement(long connectionPtr, long statementPtr) {
     PerfStatsCollector.getInstance()
         .measure(

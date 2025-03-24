@@ -40,8 +40,6 @@ public class SQLiteConnectionNatives {
 
   public static native void nativeClose(long connectionPtr);
 
-  public static native void nativeClose(long connectionPtr, boolean fast);
-
   public static native void nativeRegisterCustomScalarFunction(
       long connectionPtr, String name, UnaryOperator<String> function);
 

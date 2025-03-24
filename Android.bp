@@ -117,6 +117,8 @@ java_library {
         "robolectric_tzdata",
         "robolectric_framework_res",
         "robolectric_props_jar",
+        "robolectric_nativeruntime_native_prebuilt_main",
+        "icu-data_host_robolectric",
     ],
     // WARNING: DO NOT ADD NEW DEPENDENCIES ON THIS MODULE OR ITS DIST JAR
     // This dist jar is an internal implementation detail. For external Gradle builds (outside
