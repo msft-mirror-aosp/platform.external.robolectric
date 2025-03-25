@@ -22,6 +22,7 @@ import org.robolectric.annotation.experimental.LazyApplication;
 import org.robolectric.internal.AndroidSandbox;
 import org.robolectric.manifest.AndroidManifest;
 import org.robolectric.pluginapi.config.ConfigurationStrategy;
+import org.robolectric.shadows.ShadowView;
 
 /** Loads an apk into the simulator */
 public class AppLoader implements Runnable {
@@ -37,11 +38,14 @@ public class AppLoader implements Runnable {
 
   @Override
   public void run() {
+    Thread.currentThread().setContextClassLoader(sandbox.getRobolectricClassLoader());
+
     AndroidManifest manifest = new AndroidManifest(null, null, null, null, "", this.apkPath);
 
     this.sandbox
         .getTestEnvironment()
         .setUpApplicationState("simulator", new FixedConfiguration(), manifest);
+    ShadowView.setUseRealViewAnimations(true);
 
     Application application = RuntimeEnvironment.getApplication();
 
@@ -54,7 +58,6 @@ public class AppLoader implements Runnable {
         application.getPackageManager().queryIntentActivities(intent, 0);
 
     Preconditions.checkArgument(!resolveInfoList.isEmpty());
-    // Start the first Activity
 
     ResolveInfo resolveInfo = resolveInfoList.get(0);
     ActivityInfo activityInfo = resolveInfo.activityInfo;
